@@ -1,0 +1,131 @@
+# Unity generated files
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+[Cc]rash[Rr]eports/
+*.csproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+sysinfo.txt
+
+# Unity large asset/package imports
+*.unitypackage
+*.assetpackage
+AssetStoreTools*
+DownloadedAssets/
+ExternalAssets/
+ThirdPartyAssets/
+
+# ROS2 / colcon generated files
+build/
+install/
+log/
+.colcon/
+*.repos.lock
+
+# Gazebo / simulator caches
+.gazebo/
+models_cache/
+fuel_cache/
+
+# rosbag / datasets / generated sensor data
+rosbag2_*/
+bags/
+bagfiles/
+datasets/
+recordings/
+*.bag
+*.db3
+*.mcap
+*.pcd
+*.ply
+*.las
+*.laz
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+.venv_*/
+venv/
+env/
+
+# CMake / native build
+CMakeFiles/
+CMakeCache.txt
+cmake-build-*/
+compile_commands.json
+*.o
+*.so
+*.a
+
+# Node / editor tooling
+node_modules/
+.vscode/
+.idea/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.swo
+
+# Secrets and local machine state
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+*.token
+*.secret
+id_rsa*
+id_ed25519*
+
+# Project-local external work directories kept under VLN but not tracked
+VLN_REFERENCE_LIBRARY/
+reference_library/
+references_raw/
+unity_ros2_ws/
+UnityProjects/
+VLN_ASSETS_CACHE/
+VLN_BAGS/
+VLN_REFERENCE_LIBRARY_DUPLICATE_*/
+_moved_from_home/
+
+# Unity Hub / Editor local install state
+tools/unityhub_download/
+tools/unityhub_extracted_*/
+.unity_user/
+UnityEditors/
+
+# Project memory logs must stay trackable
+!logs/
+!logs/*.md
+
+# Large downloaded installers kept locally only
+Unity-*.tar.xz
+*.tar.xz
