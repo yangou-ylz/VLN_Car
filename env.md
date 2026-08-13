@@ -156,6 +156,134 @@ curl -I https://github.com
 - 正式 Unity 工程：`/home/ubuntu22/VLN/UnityProjects/VLN_Offroad`。
 - 固定打开脚本：`/home/ubuntu22/VLN/scripts/open_unity_vln_project.sh`。
 - 已导入项目级 Unity 包：`com.unity.robotics.ros-tcp-connector`，来源为 `https://github.com/Unity-Technologies/ROS-TCP-Connector.git?path=/com.unity.robotics.ros-tcp-connector`，当前锁定 hash `c27f00c6cf750d2d0564349b3039d19aa3925e7c`。
+- 已导入项目级 Unity 包：`com.frj.unity-sensors` 与 `com.frj.unity-sensors-ros`，来源为 `https://github.com/Field-Robotics-Japan/UnitySensors.git`，当前锁定 hash `91698e3593abdb04baac022a670cc52fee027238`。
+- 已导入项目级 Unity 包：`com.unity.ugui` `1.0.0`，用于满足 UnitySensors sample/UI 相关编译引用。
+- 已导入项目级 Unity 包：`com.unity.test-framework` `1.1.33`，连带 `com.unity.ext.nunit` `1.0.6`，用于满足 UnitySensors 包内 Tests asmdef 对 `UnityEngine.TestRunner`、`UnityEditor.TestRunner` 和 `nunit.framework.dll` 的引用。注意：这是 Unity 工程内 UPM 依赖，不是系统包、Python 包或 Conda 包。
+- Unity ROS2 编译符号：`ProjectSettings/ProjectSettings.asset` 中 `Standalone: ROS2`。
+- Unity-ROS2 最小通信闭环脚本：`/home/ubuntu22/VLN/scripts/run_ros2_unity_smoke_test.sh`。
+
+### UnitySensors 相机图像闭环验收
+
+一键运行：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_unitysensors_image_smoke_test.sh
+```
+
+脚本会自动启动 `ROS-TCP-Endpoint`，运行 Unity 批处理相机场景，并用 ROS2 Python 节点等待一个 `sensor_msgs/msg/Image` 消息。
+
+当前固定相机输出：
+
+- 图像 topic：`/vln/front/image_raw`
+- 图像类型：`sensor_msgs/msg/Image`
+- 相机内参 topic：`/vln/front/camera_info`
+- 相机内参类型：`sensor_msgs/msg/CameraInfo`
+- frame：`front_camera_optical_frame`
+- 分辨率：640x480
+- 编码：`rgb8`
+- 初期频率：约 5Hz
+
+成功输出：
+
+```text
+VLN_UNITYSENSORS_IMAGE_SMOKE_TEST_PASS
+```
+
+最近一次通过日志：`/home/ubuntu22/VLN/UnityProjects/_SmokeTestLogs/vln_image_20260813_230503`。
+
+手工只看 ROS2 侧时，可在 endpoint 和 Unity 场景运行期间执行：
+
+```bash
+ros2env
+source /home/ubuntu22/VLN/unity_ros2_ws/install/setup.bash
+ros2 topic list -t | grep /vln/front
+ros2 topic hz /vln/front/image_raw
+python3 /home/ubuntu22/VLN/scripts/ros2_wait_for_image_once.py --topic /vln/front/image_raw --width 640 --height 480 --encoding rgb8 --frame-id front_camera_optical_frame --timeout 20
+```
+
+### UnitySensors LiDAR 点云闭环验收
+
+一键运行：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_unitysensors_lidar_smoke_test.sh
+```
+
+脚本会自动启动 `ROS-TCP-Endpoint`，运行 Unity 批处理 LiDAR 场景，并用 ROS2 Python 节点等待一个 `sensor_msgs/msg/PointCloud2` 消息。
+
+当前固定 LiDAR 输出：
+
+- 点云 topic：`/vln/lidar/points`
+- 点云类型：`sensor_msgs/msg/PointCloud2`
+- frame：`lidar_link`
+- scan pattern：UnitySensors VLP-16
+- 点数：7200 点/帧
+- `point_step`：16 bytes
+- 初期频率：约 5Hz
+- 当前带宽：约 0.6 MB/s
+
+成功输出：
+
+```text
+VLN_UNITYSENSORS_LIDAR_SMOKE_TEST_PASS
+```
+
+最近一次通过日志：`/home/ubuntu22/VLN/UnityProjects/_SmokeTestLogs/vln_lidar_20260813_230736`。
+
+手工只看 ROS2 侧时，可在 endpoint 和 Unity 场景运行期间执行：
+
+```bash
+ros2env
+source /home/ubuntu22/VLN/unity_ros2_ws/install/setup.bash
+ros2 topic list -t | grep /vln/lidar
+ros2 topic hz /vln/lidar/points
+ros2 topic bw /vln/lidar/points
+python3 /home/ubuntu22/VLN/scripts/ros2_wait_for_pointcloud2_once.py --topic /vln/lidar/points --width 7200 --point-step 16 --frame-id lidar_link --timeout 20 --min-nonzero-points 20
+```
+
+手工可视化点云时，先启动 endpoint，再在 Unity 中打开 `Assets/VLN/Scenes/UnitySensorsLidarSmokeTest.unity` 并点击 Play。另开终端执行：
+
+```bash
+/home/ubuntu22/VLN/scripts/view_lidar_rviz.sh
+```
+
+该脚本使用固定 RViz 配置 `/home/ubuntu22/VLN/config/vln_lidar_pointcloud.rviz`：`Fixed Frame` 为 `map`，显示项为 `PointCloud2`，topic 为 `/vln/lidar/points`，并临时发布 `map -> lidar_link` 静态 TF。当前阶段还没有正式 `map -> odom -> base_link -> lidar_link` TF 树，所以这是手工可视化用的临时补丁；后续标准化阶段再补正式 TF。
+
+注意：RViz 左侧 `VLN LiDAR PointCloud2` 显示 `Status: OK` 只代表配置、topic 类型和 TF 没有明显错误，不代表当前一定收到了新的点云帧。如果画面只有网格，先运行：
+
+```bash
+/home/ubuntu22/VLN/scripts/check_manual_visualization_state.sh
+```
+
+该脚本会短时间等待 `/vln/lidar/points` 的一帧 `PointCloud2`，并检查有效非零点数量。只有它输出 `LiDAR 正在实时发布有效点云帧`，RViz 才应该能看到点云。若脚本提示未收到有效点云帧，优先确认 Unity 当前打开的是 `UnitySensorsLidarSmokeTest.unity`，并且顶部 Play 按钮是蓝色。
+
+当前 RViz 配置的 `Decay Time` 设置为 `2` 秒，原因是 UnitySensors 的 VLP-16 scan pattern 总长度为 57600 个方向，而当前测试场景每帧只发布 7200 点、5Hz；也就是每 8 帧扫完一整圈，约 1.6 秒。如果 `Decay Time=0`，RViz 只显示最新一帧，看起来会像一个不停旋转的扇形扫描片；保留最近 2 秒后，视觉上更接近传统 LiDAR 的稳定 360 度点云阵列。这个改动只影响 RViz 显示，不改变 ROS2 topic 的真实数据。
+
+手工看图像时不要直接运行 `rqt_image_view /vln/front/image_raw`；当前机器有 `rqt_image_view` 包但没有独立 shell 命令。使用：
+
+```bash
+/home/ubuntu22/VLN/scripts/view_front_image.sh
+```
+
+如果需要排查 endpoint、Unity Play 和 topic 状态，使用：
+
+```bash
+/home/ubuntu22/VLN/scripts/check_manual_visualization_state.sh
+```
+
+如果 Unity 的 `Game` 面板在 `UnitySensorsImageSmokeTest.unity` 中显示 `No cameras rendering`，但 rqt 能看到 `/vln/front/image_raw`，说明 ROS 图像链路已经通了，只是旧场景没有普通 Unity 展示相机。当前场景构建器已补 `ImageSmokeTest_ViewerCamera`；关闭 Unity 后运行以下命令可重建轻量 smoke 场景：
+
+```bash
+/home/ubuntu22/VLN/scripts/rebuild_unity_smoke_scenes.sh
+```
+
+如果 Unity Editor 卡死无法退出，另开终端运行：
+
+```bash
+/home/ubuntu22/VLN/scripts/stop_unity_vln_project.sh
+```
+
+该脚本会先温和结束 VLN 工程相关 Unity 进程，必要时强制结束，并把残留 `ArtifactDB-lock`、`SourceAssetDB-lock` 移动到 `_ManualRecoveryLogs`。不要手工删除整个 `Library/`。
 
 ### Unity Hub 保持登录态的使用规则
 
@@ -174,6 +302,27 @@ curl -I https://github.com
 ```
 
 这个脚本会使用项目内 Unity Editor `2022.3.62f1`，并复用 `/home/ubuntu22/VLN/.unity_user/` 下的账号、许可证、缓存和代理配置。不要直接双击其他 Unity 可执行文件打开该工程，避免许可证配置目录不一致。
+
+### Unity-ROS2 最小闭环验收
+
+一键运行：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_ros2_unity_smoke_test.sh
+```
+
+脚本会自动启动 `ROS-TCP-Endpoint`，运行 Unity smoke test，验证两个方向：
+
+1. Unity -> ROS2：`/unity/heartbeat`，消息类型 `std_msgs/msg/String`。
+2. ROS2 -> Unity：`/ros2/command`，消息类型 `std_msgs/msg/String`。
+
+成功输出：
+
+```text
+VLN_ROS2_SMOKE_TEST_PASS
+```
+
+最近一次通过日志：`/home/ubuntu22/VLN/UnityProjects/_SmokeTestLogs/vln_smoke_20260813_224611`。
 
 ### Unity 许可证对主线的影响
 
@@ -237,7 +386,7 @@ curl -fsSL --max-time 12 --proxy http://127.0.0.1:7897 https://api.ipify.org
 
 ## 后续安装记录
 
-暂无。本项目尚未执行任何系统包、Python 包或 Conda 包安装命令。
+暂无。本项目尚未执行任何系统包、Python 包或 Conda 包安装命令。已新增的 Unity 包均为 `/home/ubuntu22/VLN/UnityProjects/VLN_Offroad/Packages/manifest.json` 内的项目级 UPM 依赖。
 
 ## 后续源码/工作区记录
 
@@ -250,3 +399,6 @@ curl -fsSL --max-time 12 --proxy http://127.0.0.1:7897 https://api.ipify.org
 - 2026-08-13：修复 Unity Hub 浏览器登录回调：`unityhub-vln.desktop` 的 `Exec` 已从无参数改为 `/home/ubuntu22/VLN/scripts/run_unityhub.sh %u`。
 - 2026-08-13：用户成功登录 Unity Hub；Unity Personal 许可证自动激活；重新运行 Editor 空工程创建探测成功。后续 Unity 主线可以继续创建正式工程 `/home/ubuntu22/VLN/UnityProjects/VLN_Offroad`。
 - 2026-08-13：正式 Unity 工程 `/home/ubuntu22/VLN/UnityProjects/VLN_Offroad` 已创建；`Packages/manifest.json` 已加入 ROS-TCP-Connector；批处理打开和包导入验证成功。新增 `/home/ubuntu22/VLN/scripts/open_unity_vln_project.sh` 作为固定工程入口。
+- 2026-08-13：新增并验证 Unity-ROS2 最小闭环脚本 `/home/ubuntu22/VLN/scripts/run_ros2_unity_smoke_test.sh`；阶段 3 已通过，下一阶段可以开始 UnitySensors 相机图像闭环。
+- 2026-08-13：新增并验证 UnitySensors 相机图像闭环脚本 `/home/ubuntu22/VLN/scripts/run_unitysensors_image_smoke_test.sh` 和 ROS2 字段校验脚本 `/home/ubuntu22/VLN/scripts/ros2_wait_for_image_once.py`；阶段 4 已通过，下一阶段可以开始 UnitySensors LiDAR 点云闭环。
+- 2026-08-13：新增并验证 UnitySensors LiDAR 点云闭环脚本 `/home/ubuntu22/VLN/scripts/run_unitysensors_lidar_smoke_test.sh` 和 ROS2 字段校验脚本 `/home/ubuntu22/VLN/scripts/ros2_wait_for_pointcloud2_once.py`；阶段 5 已通过，下一阶段可以开始极简越野 terrain 闭环。

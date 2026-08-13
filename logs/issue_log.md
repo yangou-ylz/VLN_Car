@@ -145,3 +145,154 @@
 - 解决方案：在 `.gitignore` 后部追加例外规则 `!logs/` 和 `!logs/*.md`，保留项目记忆日志可追踪，同时 Unity 工程整体仍由 `UnityProjects/` 忽略。
 - 验收方式：`git status --short --ignored` 显示 `?? logs/`，同时 `!! UnityProjects/` 仍被忽略。
 - 状态：已解决。
+
+## 2026-08-13：Unity smoke test 手工验证通过但 batch runner 不退出
+
+- 现象：首次 Unity-ROS2 smoke test 中，ROS2 已收到 Unity `/unity/heartbeat`，Unity 也收到 ROS2 `/ros2/command`，但 Unity Editor 没按预期退出，最终被外层 `timeout` 杀掉，退出码 `124`。
+- 环境：Unity Editor `2022.3.62f1`，batchmode/nographics，测试场景 `Assets/VLN/Scenes/ROS2SmokeTest.unity`。
+- 根因：`VlnRos2SmokeTestRunner` 依赖 `EditorApplication.update` 在 Play Mode 中计时退出；实际 batch Play Mode 下该退出路径不可靠，导致测试本身通过但进程不退出。
+- 解决方案：在运行时脚本 `VlnRos2SmokeTest.cs` 中加入仅 `Application.isBatchMode` 生效的自动退出逻辑，约 14 秒后调用 `UnityEditor.EditorApplication.Exit(0)`；手动打开 Unity 时不自动退出。
+- 附带处理：首次 timeout 产生的 `mono_crash.mem.*.blob` 已移动到对应 `_SmokeTestLogs` 目录；`.gitignore` 已加入 `UnityProjects/VLN_Offroad/mono_crash*.blob`，避免崩溃转储误提交。
+- 验收方式：重新运行 `/home/ubuntu22/VLN/scripts/run_ros2_unity_smoke_test.sh`，Unity 退出码 `0`，并输出 `VLN_ROS2_SMOKE_TEST_PASS`。
+- 状态：已解决。
+
+## 2026-08-13：`.gitignore` 过度忽略整个 UnityProjects
+
+- 现象：正式 Unity 工程源文件也被 `UnityProjects/` 总规则忽略，虽然安全但会导致 `Assets/`、`Packages/`、`ProjectSettings/` 这些轻量源码无法提交。
+- 根因：为了防止 Unity `Library/` 和日志爆仓，早期采用了整目录忽略。
+- 解决方案：改为忽略 `UnityProjects/*`，再显式放行 `UnityProjects/VLN_Offroad/Assets/**`、`Packages/**`、`ProjectSettings/**`；继续忽略 `Library/`、`Logs/`、`UserSettings/`、探测工程和各类测试日志。
+- 验收方式：`git status --short --ignored` 显示 `?? UnityProjects/`，同时显示 `!! UnityProjects/VLN_Offroad/Library/`、`!! UnityProjects/VLN_Offroad/Logs/`、`!! UnityProjects/VLN_Offroad/UserSettings/`。
+- 状态：已解决。
+
+## 2026-08-13：UnitySensors 导入后缺少 UGUI / NUnit / Test Framework
+
+- 现象：导入 `com.frj.unity-sensors` 与 `com.frj.unity-sensors-ros` 后 Unity 编译失败，先报 `UnityEngine.UI.RawImage` 找不到，随后报包内 `Tests/Editor/*.cs` 中 `NUnit`、`TestFixtureAttribute`、`TestAttribute` 找不到。
+- 环境：Unity Editor `2022.3.62f1`，正式工程 `/home/ubuntu22/VLN/UnityProjects/VLN_Offroad`，UnitySensors hash `91698e3593abdb04baac022a670cc52fee027238`。
+- 根因：UnitySensors 包引用 UGUI；同时包内测试 asmdef 引用 `UnityEngine.TestRunner`、`UnityEditor.TestRunner` 和 `nunit.framework.dll`，空工程默认没有这些项目级 UPM 依赖。
+- 解决方案：在 `Packages/manifest.json` 中加入 `com.unity.ugui` `1.0.0` 与 `com.unity.test-framework` `1.1.33`。这只修改 Unity 工程项目依赖，不是系统包、Python 包或 Conda 包安装。
+- 验收方式：重新执行 `/home/ubuntu22/VLN/scripts/open_unity_vln_project.sh -batchmode -nographics -quit -logFile <log>`，重跑后退出码为 `0`，不再出现 `RawImage` / `NUnit` 编译错误。
+- 状态：已解决。
+
+## 2026-08-13：导入 Test Framework 后 Unity 首次批处理崩溃
+
+- 现象：加入 `com.unity.test-framework` 后第一次批处理导入退出码 `134`，日志中出现 `pal_utilities.h:160: int ToFileDescriptor(intptr_t): Assertion fd < sysconf(_SC_OPEN_MAX)`，发生在 Bee/ILPP 编译阶段。
+- 环境：Unity Editor `2022.3.62f1`，batchmode/nographics，日志 `/home/ubuntu22/VLN/UnityProjects/_ImportLogs/import_unitysensors_after_testframework_20260813_223237.log`。
+- 根因判断：Test Framework、Burst、NUnit 等依赖已成功写入 `packages-lock.json`；崩溃发生在 Unity/Mono/Bee 编译管线，重跑后正常，判断为首次导入后的偶发 Editor 编译崩溃，而不是系统依赖缺失。
+- 解决方案：未清理全局环境，未删除 Unity `Library/`；直接重跑同一批处理导入命令，第二次退出码 `0`。
+- 验收方式：`/home/ubuntu22/VLN/UnityProjects/_ImportLogs/import_unitysensors_retry_20260813_223327.log` 显示 `Exiting batchmode successfully now!`。
+- 状态：已解决；若复发，优先保留日志并重跑一次，不要先做大范围删除或重装。
+
+## 2026-08-13：相机闭环脚本 topic 正则误判
+
+- 现象：第一次运行 `/home/ubuntu22/VLN/scripts/run_unitysensors_image_smoke_test.sh` 时，ROS2 已成功收到 `/vln/front/image_raw` 图像，字段校验和 `ros2 topic hz` 都正常，但脚本最后报 `ros2_topic_list_missing_image_topic`。
+- 根因：脚本中的 `rg` 校验把 `$IMAGE_TOPIC` 写成了需要匹配的字面量，导致真实 topic 存在时仍判失败。
+- 解决方案：修正 `rg` 正则，直接使用变量展开后的 topic 值匹配 `ros2 topic list -t` 输出。
+- 验收方式：重新运行脚本，输出 `VLN_UNITYSENSORS_IMAGE_SMOKE_TEST_PASS`。
+- 状态：已解决。
+
+## 2026-08-13：相机测试结束后 endpoint 记录 No more data available
+
+- 现象：阶段 4 通过日志中，Unity 正常退出后 endpoint 日志出现 `[UnityEndpoint]: Exception: No more data available`，随后记录 `Disconnected from 127.0.0.1`。
+- 根因判断：Unity batch 测试结束时主动关闭 TCP 连接，endpoint 把断开连接记录为异常日志；该日志出现在成功注册 `/vln/front/camera_info` 和 `/vln/front/image_raw` 且 ROS2 已收到图像之后。
+- 解决方案：当前不修改 endpoint；把它作为非致命断开日志记录。只有在测试过程中连接提前断开、topic 未注册或 ROS2 收不到消息时，才作为真实故障继续排查。
+- 验收方式：同一 run id `vln_image_20260813_224841` 中 `ros2_image_once.log` 输出 `VLN_UNITYSENSORS_IMAGE_MSG_OK`，总脚本输出 `VLN_UNITYSENSORS_IMAGE_SMOKE_TEST_PASS`。
+- 状态：已记录，非阻塞。
+
+## 2026-08-13：LiDAR 测试首次启动时 Unity stale lock 误报已有实例
+
+- 现象：第一次运行 `/home/ubuntu22/VLN/scripts/run_unitysensors_lidar_smoke_test.sh` 时，Unity 日志报 `It looks like another Unity instance is running with this project open`，退出码 `134`，ROS2 未收到点云。
+- 环境：Unity Editor `2022.3.62f1`，正式工程 `/home/ubuntu22/VLN/UnityProjects/VLN_Offroad`，日志目录 `/home/ubuntu22/VLN/UnityProjects/_SmokeTestLogs/vln_lidar_20260813_225930`。
+- 根因判断：进程检查没有实际 Unity Editor 正在打开该工程，但 Unity `Library` 中残留 `ArtifactDB-lock`、`SourceAssetDB-lock`，导致 Editor 误判工程被占用。
+- 解决方案：没有删除整个 `Library/`，只把残留 lock 文件移动到失败 run 的 `stale_locks/` 目录保留现场，然后重新运行 LiDAR smoke test。
+- 验收方式：后续 `/home/ubuntu22/VLN/scripts/run_unitysensors_lidar_smoke_test.sh` 输出 `VLN_UNITYSENSORS_LIDAR_SMOKE_TEST_PASS`，最近通过 run id 为 `vln_lidar_20260813_230736`。
+- 状态：已解决；若复发，先检查是否真的有 Unity 进程，再只处理 lock 文件，不做大范围删除或重装。
+
+## 2026-08-13：`ros2 topic bw` 输出格式与脚本预期不一致
+
+- 现象：LiDAR 点云测试中 `ros2 topic bw /vln/lidar/points` 能输出带宽，但当前 ROS2 Humble 输出格式是 `KB/s from ... messages`，不是部分示例中的 `average:` 字段。
+- 环境：ROS2 Humble，topic `/vln/lidar/points`，消息类型 `sensor_msgs/msg/PointCloud2`。
+- 根因：`ros2 topic bw` 的 CLI 输出格式和 `ros2 topic hz` 不同，不能沿用 `average rate:` 这类正则。
+- 解决方案：`run_unitysensors_lidar_smoke_test.sh` 中带宽验收改为匹配 `([KMGT]?B/s|MB/s) from [0-9]+ messages`，同时保留 `timeout 124` 但已有带宽输出时视为成功。
+- 验收方式：最近 run id `vln_lidar_20260813_230736` 中 `ros2_pointcloud2_bw.log` 显示约 `0.6 MB/s`，总脚本输出 `VLN_UNITYSENSORS_LIDAR_SMOKE_TEST_PASS`。
+- 状态：已解决。
+
+## 2026-08-13：手工查看图像时 `rqt_image_view` 独立命令不存在
+
+- 现象：用户执行 `rqt_image_view /vln/front/image_raw` 后终端报 `rqt_image_view：未找到命令`。
+- 环境：ROS2 Humble；`ros2 pkg list` 能看到 `rqt_image_view` 包，`ros2 pkg executables rqt_image_view` 能看到 `rqt_image_view rqt_image_view`，但 `command -v rqt_image_view` 为空。
+- 根因：当前安装形态提供了 ROS2 包内可执行入口，但没有提供独立 shell 命令。
+- 解决方案：新增 `/home/ubuntu22/VLN/scripts/view_front_image.sh`，内部使用 `ros2 run rqt_image_view rqt_image_view /vln/front/image_raw`；文档不再要求直接执行 `rqt_image_view`。
+- 验收方式：`/home/ubuntu22/VLN/scripts/check_manual_visualization_state.sh` 能列出 `rqt_image_view rqt_image_view`；图像查看使用 `/home/ubuntu22/VLN/scripts/view_front_image.sh`。
+- 状态：已解决。
+
+## 2026-08-13：手工 RViz 看不到点云
+
+- 现象：用户打开 RViz2 后只看到网格，看不到 LiDAR 点云；截图中 RViz Fixed Frame 为 `laser_frame`，显示项为旧的 `LaserScan`、`RobotModel`、`Odometry`。
+- 环境：当前 UnitySensors LiDAR 输出 topic 为 `/vln/lidar/points`，类型 `sensor_msgs/msg/PointCloud2`，frame 为 `lidar_link`；用户手工检查时 10000 端口未监听，`ros2 topic list -t` 只有 `/parameter_events` 和 `/rosout`。
+- 根因：至少有三点同时存在：endpoint 未启动或 Unity 未点击 Play 导致没有 `/vln/lidar/points` topic；RViz 使用了旧默认配置 `laser_frame`；显示项选了 `LaserScan` 而不是 `PointCloud2`。
+- 解决方案：新增 `/home/ubuntu22/VLN/scripts/check_manual_visualization_state.sh` 检查 endpoint 和 topic；新增 `/home/ubuntu22/VLN/config/vln_lidar_pointcloud.rviz` 与 `/home/ubuntu22/VLN/scripts/view_lidar_rviz.sh`，固定 `Fixed Frame=map`、显示 `/vln/lidar/points` 的 `PointCloud2`，并临时发布 `map -> lidar_link` 静态 TF。
+- 验收方式：先启动 endpoint，Unity 打开 LiDAR 场景并点击 Play；`check_manual_visualization_state.sh` 应看到 `/vln/lidar/points [sensor_msgs/msg/PointCloud2]`，再执行 `view_lidar_rviz.sh`。
+- 状态：已解决。
+
+## 2026-08-13：用户终端运行检查脚本时报 `rg: 未找到命令`
+
+- 现象：用户执行 `/home/ubuntu22/VLN/scripts/check_manual_visualization_state.sh` 时，脚本在端口检查和 topic 检查处报 `rg: 未找到命令`，并导致 ROS2 topic list 出现 BrokenPipe。
+- 环境：普通用户终端；ROS2 Humble；`ros2env` 清理后 PATH 中没有 `rg`。
+- 根因：脚本依赖了 ripgrep，但项目约束没有安装 `rg`，且不能要求用户为这个小脚本安装系统包。
+- 解决方案：将 `check_manual_visualization_state.sh` 和三个 smoke test 脚本中的 `rg` 调用全部改为系统默认存在的 `grep` / `grep -E` / `grep -F`。
+- 验收方式：`bash -n scripts/*.sh` 通过；`check_manual_visualization_state.sh` 不再依赖 `rg`。
+- 状态：已解决。
+
+## 2026-08-13：RViz 订阅点云但报 `Frame [lidar_link] does not exist`
+
+- 现象：用户使用新 RViz 配置后，显示项 `VLN LiDAR PointCloud2` 状态为 OK，topic 为 `/vln/lidar/points`，但 Global Status 报 `No tf data. Actual error: Frame [lidar_link] does not exist`，画面仍只看到网格。
+- 环境：当前阶段只有 UnitySensors LiDAR 点云闭环，没有正式 TF 树。
+- 根因：`PointCloud2.header.frame_id` 是 `lidar_link`，但 ROS2 侧没有任何节点发布 `map -> lidar_link` 或 `base_link -> lidar_link` 的 TF。RViz 需要 fixed frame 与点云 frame 之间存在 TF 才能稳定显示。
+- 解决方案：修改 `/home/ubuntu22/VLN/scripts/view_lidar_rviz.sh`，打开 RViz 前临时启动 `ros2 run tf2_ros static_transform_publisher --frame-id map --child-frame-id lidar_link`；RViz 配置改为 `Fixed Frame=map`。
+- 验收方式：先启动 endpoint 并在 Unity LiDAR 场景点击 Play，再运行 `/home/ubuntu22/VLN/scripts/view_lidar_rviz.sh`；RViz 不应再报 `Frame [lidar_link] does not exist`。
+- 状态：已解决；后续导入小车后应替换为正式 TF 树。
+
+## 2026-08-13：Unity ImageTest 的 Game 面板显示 `No cameras rendering`
+
+- 现象：用户在 `UnitySensorsImageSmokeTest.unity` 点击 Play 后，rqt 能看到 `/vln/front/image_raw` 图像，但 Unity `Game` 面板显示 `Display 1 No cameras rendering`。
+- 环境：Unity Editor `2022.3.62f1`，UnitySensors image smoke 场景。
+- 根因：ROS 图像由 UnitySensors `RGBCameraSensor` 生成并发布，不等同于 Unity Game 面板的普通展示相机；旧场景里没有稳定的普通 Viewer Camera 供 Game 面板显示。
+- 解决方案：在 `VlnUnitySensorsImageProjectSetup.cs` 中新增 `ImageSmokeTest_ViewerCamera`，并新增 `/home/ubuntu22/VLN/scripts/rebuild_unity_smoke_scenes.sh` 用于关闭 Unity 后批处理重建轻量测试场景。
+- 验收方式：关闭 Unity，运行 `rebuild_unity_smoke_scenes.sh`，重新打开 `UnitySensorsImageSmokeTest.unity` 并点击 Play，Game 面板应显示 Viewer Camera 视角；rqt 继续使用 `/vln/front/image_raw` 验证传感器图像。
+- 状态：已修复生成器，待用户关闭 Unity 后重建场景生效。
+
+## 2026-08-14：Unity Editor 卡死无法退出
+
+- 现象：用户反馈 Unity 卡死，无法从界面退出。
+- 环境：Unity Editor `2022.3.62f1`，工程 `/home/ubuntu22/VLN/UnityProjects/VLN_Offroad`。
+- 根因判断：Unity 主进程和 AssetImportWorker 残留；SIGTERM 未能让 Editor 正常退出。强制结束后 `Library/ArtifactDB-lock` 与 `Library/SourceAssetDB-lock` 残留。
+- 解决方案：先对 VLN Unity Editor/worker 进程发送 SIGTERM，未退出后只对这些进程发送 SIGKILL；随后把残留 lock 文件移动到 `/home/ubuntu22/VLN/UnityProjects/_ManualRecoveryLogs/.../stale_locks`，不删除整个 `Library/`。新增 `/home/ubuntu22/VLN/scripts/stop_unity_vln_project.sh` 用于后续一键恢复。
+- 验收方式：`pgrep` 不再显示 VLN Unity Editor/worker；`Library` 根目录不再有 `ArtifactDB-lock`、`SourceAssetDB-lock`；随后 `rebuild_unity_smoke_scenes.sh` 可运行完成。
+- 状态：已解决。
+
+## 2026-08-14：并行运行两个 Unity batch smoke test 导致工程占用
+
+- 现象：同时运行图像和点云 smoke test 时，图像测试报 `It looks like another Unity instance is running with this project open`，退出码 `134`；点云测试正常通过。
+- 环境：Unity Editor `2022.3.62f1`；同一工程 `/home/ubuntu22/VLN/UnityProjects/VLN_Offroad`。
+- 根因：Unity 不允许同一个工程被两个 Editor 实例并行打开。并行测试会造成一个测试拿到工程锁，另一个测试直接失败。
+- 解决方案：以后 Unity smoke test 必须顺序运行，不能并行运行。失败后若无 Unity 进程但有 `ArtifactDB-lock`、`SourceAssetDB-lock`，移动锁文件保留现场后再重跑。
+- 验收方式：顺序运行 `/home/ubuntu22/VLN/scripts/run_unitysensors_lidar_smoke_test.sh` 和 `/home/ubuntu22/VLN/scripts/run_unitysensors_image_smoke_test.sh` 均通过；最近点云 run id `vln_lidar_20260813_235800`，最近图像 run id `vln_image_20260813_235944`。
+- 状态：已解决。
+
+## 2026-08-14：RViz PointCloud2 状态 OK 但画面仍只有网格
+
+- 现象：用户在 Unity 软件内已经能打开相机视角和雷达视角；`check_manual_visualization_state.sh` 曾能看到 `/vln/lidar/points [sensor_msgs/msg/PointCloud2]`，RViz 左侧 `VLN LiDAR PointCloud2` 显示 `Status: OK`，但主窗口仍只看到网格。
+- 环境：ROS2 Humble，UnitySensors LiDAR topic `/vln/lidar/points`，RViz 固定坐标系 `map`，临时 TF 为 `map -> lidar_link`。
+- 根因判断：RViz 的 `Status: OK` 只说明显示项、topic 类型和 TF 当前没有明显配置错误，不保证有新点云帧正在发布。本地只读订阅 `/vln/lidar/points` 等待 8 秒未收到 `PointCloud2`，说明当时 Unity/endpoint 已不在实时发布点云，或 topic discovery 与实际消息流不同步。
+- 解决方案：增强 `/home/ubuntu22/VLN/scripts/check_manual_visualization_state.sh`，在发现 `/vln/lidar/points` 后继续短时间等待一帧 `PointCloud2`，并复用字段校验脚本检查有效非零点；同时把 `/home/ubuntu22/VLN/config/vln_lidar_pointcloud.rviz` 的显示改为橙色大点，QoS `Reliability Policy` 改为 `Best Effort`，降低 RViz 订阅兼容性和可见性问题。
+- 验收方式：`bash -n scripts/check_manual_visualization_state.sh scripts/view_lidar_rviz.sh` 通过；当前无 endpoint/Unity Play 时，检查脚本明确提示未发现 `/vln/lidar/points`，不会再把缺少 `/tf_static` 写成疑似错误。下一次用户启动 endpoint 并在 Unity LiDAR 场景点击 Play 后，该脚本应输出 `LiDAR 正在实时发布有效点云帧`，再打开 RViz 应看到橙色点云。
+- 状态：已修复脚本和 RViz 配置；待用户在 Unity LiDAR Play 运行时复测。
+
+## 2026-08-14：RViz 中点云像旋转扇区而不是稳定点云阵列
+
+- 现象：用户已经能在 RViz 看到 `/vln/lidar/points`，但画面不是传统意义上一整圈稳定点云，而是几条橙色弧线随时间旋转，看起来像扇形激光扫描动画。
+- 环境：UnitySensors VLP-16 scan pattern；`_pointsNumPerScan=7200`，`_frequency=5`，scan pattern 总 `size=57600`；RViz `PointCloud2` 原先 `Decay Time=0`。
+- 根因：UnitySensors `RaycastLiDARSensor` 每次从 scan pattern 中取连续 `pointsNum` 个方向做 raycast，发布后把 `indexOffset` 向前推进。因此当前每条 `PointCloud2` 只包含 1/8 圈，5Hz 下约 1.6 秒扫完整个 360 度。RViz `Decay Time=0` 时只显示最新一帧，所以看起来像一个旋转的扇区，而不是累计后的一整圈点云。
+- 解决方案：先只改 RViz 显示，不改 Unity 真实数据流。将 `/home/ubuntu22/VLN/config/vln_lidar_pointcloud.rviz` 中 PointCloud2 的 `Decay Time` 设为 `2` 秒，`Size (Pixels)` 调回 `3`，让 RViz 累计最近一整圈扫描，视觉上接近传统稳定点云阵列。
+- 后续选项：如果后续算法需要每个 `PointCloud2` 消息本身就是完整 360 度扫描，可把 Unity 场景中的 `_pointsNumPerScan` 提高到 57600；代价是单帧点数和 ROS 带宽约变为当前 8 倍，应在进入越野场景后再按性能验证决定。
+- 状态：已完成 RViz 显示修正；Unity 传感器真实发布策略暂不改变。

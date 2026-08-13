@@ -110,11 +110,31 @@ VLN_REFERENCE_LIBRARY/
 reference_library/
 references_raw/
 unity_ros2_ws/
-UnityProjects/
 VLN_ASSETS_CACHE/
 VLN_BAGS/
 VLN_REFERENCE_LIBRARY_DUPLICATE_*/
 _moved_from_home/
+
+# Unity project source is trackable; generated project/cache dirs stay ignored
+UnityProjects/*
+!UnityProjects/VLN_Offroad/
+!UnityProjects/VLN_Offroad/Assets/
+!UnityProjects/VLN_Offroad/Assets/**
+!UnityProjects/VLN_Offroad/Packages/
+!UnityProjects/VLN_Offroad/Packages/**
+!UnityProjects/VLN_Offroad/ProjectSettings/
+!UnityProjects/VLN_Offroad/ProjectSettings/**
+UnityProjects/VLN_Offroad/[Ll]ibrary/
+UnityProjects/VLN_Offroad/[Tt]emp/
+UnityProjects/VLN_Offroad/[Oo]bj/
+UnityProjects/VLN_Offroad/[Bb]uild/
+UnityProjects/VLN_Offroad/[Bb]uilds/
+UnityProjects/VLN_Offroad/[Ll]ogs/
+UnityProjects/VLN_Offroad/[Uu]ser[Ss]ettings/
+UnityProjects/VLN_Offroad/[Mm]emoryCaptures/
+UnityProjects/VLN_Offroad/[Rr]ecordings/
+UnityProjects/VLN_Offroad/[Cc]rash[Rr]eports/
+UnityProjects/VLN_Offroad/mono_crash*.blob
 
 # Unity Hub / Editor local install state
 tools/unityhub_download/

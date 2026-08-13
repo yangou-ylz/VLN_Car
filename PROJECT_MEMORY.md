@@ -25,7 +25,10 @@
 - 代理：本机 Clash/Mihomo 监听 `127.0.0.1:7897`，环境变量已有 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY`。
 - Unity Hub：项目内用户级安装，应用菜单入口为 `Unity Hub (VLN)`，启动脚本为 `/home/ubuntu22/VLN/scripts/run_unityhub.sh`。
 - Unity Editor：`/home/ubuntu22/VLN/UnityEditors/2022.3.62f1/Editor/Unity`，版本 `2022.3.62f1`，Unity Personal 许可证已激活并通过空工程创建探测。
-- Unity 正式工程：`/home/ubuntu22/VLN/UnityProjects/VLN_Offroad`，已导入 `com.unity.robotics.ros-tcp-connector`。
+- Unity 正式工程：`/home/ubuntu22/VLN/UnityProjects/VLN_Offroad`，已导入 `com.unity.robotics.ros-tcp-connector`、`com.frj.unity-sensors`、`com.frj.unity-sensors-ros`、`com.unity.ugui`、`com.unity.test-framework`。
+- Unity-ROS2 最小通信闭环：已通过。Unity 发布 `/unity/heartbeat`，ROS2 echo 成功；ROS2 发布 `/ros2/command`，Unity 接收成功。
+- UnitySensors 相机图像闭环：已通过。Unity 发布 `/vln/front/image_raw`，ROS2 校验为 `sensor_msgs/msg/Image`、640x480、`rgb8`、`front_camera_optical_frame`、约 5Hz；同时发布 `/vln/front/camera_info`。
+- UnitySensors LiDAR 点云闭环：已通过。UnitySensors VLP-16 Raycast LiDAR 发布 `/vln/lidar/points`，ROS2 校验为 `sensor_msgs/msg/PointCloud2`、`lidar_link`、7200 点/帧、`point_step=16`、约 5Hz、带宽约 0.6 MB/s。
 
 ## 已知风险
 
@@ -56,3 +59,11 @@
 - 2026-08-13：定位 `Launching Unity Hub` 后仍回登录页的问题：用户级 `.desktop` 协议处理器缺少 `%u`，导致浏览器 `unityhub://` OAuth 回调参数被丢弃。已改为 `Exec=/home/ubuntu22/VLN/scripts/run_unityhub.sh %u` 并重新注册 MIME。
 - 2026-08-13：用户已成功登录 Unity Hub；Hub 日志显示 Unity Personal 许可证已激活，许可证文件位于 `/home/ubuntu22/VLN/.unity_user/config/unity3d/Unity/licenses/UnityEntitlementLicense.xml`。重新执行 Unity Editor `-createProject` 探测成功，退出码 `0`，已创建 `/home/ubuntu22/VLN/UnityProjects/_LicenseProbe_20260813_215209`。后续不要点击 Hub 推荐的 Unity 6.5 安装，主线继续使用已安装的 `2022.3.62f1`。
 - 2026-08-13：正式 Unity 工程 `/home/ubuntu22/VLN/UnityProjects/VLN_Offroad` 已创建成功；`Packages/manifest.json` 已加入 `com.unity.robotics.ros-tcp-connector`；Unity 批处理导入退出码 `0`，`Packages/packages-lock.json` 锁定 Connector 到 Git hash `c27f00c6cf750d2d0564349b3039d19aa3925e7c`。新增固定打开脚本 `/home/ubuntu22/VLN/scripts/open_unity_vln_project.sh`，该脚本复用项目内 Unity 配置、许可证和代理。
+- 2026-08-13：阶段 3 Unity-ROS2 最小通信闭环已通过。新增 `Assets/VLN/Scripts/VlnRos2SmokeTest.cs`、`Assets/VLN/Editor/VlnRos2ProjectSetup.cs`、`Assets/VLN/Editor/VlnRos2SmokeTestRunner.cs` 和 `/home/ubuntu22/VLN/scripts/run_ros2_unity_smoke_test.sh`；Unity 工程设置 `ROS2` 编译符号；复现命令输出 `VLN_ROS2_SMOKE_TEST_PASS`，最近通过日志目录为 `/home/ubuntu22/VLN/UnityProjects/_SmokeTestLogs/vln_smoke_20260813_221253`。
+- 2026-08-13：阶段 4 UnitySensors 相机图像闭环已通过。`Packages/manifest.json` 加入 UnitySensors / UnitySensorsROS / UGUI / Test Framework；新增 `Assets/VLN/Scenes/UnitySensorsImageSmokeTest.unity`、相机场景构建器、运行时退出脚本、ROS2 图像字段校验脚本和 `/home/ubuntu22/VLN/scripts/run_unitysensors_image_smoke_test.sh`；复现命令输出 `VLN_UNITYSENSORS_IMAGE_SMOKE_TEST_PASS`，最近通过日志目录为 `/home/ubuntu22/VLN/UnityProjects/_SmokeTestLogs/vln_image_20260813_224841`。
+- 2026-08-13：阶段 4 完成后回归阶段 3 通信闭环，`/home/ubuntu22/VLN/scripts/run_ros2_unity_smoke_test.sh` 再次输出 `VLN_ROS2_SMOKE_TEST_PASS`，run id 为 `vln_smoke_20260813_224611`。
+- 2026-08-13：阶段 5 UnitySensors LiDAR 点云闭环已通过。新增 `Assets/VLN/Scenes/UnitySensorsLidarSmokeTest.unity`、LiDAR 场景构建器、运行时退出脚本、ROS2 点云字段校验脚本和 `/home/ubuntu22/VLN/scripts/run_unitysensors_lidar_smoke_test.sh`；最近复现命令输出 `VLN_UNITYSENSORS_LIDAR_SMOKE_TEST_PASS`，run id 为 `vln_lidar_20260813_230736`。点云规格为 `/vln/lidar/points`、`sensor_msgs/msg/PointCloud2`、`lidar_link`、VLP-16、7200 点/帧、约 5Hz。
+- 2026-08-13：阶段 5 完成后回归阶段 4 相机闭环，`/home/ubuntu22/VLN/scripts/run_unitysensors_image_smoke_test.sh` 再次输出 `VLN_UNITYSENSORS_IMAGE_SMOKE_TEST_PASS`，run id 为 `vln_image_20260813_230503`。下一阶段只做极简越野 terrain 闭环，不导入大型资产包。
+- 2026-08-13：修复手工可视化问题。`rqt_image_view` 不能作为独立命令时改用 `/home/ubuntu22/VLN/scripts/view_front_image.sh`；所有用户脚本移除 `rg` 依赖，改用系统自带 `grep`；RViz 点云查看脚本 `/home/ubuntu22/VLN/scripts/view_lidar_rviz.sh` 会临时发布 `map -> lidar_link` 静态 TF，并使用 `Fixed Frame=map`；ImageTest 场景构建器已补 `ImageSmokeTest_ViewerCamera`，关闭 Unity 后运行 `/home/ubuntu22/VLN/scripts/rebuild_unity_smoke_scenes.sh` 可重建场景让 Game 面板显示普通相机画面。
+- 2026-08-14：处理 Unity Editor 卡死。已强制结束 VLN 工程相关 Unity Editor/worker 进程，并移动残留 `ArtifactDB-lock`、`SourceAssetDB-lock` 到 `_ManualRecoveryLogs`；新增 `/home/ubuntu22/VLN/scripts/stop_unity_vln_project.sh` 用于后续一键恢复。随后重建 smoke 场景成功，点云回归通过 `vln_lidar_20260813_235800`，图像回归通过 `vln_image_20260813_235944`。注意：Unity smoke test 不允许并行跑，只能顺序运行。
+- 2026-08-14：继续修复手工 LiDAR 可视化排障。用户截图中 RViz `PointCloud2` 显示项为 OK 但画面只有网格；本地只读订阅 `/vln/lidar/points` 时未收到实时点云帧，说明“topic 存在/显示项 OK”不等价于“Unity 正在发布点云”。已增强 `/home/ubuntu22/VLN/scripts/check_manual_visualization_state.sh`，增加实时等待一帧 PointCloud2 的检查；同时将 `/home/ubuntu22/VLN/config/vln_lidar_pointcloud.rviz` 的 PointCloud2 显示改为橙色大点、`Best Effort` 订阅，以降低 RViz 显示误判。

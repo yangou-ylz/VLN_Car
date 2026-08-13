@@ -39,13 +39,34 @@
 - Unity 侧：导入 `ROS-TCP-Connector`，设置协议 ROS2、IP、端口。
 - 验收：ROS2 能 echo Unity 发布的测试 topic；Unity 能响应 ROS2 发布的测试 topic。
 
-当前状态：ROS2 侧已完成准备和端口验收；启动脚本为 `/home/ubuntu22/VLN/scripts/start_ros_tcp_endpoint.sh`。Unity 侧已创建正式工程 `/home/ubuntu22/VLN/UnityProjects/VLN_Offroad`，并已导入 `ROS-TCP-Connector`。下一步只做最小通信场景和 ROS2 echo 验收，不进入传感器和越野资产导入。
+当前状态：已完成。ROS2 侧 endpoint 可监听 `127.0.0.1:10000`；Unity 侧正式工程已导入 `ROS-TCP-Connector` 并设置 `ROS2` 编译符号；`/home/ubuntu22/VLN/scripts/run_ros2_unity_smoke_test.sh` 已验证 Unity 发布 `/unity/heartbeat` 可被 ROS2 echo，ROS2 发布 `/ros2/command` 可被 Unity 接收。
+
+阶段 3 固定验收命令：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_ros2_unity_smoke_test.sh
+```
+
+成功标志：`VLN_ROS2_SMOKE_TEST_PASS`。
 
 ## 阶段 4：相机图像闭环
 
+- 前置条件：阶段 3 必须能复现 `VLN_ROS2_SMOKE_TEST_PASS`。
 - Unity 侧：导入 UnitySensors 和 UnitySensorsROS，放置 RGB Camera 或 Panoramic Camera。
 - ROS2 侧：订阅 `sensor_msgs/msg/Image`。
 - 验收：`rqt_image_view` 能显示图像；`ros2 topic hz` 能看到稳定帧率；必要时记录 rosbag。
+
+当前状态：已完成最小 RGB 相机闭环。UnitySensors `RGBCameraSensor` 发布 `/vln/front/image_raw`，类型为 `sensor_msgs/msg/Image`，640x480，`rgb8`，frame 为 `front_camera_optical_frame`，约 5Hz；同时发布 `/vln/front/camera_info`。
+
+阶段 4 固定验收命令：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_unitysensors_image_smoke_test.sh
+```
+
+成功标志：`VLN_UNITYSENSORS_IMAGE_SMOKE_TEST_PASS`。
+
+阶段 4 完成定义：ROS2 图像字段校验脚本输出 `VLN_UNITYSENSORS_IMAGE_MSG_OK`，`ros2 topic list -t` 同时出现 `/vln/front/image_raw [sensor_msgs/msg/Image]` 与 `/vln/front/camera_info [sensor_msgs/msg/CameraInfo]`，`ros2 topic hz` 能看到约 5Hz。
 
 ## 阶段 5：LiDAR 点云闭环
 
@@ -53,11 +74,25 @@
 - ROS2 侧：订阅 `sensor_msgs/msg/PointCloud2`。
 - 验收：RViz2 能显示点云；`ros2 topic bw` 不异常；点云 frame 与 fixed frame 有 TF 关系。
 
+当前状态：已完成最小 LiDAR 点云闭环。UnitySensors `RaycastLiDARSensor` 使用 VLP-16 scan pattern，发布 `/vln/lidar/points`，类型为 `sensor_msgs/msg/PointCloud2`，frame 为 `lidar_link`，7200 点/帧，`point_step=16`，约 5Hz，带宽约 0.6 MB/s。
+
+阶段 5 固定验收命令：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_unitysensors_lidar_smoke_test.sh
+```
+
+成功标志：`VLN_UNITYSENSORS_LIDAR_SMOKE_TEST_PASS`。
+
+阶段 5 完成定义：ROS2 点云字段校验脚本输出 `VLN_UNITYSENSORS_POINTCLOUD2_MSG_OK`，`ros2 topic list -t` 出现 `/vln/lidar/points [sensor_msgs/msg/PointCloud2]`，`ros2 topic hz` 约 5Hz，`ros2 topic bw` 约 0.6 MB/s。当前最小测试阶段用 `/home/ubuntu22/VLN/scripts/view_lidar_rviz.sh` 临时发布 `map -> lidar_link` 静态 TF，并在 RViz2 中使用 `Fixed Frame=map`；后续阶段 8 再标准化完整 TF 树。手工排障时不能只看 topic 是否存在，必须用 `/home/ubuntu22/VLN/scripts/check_manual_visualization_state.sh` 确认能实时收到一帧有效 PointCloud2。
+
 ## 阶段 6：越野环境
 
 - 先做极简 terrain：地面、坡、土路、石头、树木，确认 collider 正常。
 - 禁止一开始导入大型资产包或高清植被森林。
 - 验收：相机能看到越野元素；LiDAR 点云能扫到地形和障碍物；帧率可接受。
+
+下一步执行：只建立轻量越野场景原型，保留阶段 4/5 的图像和点云验收脚本作为回归测试。前一步如果不能复现相机和点云 PASS，不进入小车模型或大型资产导入。
 
 ## 阶段 7：小车模型
 

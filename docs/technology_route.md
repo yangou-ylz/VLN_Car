@@ -36,10 +36,10 @@
 
 | 功能 | Topic | ROS2 类型 | 初期频率 |
 | --- | --- | --- | --- |
-| 前向 RGB | `/sim/camera/front/image_raw` | `sensor_msgs/msg/Image` | 10-20Hz |
-| 相机内参 | `/sim/camera/front/camera_info` | `sensor_msgs/msg/CameraInfo` | 10-20Hz |
-| 全景图像 | `/sim/camera/panorama/image_raw` | `sensor_msgs/msg/Image` | 5-10Hz |
-| LiDAR 点云 | `/sim/lidar/points` | `sensor_msgs/msg/PointCloud2` | 5-10Hz |
+| 前向 RGB | `/vln/front/image_raw` | `sensor_msgs/msg/Image` | 已验证 5Hz，后续再提高 |
+| 相机内参 | `/vln/front/camera_info` | `sensor_msgs/msg/CameraInfo` | 已验证 5Hz |
+| 全景图像 | `/vln/panorama/image_raw` | `sensor_msgs/msg/Image` | 5-10Hz |
+| LiDAR 点云 | `/vln/lidar/points` | `sensor_msgs/msg/PointCloud2` | 已验证 5Hz，7200 点/帧 |
 | 车体控制 | `/cmd_vel` | `geometry_msgs/msg/Twist` | 按控制器 |
 | 坐标变换 | `/tf`、`/tf_static` | `tf2_msgs/msg/TFMessage` | 按 frame |
 
@@ -48,9 +48,9 @@
 - `map`：世界坐标。
 - `odom`：里程计坐标。
 - `base_link`：小车主体。
-- `lidar_link`：LiDAR 物理 frame。
-- `camera_link`：相机物理 frame。
-- `camera_optical_frame`：相机 optical frame。
+- `lidar_link`：LiDAR 物理 frame；阶段 5 点云消息已使用该 frame。
+- `front_camera_link`：前向相机物理 frame。
+- `front_camera_optical_frame`：前向相机 optical frame；阶段 4 图像消息已使用该 frame。
 
 ## 关键工程约束
 
@@ -59,3 +59,4 @@
 - 图像和点云 topic 优先控制频率、分辨率和点数，先稳定再提高质量。
 - 每个 topic 都必须能用 `ros2 topic info`、`ros2 topic hz`、`ros2 topic bw` 验证。
 - 每次新增传感器或 frame，都要更新 `env.md` 或本文件。
+- 当前已完成通信、前向 RGB 图像、VLP-16 低负载点云三个闭环；下一步只能进入极简越野 terrain，不跳到完整 VLN 算法或大型训练环境。

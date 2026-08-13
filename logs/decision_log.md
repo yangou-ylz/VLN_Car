@@ -71,3 +71,31 @@
 - 备选项：从 Hub、任意 Unity 二进制、文件管理器双击 `.unity` 场景或系统级命令打开。
 - 理由：当前 Unity Hub、账号数据库、许可证和缓存都被固定在 `/home/ubuntu22/VLN/.unity_user/`，直接从其他入口启动可能使用另一套 XDG 配置，导致看起来“又要登录”或找不到许可证。
 - 影响：后续排错和复现统一用该脚本；用户也可从 Hub 的 `项目` 页面添加同一工程，但不要换 Editor 版本。
+
+## 2026-08-13：阶段 3 用 std_msgs/String 做最小闭环
+
+- 决策：Unity-ROS2 最小闭环先使用 `std_msgs/msg/String`，topic 为 `/unity/heartbeat` 和 `/ros2/command`。
+- 备选项：直接从相机 `Image` 或 LiDAR `PointCloud2` 开始。
+- 理由：师兄当前目标是先跑通 Unity ROS 接口；字符串 topic 能把连接、协议、ROS2 编译符号、endpoint、双向 topic 注册全部验证清楚，风险最低。
+- 影响：阶段 3 已完成后，阶段 4 再引入 UnitySensors 和图像消息，阶段 5 再引入点云消息。
+
+## 2026-08-13：UnitySensors 依赖用项目级 UPM 解决
+
+- 决策：为正式 Unity 工程加入 `com.unity.ugui` `1.0.0` 与 `com.unity.test-framework` `1.1.33`，解决 UnitySensors / UnitySensorsROS 导入编译问题。
+- 备选项：直接修改 `Library/PackageCache` 中的 UnitySensors 包、删除包内 Tests、安装系统依赖或更换 Unity 版本。
+- 理由：UPM 依赖是 Unity 工程内可复现配置；PackageCache 是生成缓存，不应直接改；系统安装和 Unity 版本切换都会偏离当前已验证路线。
+- 影响：`Packages/manifest.json` 和 `Packages/packages-lock.json` 成为阶段 4 复现源；不污染系统 ROS2、CUDA、PyTorch 或 Python 环境。
+
+## 2026-08-13：阶段 4 固定前向 RGB 相机最小规格
+
+- 决策：相机最小闭环固定为 `/vln/front/image_raw`，类型 `sensor_msgs/msg/Image`，640x480，`rgb8`，`front_camera_optical_frame`，约 5Hz；同时发布 `/vln/front/camera_info`。
+- 备选项：直接上 1280x720/20Hz、多相机、全景相机或压缩图像。
+- 理由：当前重点是跑通师兄要求的“感知层图像输入”，低负载标准消息最容易验收，也适合 RTX 5060 8GB 显存逐步加压。
+- 影响：阶段 4 已完成后，阶段 5 可以沿用同样命名风格做 `/vln/front/points` 或 `/vln/lidar/points` 的 `PointCloud2` 闭环；后续提高分辨率或帧率必须先有基线对比。
+
+## 2026-08-13：阶段 5 固定低负载 VLP-16 点云基线
+
+- 决策：LiDAR 最小闭环固定为 `/vln/lidar/points`，类型 `sensor_msgs/msg/PointCloud2`，`lidar_link`，UnitySensors VLP-16 scan pattern，7200 点/帧，约 5Hz。
+- 备选项：直接使用 VLP-16 默认更高点数、高频 LiDAR、多 LiDAR、Livox/Mid360 或外部点云资产导入。
+- 理由：当前目标是先跑通师兄要求的“雷达点云输入”，RTX 5060 Laptop 8GB 显存需要低负载基线；ROS-TCP bridge 对图像和点云流量敏感，先稳定再加压。
+- 影响：阶段 6 越野 terrain 必须沿用该点云基线做回归；只有在相机和点云闭环都稳定后，才提高点云密度、频率或导入大型环境资产。
