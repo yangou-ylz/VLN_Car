@@ -6,6 +6,6 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/VLN/Scenes/UnitySensorsLidarSmokeTest.unity
-    guid: 0496e98b4ed50515d9b03e61a0d4f530
+    path: Assets/VLN/Scenes/VLNOffroadTerrainSmokeTest.unity
+    guid: d48e29875fa42457fa02fa4ddf626e03
   m_configObjects: {}

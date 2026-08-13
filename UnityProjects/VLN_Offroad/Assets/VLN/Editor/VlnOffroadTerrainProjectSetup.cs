@@ -248,6 +248,9 @@ namespace VLN.Editor
 
             var pointCloudPublisher = lidarObject.AddComponent<LiDARPointCloud2MsgPublisher>();
             ConfigurePointCloudPublisher(pointCloudPublisher, lidarSensor);
+
+            var tfPublisher = rig.AddComponent<VlnVehicleTfPublisher>();
+            ConfigureTfPublisher(tfPublisher, cameraObject.transform, lidarObject.transform);
         }
 
         static void CreateViewerCamera()
@@ -345,6 +348,18 @@ namespace VLN.Editor
             header.FindPropertyRelative("_source").objectReferenceValue = sensor;
             header.FindPropertyRelative("_frame_id").stringValue = LidarFrameId;
 
+            serializedPublisher.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        static void ConfigureTfPublisher(VlnVehicleTfPublisher publisher, Transform cameraTransform, Transform lidarTransform)
+        {
+            var serializedPublisher = new SerializedObject(publisher);
+            serializedPublisher.FindProperty("m_CameraTransform").objectReferenceValue = cameraTransform;
+            serializedPublisher.FindProperty("m_LidarTransform").objectReferenceValue = lidarTransform;
+            serializedPublisher.FindProperty("m_TfFrequencyHz").floatValue = 10f;
+            serializedPublisher.FindProperty("m_VehicleSpeedMetersPerSecond").floatValue = 1.4f;
+            serializedPublisher.FindProperty("m_PathStartZ").floatValue = -24f;
+            serializedPublisher.FindProperty("m_PathEndZ").floatValue = 24f;
             serializedPublisher.ApplyModifiedPropertiesWithoutUndo();
         }
 

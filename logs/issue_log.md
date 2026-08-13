@@ -305,3 +305,21 @@
 - 解决方案：先将 Unity Terrain 组件改为轻量程序化网格地形，降低场景复杂度；随后将阶段 6 自动验收脚本改为 `-batchmode`，不再使用 `-nographics`，保留图形上下文。最终阶段 6 自动验收通过。
 - 验收方式：`/home/ubuntu22/VLN/scripts/run_offroad_terrain_smoke_test.sh` 输出 `VLN_OFFROAD_TERRAIN_SMOKE_TEST_PASS`，run id 为 `vln_offroad_20260814_004120`。随后顺序回归 `/home/ubuntu22/VLN/scripts/run_unitysensors_image_smoke_test.sh` 与 `/home/ubuntu22/VLN/scripts/run_unitysensors_lidar_smoke_test.sh` 均通过。
 - 状态：已解决。后续凡是包含复杂 terrain + UnitySensors RGB 相机的自动验收，不要默认加 `-nographics`。
+
+## 2026-08-14：阶段 7 首次 TF 联合验收缺少 CameraInfo 快照
+
+- 现象：阶段 7 初次自动验收中，图像、点云和 TF 均能收到，但 topic 快照或 CameraInfo 等待窗口没有稳定捕获 `/vln/front/camera_info`，导致脚本没有形成完整 PASS。
+- 环境：Unity Editor `2022.3.62f1`，场景 `VLNOffroadTerrainSmokeTest.unity`，ROS2 Humble，UnitySensors 相机 + LiDAR + `/tf`。
+- 根因：阶段 7 自动验收新增了多个并发 ROS2 校验任务，原有脚本只校验 Image 和 PointCloud2，没有独立等待一次 CameraInfo 的最小字段校验；topic snapshot 与 Unity topic 注册时序之间存在短窗口。
+- 解决方案：新增 `/home/ubuntu22/VLN/scripts/ros2_wait_for_camera_info_once.py`，并在 `/home/ubuntu22/VLN/scripts/run_vehicle_tf_smoke_test.sh` 中把 CameraInfo 作为独立必检项，而不是只依赖 topic list 快照。
+- 验收方式：重新运行 `/home/ubuntu22/VLN/scripts/run_vehicle_tf_smoke_test.sh`，输出 `VLN_VEHICLE_TF_SMOKE_TEST_PASS`，run id 为 `vln_vehicle_tf_20260814_010331`。
+- 状态：已解决。
+
+## 2026-08-14：阶段 8 正式 RViz 不应再使用临时静态 TF
+
+- 现象：阶段 5 的 `/home/ubuntu22/VLN/scripts/view_lidar_rviz.sh` 会临时发布 `map -> lidar_link`，但阶段 7/8 已经由 Unity 发布正式 `/tf`。如果继续把旧脚本当作主查看方式，容易掩盖正式 TF 树是否真的存在。
+- 环境：阶段 8 标准输出，TF 树为 `map -> base_link -> front_camera_optical_frame,lidar_link`。
+- 根因：单 LiDAR smoke test 阶段没有车体 TF，只能临时补 `map -> lidar_link`；进入移动占位车体阶段后，这个补丁不再是主路线。
+- 解决方案：新增 `/home/ubuntu22/VLN/scripts/view_vln_vehicle_rviz.sh` 和 `/home/ubuntu22/VLN/config/vln_vehicle_sensors.rviz`，正式 RViz 配置只依赖 Unity 发布的 `/tf`，不主动发布静态 TF。旧 `view_lidar_rviz.sh` 保留给阶段 5 单 LiDAR 排障。
+- 验收方式：`/home/ubuntu22/VLN/scripts/run_standardized_outputs_smoke_test.sh` 输出 `VLN_STANDARDIZED_OUTPUTS_SMOKE_TEST_PASS`，rosbag 中包含 `/tf`、图像、CameraInfo 和点云四类 topic。
+- 状态：已解决。

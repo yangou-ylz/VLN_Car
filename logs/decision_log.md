@@ -113,3 +113,17 @@
 - 备选项：继续沿用阶段 4/5 的 `-batchmode -nographics`，或只做手工 Unity Play 验收。
 - 理由：阶段 6 联合 terrain + RGB 相机场景在 `-nographics` 下会在 UnitySensors `RGBCameraSensor` 的 `Camera.Render` 路径段错误；保留图形上下文后同一场景自动验收通过，并且没有改变 ROS2、CUDA、PyTorch 或系统环境。
 - 影响：阶段 6 自动验收会短暂打开 Unity 图形上下文，不能在无显示环境跑；阶段 4/5 原有单独 smoke test 继续按原脚本执行并已回归通过。
+
+## 2026-08-14：阶段 7 先用移动占位车体建立 TF 树
+
+- 决策：阶段 7 暂不导入真实 URDF，先使用程序化移动占位车体发布正式 `/tf`，固定 `map -> base_link -> front_camera_optical_frame,lidar_link`。
+- 备选项：立即导入真实小车 URDF、先接 navigation2、继续停留在静态车体。
+- 理由：师兄当前目标仍是 Unity 越野场景 + ROS2 感知输入；真实小车模型会引入 URDF、材质、碰撞体、坐标轴、比例尺和控制链路问题，容易在相机/点云闭环还不稳定时扩大排障面。移动占位车体能先验证传感器挂载和 TF 树。
+- 影响：阶段 7 已经为后续真实小车替换提供 frame 和 topic baseline；后续导入真实小车时必须保持 `/vln/front/*`、`/vln/lidar/points` 和 `map/base_link/camera/lidar` frame 语义不乱改。
+
+## 2026-08-14：阶段 8 固化标准输出而不是继续加新功能
+
+- 决策：阶段 8 优先固定 topic、frame、RViz 配置、rosbag 小样本记录和启动顺序，新增 `run_standardized_outputs_smoke_test.sh` 作为完整自动验收入口。
+- 备选项：直接导入大型越野资产、真实小车模型、导航栈或 VLN/VLA 算法。
+- 理由：当前已经能看到场景、图像和点云，但下游算法真正需要的是稳定、可复现、可记录的数据接口。先固化接口可以防止后续资产和模型导入时破坏基础感知链路。
+- 影响：阶段 8 后，正式手工 RViz 使用 `/home/ubuntu22/VLN/scripts/view_vln_vehicle_rviz.sh`，rosbag 固定写到 `/home/ubuntu22/VLN/VLN_BAGS`，旧 `view_lidar_rviz.sh` 只作为阶段 5 单 LiDAR 排障工具。

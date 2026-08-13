@@ -35,6 +35,9 @@ namespace VLN.ROS2
                 "image_type=sensor_msgs/msg/Image\n" +
                 "pointcloud_type=sensor_msgs/msg/PointCloud2\n" +
                 "terrain=procedural_lightweight_offroad\n" +
+                "vehicle=procedural_moving_placeholder\n" +
+                "tf_topic=/tf\n" +
+                "tf_tree=map->base_link->front_camera_optical_frame,lidar_link\n" +
                 "image_resolution=640x480\n" +
                 "lidar_scan_pattern=VLP-16\n" +
                 "lidar_points_per_scan=7200\n" +

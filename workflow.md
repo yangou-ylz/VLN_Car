@@ -111,11 +111,60 @@
 - 优先导入 URDF；没有 URDF 时用占位车体先跑传感器。
 - 验收：传感器随车体运动，TF/topic 命名稳定，RViz 显示无 frame 错误。
 
+当前状态：已完成移动占位车体闭环。阶段 7 暂不导入真实 URDF，先让程序化占位车体沿土路低速移动，前向 RGB 相机和 VLP-16 LiDAR 挂在车体下，并由 Unity 发布正式 `/tf`。
+
+阶段 7 固定 TF 树：
+
+```text
+map -> base_link
+base_link -> front_camera_optical_frame
+base_link -> lidar_link
+```
+
+阶段 7 固定验收命令：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_vehicle_tf_smoke_test.sh
+```
+
+成功标志：`VLN_VEHICLE_TF_SMOKE_TEST_PASS`。
+
+阶段 7 完成定义：ROS2 图像字段校验输出 `VLN_UNITYSENSORS_IMAGE_MSG_OK`，CameraInfo 字段校验输出 `VLN_UNITYSENSORS_CAMERA_INFO_MSG_OK`，点云字段校验输出 `VLN_UNITYSENSORS_POINTCLOUD2_MSG_OK`，TF 校验输出 `VLN_VEHICLE_TF_MSG_OK`，且 `base_link` 在自动验收窗口内发生可观测位移。最近通过 run id 为 `vln_vehicle_tf_20260814_010331`，`base_link` 位移约 `0.374m`。
+
 ## 阶段 8：标准化输出
 
 - 固定 topic 命名、frame 命名、频率、分辨率、点云配置。
 - 产物：RViz2 配置、rosbag 示例、启动顺序文档、故障排查表。
 - 验收：新终端按 `env.md` 步骤可复现实验。
+
+当前状态：已完成。阶段 8 已固定 topic、frame、正式 RViz 配置、手工检查脚本、rosbag 小样本记录脚本和一键自动验收脚本。
+
+阶段 8 固定标准输出：
+
+```text
+/vln/front/image_raw      sensor_msgs/msg/Image          front_camera_optical_frame  640x480 rgb8 ~5Hz
+/vln/front/camera_info    sensor_msgs/msg/CameraInfo     front_camera_optical_frame
+/vln/lidar/points         sensor_msgs/msg/PointCloud2    lidar_link                  VLP-16 7200点/帧 ~5Hz
+/tf                       tf2_msgs/msg/TFMessage         map/base_link/camera/lidar
+```
+
+阶段 8 固定验收命令：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_standardized_outputs_smoke_test.sh
+```
+
+成功标志：`VLN_STANDARDIZED_OUTPUTS_SMOKE_TEST_PASS`。
+
+阶段 8 手工工具：
+
+```bash
+/home/ubuntu22/VLN/scripts/check_standardized_vln_outputs.sh
+/home/ubuntu22/VLN/scripts/view_vln_vehicle_rviz.sh
+/home/ubuntu22/VLN/scripts/record_vln_sensor_bag_sample.sh
+```
+
+阶段 8 完成定义：一键脚本通过；`ros2 bag info` 能看到 `/vln/front/image_raw`、`/vln/front/camera_info`、`/vln/lidar/points`、`/tf`；RViz 使用 `/home/ubuntu22/VLN/config/vln_vehicle_sensors.rviz`，不再需要临时 `map -> lidar_link` 静态 TF。最近通过 run id 为 `vln_standardized_outputs_20260814_011059`。
 
 ## 工作流管理规则
 
