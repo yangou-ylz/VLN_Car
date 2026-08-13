@@ -296,3 +296,12 @@
 - 解决方案：先只改 RViz 显示，不改 Unity 真实数据流。将 `/home/ubuntu22/VLN/config/vln_lidar_pointcloud.rviz` 中 PointCloud2 的 `Decay Time` 设为 `2` 秒，`Size (Pixels)` 调回 `3`，让 RViz 累计最近一整圈扫描，视觉上接近传统稳定点云阵列。
 - 后续选项：如果后续算法需要每个 `PointCloud2` 消息本身就是完整 360 度扫描，可把 Unity 场景中的 `_pointsNumPerScan` 提高到 57600；代价是单帧点数和 ROS 带宽约变为当前 8 倍，应在进入越野场景后再按性能验证决定。
 - 状态：已完成 RViz 显示修正；Unity 传感器真实发布策略暂不改变。
+
+## 2026-08-14：阶段 6 越野 terrain 场景在 `-nographics` 下段错误
+
+- 现象：首次运行 `/home/ubuntu22/VLN/scripts/run_offroad_terrain_smoke_test.sh` 时，Unity 场景生成成功，`/vln/front/image_raw` 和 `/vln/lidar/points` topic 已注册，但 Unity 进入 Play 后段错误退出，状态码 `139`。
+- 环境：Unity Editor `2022.3.62f1`，阶段 6 场景 `VLNOffroadTerrainSmokeTest.unity`，UnitySensors `RGBCameraSensor`，脚本参数原为 `-batchmode -nographics`。
+- 根因：Unity 日志堆栈显示崩溃发生在 `UnitySensors.Sensor.Camera.RGBCameraSensor/<UpdateSensor>d__2 -> UnityEngine.Camera.Render -> GfxDevice::DrawSharedGeometryJobs`。这说明 ROS2 topic 和传感器配置已经启动，但复杂场景中的 RGB 相机在无图形上下文批处理渲染路径触发 Unity 图形层段错误。
+- 解决方案：先将 Unity Terrain 组件改为轻量程序化网格地形，降低场景复杂度；随后将阶段 6 自动验收脚本改为 `-batchmode`，不再使用 `-nographics`，保留图形上下文。最终阶段 6 自动验收通过。
+- 验收方式：`/home/ubuntu22/VLN/scripts/run_offroad_terrain_smoke_test.sh` 输出 `VLN_OFFROAD_TERRAIN_SMOKE_TEST_PASS`，run id 为 `vln_offroad_20260814_004120`。随后顺序回归 `/home/ubuntu22/VLN/scripts/run_unitysensors_image_smoke_test.sh` 与 `/home/ubuntu22/VLN/scripts/run_unitysensors_lidar_smoke_test.sh` 均通过。
+- 状态：已解决。后续凡是包含复杂 terrain + UnitySensors RGB 相机的自动验收，不要默认加 `-nographics`。

@@ -92,7 +92,19 @@
 - 禁止一开始导入大型资产包或高清植被森林。
 - 验收：相机能看到越野元素；LiDAR 点云能扫到地形和障碍物；帧率可接受。
 
-下一步执行：只建立轻量越野场景原型，保留阶段 4/5 的图像和点云验收脚本作为回归测试。前一步如果不能复现相机和点云 PASS，不进入小车模型或大型资产导入。
+当前状态：已完成。场景 `Assets/VLN/Scenes/VLNOffroadTerrainSmokeTest.unity` 使用轻量程序化网格地形，不导入大型资产包；包含土路、坡、石块、树木、障碍物、静态占位车体、前向 RGB 相机和 VLP-16 LiDAR。
+
+阶段 6 固定验收命令：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_offroad_terrain_smoke_test.sh
+```
+
+成功标志：`VLN_OFFROAD_TERRAIN_SMOKE_TEST_PASS`。
+
+阶段 6 完成定义：ROS2 图像字段校验输出 `VLN_UNITYSENSORS_IMAGE_MSG_OK`，ROS2 点云字段校验输出 `VLN_UNITYSENSORS_POINTCLOUD2_MSG_OK`，`ros2 topic list -t` 同时出现 `/vln/front/image_raw [sensor_msgs/msg/Image]`、`/vln/front/camera_info [sensor_msgs/msg/CameraInfo]`、`/vln/lidar/points [sensor_msgs/msg/PointCloud2]`，图像和点云 `ros2 topic hz` 均约 5Hz，点云带宽约 0.58 MB/s。阶段 6 完成后必须顺序回归阶段 4/5，避免破坏基础传感器闭环。
+
+注意：阶段 6 联合 terrain + RGB 相机自动验收使用 Unity `-batchmode`，不要加 `-nographics`；当前机器上 `-nographics` 会让 Unity 在 `RGBCameraSensor` 的 `Camera.Render` 路径段错误。阶段 4/5 单独 smoke test 仍可继续使用原脚本。
 
 ## 阶段 7：小车模型
 

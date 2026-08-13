@@ -285,6 +285,44 @@ python3 /home/ubuntu22/VLN/scripts/ros2_wait_for_pointcloud2_once.py --topic /vl
 
 该脚本会先温和结束 VLN 工程相关 Unity 进程，必要时强制结束，并把残留 `ArtifactDB-lock`、`SourceAssetDB-lock` 移动到 `_ManualRecoveryLogs`。不要手工删除整个 `Library/`。
 
+### 阶段 6：极简越野 terrain 联合闭环
+
+当前场景：
+
+- Unity 场景：`Assets/VLN/Scenes/VLNOffroadTerrainSmokeTest.unity`
+- 场景内容：轻量程序化网格地形、土路、坡、石块、树木、障碍物、静态占位车体、前向 RGB 相机、VLP-16 LiDAR
+- 图像 topic：`/vln/front/image_raw`，`sensor_msgs/msg/Image`，640x480，`rgb8`，约 5Hz
+- 相机内参 topic：`/vln/front/camera_info`，`sensor_msgs/msg/CameraInfo`
+- 点云 topic：`/vln/lidar/points`，`sensor_msgs/msg/PointCloud2`，7200 点/帧，约 5Hz，约 0.58 MB/s
+
+一键自动验收：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_offroad_terrain_smoke_test.sh
+```
+
+成功输出：
+
+```text
+VLN_OFFROAD_TERRAIN_SMOKE_TEST_PASS
+```
+
+最近一次通过日志：`/home/ubuntu22/VLN/UnityProjects/_SmokeTestLogs/vln_offroad_20260814_004120`。
+
+手工查看方式：先运行 endpoint，再在 Unity 中打开 `Assets/VLN/Scenes/VLNOffroadTerrainSmokeTest.unity` 并点击 Play。图像用：
+
+```bash
+/home/ubuntu22/VLN/scripts/view_front_image.sh
+```
+
+点云用：
+
+```bash
+/home/ubuntu22/VLN/scripts/view_lidar_rviz.sh
+```
+
+注意：阶段 6 自动验收脚本必须保留图形上下文，因此使用 `-batchmode`，不要加 `-nographics`。当前机器上 `-nographics` 会让 Unity 在 UnitySensors `RGBCameraSensor` 的 `Camera.Render` 路径段错误。这个限制只影响阶段 6 这种带复杂 terrain 场景的自动验收；阶段 4/5 原有单独 smoke test 已回归通过。
+
 ### Unity Hub 保持登录态的使用规则
 
 1. 以后打开 Unity 只使用应用菜单 `Unity Hub (VLN)`，或命令 `/home/ubuntu22/VLN/scripts/run_unityhub.sh`。

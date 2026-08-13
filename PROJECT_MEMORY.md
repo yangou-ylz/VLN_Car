@@ -29,6 +29,7 @@
 - Unity-ROS2 最小通信闭环：已通过。Unity 发布 `/unity/heartbeat`，ROS2 echo 成功；ROS2 发布 `/ros2/command`，Unity 接收成功。
 - UnitySensors 相机图像闭环：已通过。Unity 发布 `/vln/front/image_raw`，ROS2 校验为 `sensor_msgs/msg/Image`、640x480、`rgb8`、`front_camera_optical_frame`、约 5Hz；同时发布 `/vln/front/camera_info`。
 - UnitySensors LiDAR 点云闭环：已通过。UnitySensors VLP-16 Raycast LiDAR 发布 `/vln/lidar/points`，ROS2 校验为 `sensor_msgs/msg/PointCloud2`、`lidar_link`、7200 点/帧、`point_step=16`、约 5Hz、带宽约 0.6 MB/s。
+- 极简越野 terrain 闭环：已通过。新增场景 `Assets/VLN/Scenes/VLNOffroadTerrainSmokeTest.unity`，使用轻量程序化网格地形、土路、坡、石块、树木、障碍物和静态占位车体传感器 rig；同一场景内同时发布 `/vln/front/image_raw`、`/vln/front/camera_info` 和 `/vln/lidar/points`，阶段 6 脚本输出 `VLN_OFFROAD_TERRAIN_SMOKE_TEST_PASS`。
 
 ## 已知风险
 
@@ -67,3 +68,4 @@
 - 2026-08-13：修复手工可视化问题。`rqt_image_view` 不能作为独立命令时改用 `/home/ubuntu22/VLN/scripts/view_front_image.sh`；所有用户脚本移除 `rg` 依赖，改用系统自带 `grep`；RViz 点云查看脚本 `/home/ubuntu22/VLN/scripts/view_lidar_rviz.sh` 会临时发布 `map -> lidar_link` 静态 TF，并使用 `Fixed Frame=map`；ImageTest 场景构建器已补 `ImageSmokeTest_ViewerCamera`，关闭 Unity 后运行 `/home/ubuntu22/VLN/scripts/rebuild_unity_smoke_scenes.sh` 可重建场景让 Game 面板显示普通相机画面。
 - 2026-08-14：处理 Unity Editor 卡死。已强制结束 VLN 工程相关 Unity Editor/worker 进程，并移动残留 `ArtifactDB-lock`、`SourceAssetDB-lock` 到 `_ManualRecoveryLogs`；新增 `/home/ubuntu22/VLN/scripts/stop_unity_vln_project.sh` 用于后续一键恢复。随后重建 smoke 场景成功，点云回归通过 `vln_lidar_20260813_235800`，图像回归通过 `vln_image_20260813_235944`。注意：Unity smoke test 不允许并行跑，只能顺序运行。
 - 2026-08-14：继续修复手工 LiDAR 可视化排障。用户截图中 RViz `PointCloud2` 显示项为 OK 但画面只有网格；本地只读订阅 `/vln/lidar/points` 时未收到实时点云帧，说明“topic 存在/显示项 OK”不等价于“Unity 正在发布点云”。已增强 `/home/ubuntu22/VLN/scripts/check_manual_visualization_state.sh`，增加实时等待一帧 PointCloud2 的检查；同时将 `/home/ubuntu22/VLN/config/vln_lidar_pointcloud.rviz` 的 PointCloud2 显示改为橙色大点、`Best Effort` 订阅，以降低 RViz 显示误判。
+- 2026-08-14：阶段 6 极简越野 terrain 闭环已通过。新增 `Assets/VLN/Editor/VlnOffroadTerrainProjectSetup.cs`、`Assets/VLN/Editor/VlnOffroadTerrainSmokeTestRunner.cs`、`Assets/VLN/Scripts/VlnOffroadTerrainSmokeTest.cs` 和 `/home/ubuntu22/VLN/scripts/run_offroad_terrain_smoke_test.sh`；最终通过 run id `vln_offroad_20260814_004120`，图像约 5Hz，点云约 5Hz，点云有效非零点 `3316`，带宽约 `0.58 MB/s`。随后顺序回归阶段 4/5：图像 `vln_image_20260814_004216` 通过，LiDAR `vln_lidar_20260814_004250` 通过。注意：阶段 6 联合相机/terrain 场景不能用 `-nographics`，需使用 `-batchmode` 保留图形上下文，否则 Unity 会在 `RGBCameraSensor` 的 `Camera.Render` 路径段错误。

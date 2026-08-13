@@ -99,3 +99,17 @@
 - 备选项：直接使用 VLP-16 默认更高点数、高频 LiDAR、多 LiDAR、Livox/Mid360 或外部点云资产导入。
 - 理由：当前目标是先跑通师兄要求的“雷达点云输入”，RTX 5060 Laptop 8GB 显存需要低负载基线；ROS-TCP bridge 对图像和点云流量敏感，先稳定再加压。
 - 影响：阶段 6 越野 terrain 必须沿用该点云基线做回归；只有在相机和点云闭环都稳定后，才提高点云密度、频率或导入大型环境资产。
+
+## 2026-08-14：阶段 6 先使用程序化轻量网格地形
+
+- 决策：阶段 6 越野环境先使用 Unity 工程内程序化生成的轻量网格地形，配合土路、坡、石块、树木、障碍物和静态占位车体，不导入外部大型资产包。
+- 备选项：直接导入 Asset Store 越野资产、高清植被森林、真实地形包，或使用 Unity Terrain 组件。
+- 理由：师兄当前要求是先跑通 Unity-ROS2 感知输入，不是追求最终视觉资产；用户机器显存 8GB，需要低负载、可复现、可回滚的 baseline。首次尝试 Unity Terrain 组件在阶段 6 batch 图像渲染中触发 Unity 段错误，因此改成更稳定的网格地形。
+- 影响：阶段 6 已能验证相机和 LiDAR 在越野语义场景中同时输出；后续要导入真实越野资产时，必须以该轻量场景作为回归基线。
+
+## 2026-08-14：阶段 6 自动验收保留图形上下文
+
+- 决策：`/home/ubuntu22/VLN/scripts/run_offroad_terrain_smoke_test.sh` 使用 Unity `-batchmode`，不使用 `-nographics`。
+- 备选项：继续沿用阶段 4/5 的 `-batchmode -nographics`，或只做手工 Unity Play 验收。
+- 理由：阶段 6 联合 terrain + RGB 相机场景在 `-nographics` 下会在 UnitySensors `RGBCameraSensor` 的 `Camera.Render` 路径段错误；保留图形上下文后同一场景自动验收通过，并且没有改变 ROS2、CUDA、PyTorch 或系统环境。
+- 影响：阶段 6 自动验收会短暂打开 Unity 图形上下文，不能在无显示环境跑；阶段 4/5 原有单独 smoke test 继续按原脚本执行并已回归通过。
