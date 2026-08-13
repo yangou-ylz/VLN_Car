@@ -13,7 +13,9 @@
 7. 极简越野 terrain 闭环。
 8. 小车模型或占位车体闭环。
 9. topic、TF、rosbag、RViz 配置标准化。
-10. 进入 VLN 感知层数据集/训练/算法对接。
+10. ROS2 `/vln/cmd_vel` 控制闭环。
+11. ROS2 路径点控制闭环。
+12. 进入 VLN 感知层数据集/训练/算法对接。
 
 ## 阶段 0：项目约束与记忆机制
 
@@ -109,9 +111,9 @@
 ## 阶段 7：小车模型
 
 - 优先导入 URDF；没有 URDF 时用占位车体先跑传感器。
-- 验收：传感器随车体运动，TF/topic 命名稳定，RViz 显示无 frame 错误。
+- 验收：传感器挂在 `base_link` 下，TF/topic 命名稳定，RViz 显示无 frame 错误；无控制指令时车体静止。
 
-当前状态：已完成移动占位车体闭环。阶段 7 暂不导入真实 URDF，先让程序化占位车体沿土路低速移动，前向 RGB 相机和 VLP-16 LiDAR 挂在车体下，并由 Unity 发布正式 `/tf`。
+当前状态：已完成可控占位车体闭环。阶段 7 暂不导入真实 URDF，先让程序化占位车体承载前向 RGB 相机和 VLP-16 LiDAR，并由 Unity 发布正式 `/tf`。Unity Play 后默认静止，车体运动必须由 ROS2 `/vln/cmd_vel` 或其上层控制器触发。
 
 阶段 7 固定 TF 树：
 
@@ -129,7 +131,7 @@ base_link -> lidar_link
 
 成功标志：`VLN_VEHICLE_TF_SMOKE_TEST_PASS`。
 
-阶段 7 完成定义：ROS2 图像字段校验输出 `VLN_UNITYSENSORS_IMAGE_MSG_OK`，CameraInfo 字段校验输出 `VLN_UNITYSENSORS_CAMERA_INFO_MSG_OK`，点云字段校验输出 `VLN_UNITYSENSORS_POINTCLOUD2_MSG_OK`，TF 校验输出 `VLN_VEHICLE_TF_MSG_OK`，且 `base_link` 在自动验收窗口内发生可观测位移。最近通过 run id 为 `vln_vehicle_tf_20260814_010331`，`base_link` 位移约 `0.374m`。
+阶段 7 完成定义：ROS2 图像字段校验输出 `VLN_UNITYSENSORS_IMAGE_MSG_OK`，CameraInfo 字段校验输出 `VLN_UNITYSENSORS_CAMERA_INFO_MSG_OK`，点云字段校验输出 `VLN_UNITYSENSORS_POINTCLOUD2_MSG_OK`，TF 校验输出 `VLN_VEHICLE_TF_MSG_OK`，且无 `/vln/cmd_vel` 指令时 `base_link` 在静止观察窗口内最大位移不超过 `0.05m`。最近通过 run id 为 `vln_vehicle_tf_20260814_021645`，`max_base_delta=0.000m`。
 
 ## 阶段 8：标准化输出
 
@@ -164,7 +166,45 @@ base_link -> lidar_link
 /home/ubuntu22/VLN/scripts/record_vln_sensor_bag_sample.sh
 ```
 
-阶段 8 完成定义：一键脚本通过；`ros2 bag info` 能看到 `/vln/front/image_raw`、`/vln/front/camera_info`、`/vln/lidar/points`、`/tf`；RViz 使用 `/home/ubuntu22/VLN/config/vln_vehicle_sensors.rviz`，不再需要临时 `map -> lidar_link` 静态 TF。最近通过 run id 为 `vln_standardized_outputs_20260814_011059`。
+阶段 8 完成定义：一键脚本通过；`ros2 bag info` 能看到 `/vln/front/image_raw`、`/vln/front/camera_info`、`/vln/lidar/points`、`/tf`；RViz 使用 `/home/ubuntu22/VLN/config/vln_vehicle_sensors.rviz`，不再需要临时 `map -> lidar_link` 静态 TF；无控制指令时车体保持静止。最近回归 run id 为 `vln_standardized_outputs_20260814_021919`。
+
+## 阶段 9：ROS2 控制接口闭环
+
+- 固定控制 topic：`/vln/cmd_vel`。
+- 固定控制消息：`geometry_msgs/msg/Twist`。
+- 当前控制对象：程序化占位车体，后续可替换真实小车模型但不应改动控制入口。
+- 验收：ROS2 发布速度指令，Unity 车体响应运动，`/tf` 中 `base_link` 位姿发生符合指令的位移和 yaw 变化，同时图像、CameraInfo 和点云仍正常。
+
+当前状态：已完成。Unity 端 `VlnVehicleTfPublisher` 已订阅 `/vln/cmd_vel`；首次收到指令前保持静止，收到过指令后若 0.75 秒无新指令则停止，防止 ROS2 端退出后车体继续运动。
+
+阶段 9 固定验收命令：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_cmd_vel_control_smoke_test.sh
+```
+
+成功标志：`VLN_CMD_VEL_CONTROL_SMOKE_TEST_PASS`。
+
+阶段 9 完成定义：ROS2 控制脚本输出 `VLN_CMD_VEL_CONTROL_MSG_OK`，Unity 控制结果文件记录 `cmd_vel_received` 和 `cmd_vel_count`，topic list 出现 `/vln/cmd_vel [geometry_msgs/msg/Twist]`，且 `/vln/front/image_raw`、`/vln/front/camera_info`、`/vln/lidar/points` 仍通过字段校验。最近通过 run id 为 `vln_cmd_vel_control_20260814_021738`。
+
+## 阶段 10：ROS2 路径点控制闭环
+
+- 输入：`/tf` 中的 `map -> base_link`。
+- 输出：`/vln/cmd_vel [geometry_msgs/msg/Twist]`。
+- 当前路径点形式：以启动时 `base_link` 为原点的相对路径点，x 为前向米，y 为左向米。
+- 验收：ROS2 控制器到达路径点，同时图像、CameraInfo、点云仍正常。
+
+当前状态：已完成。新增轻量 ROS2 路径点控制器 `/home/ubuntu22/VLN/scripts/ros2_drive_waypoints.py`，默认相对路径点为 `1.2,0.0;2.4,0.0`。
+
+阶段 10 固定验收命令：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_waypoint_control_smoke_test.sh
+```
+
+成功标志：`VLN_WAYPOINT_CONTROL_SMOKE_TEST_PASS`。
+
+阶段 10 完成定义：ROS2 路径点控制器输出 `VLN_WAYPOINT_CONTROL_MSG_OK`，到达 2/2 个路径点，最终距离最后路径点在阈值内，topic list 出现 `/vln/cmd_vel [geometry_msgs/msg/Twist]`，且 `/vln/front/image_raw`、`/vln/front/camera_info`、`/vln/lidar/points` 仍通过字段校验。最近通过 run id 为 `vln_waypoint_control_20260814_021829`。
 
 ## 工作流管理规则
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""等待阶段 7 车辆 TF，并验证 frame 关系与 base_link 运动。"""
+"""等待车辆 TF，并按需要验证 base_link 静止或运动。"""
 
 import argparse
 import math
@@ -14,7 +14,9 @@ def parse_args():
     parser = argparse.ArgumentParser(description="等待并校验 /tf 中的车辆 frame 树")
     parser.add_argument("--topic", default="/tf")
     parser.add_argument("--timeout", type=float, default=40.0)
-    parser.add_argument("--min-base-delta", type=float, default=0.25)
+    parser.add_argument("--min-base-delta", type=float, default=0.0)
+    parser.add_argument("--max-base-delta", type=float, default=None)
+    parser.add_argument("--stable-observe-seconds", type=float, default=5.0)
     return parser.parse_args()
 
 
@@ -33,13 +35,15 @@ def main():
     seen_edges = set()
     first_base_position = None
     last_base_position = None
+    max_base_delta = 0.0
     message_count = 0
+    complete_since = None
 
     rclpy.init()
     node = rclpy.create_node("vln_wait_for_vehicle_tf")
 
     def on_tf(msg):
-        nonlocal first_base_position, last_base_position, message_count
+        nonlocal first_base_position, last_base_position, max_base_delta, message_count
         message_count += 1
         for transform in msg.transforms:
             edge = (transform.header.frame_id, transform.child_frame_id)
@@ -51,6 +55,7 @@ def main():
                 if first_base_position is None:
                     first_base_position = position
                 last_base_position = position
+                max_base_delta = max(max_base_delta, norm_delta(first_base_position, position))
 
     subscription = node.create_subscription(TFMessage, args.topic, on_tf, 20)
 
@@ -58,7 +63,15 @@ def main():
         while time.monotonic() < deadline:
             rclpy.spin_once(node, timeout_sec=0.25)
             if seen_edges == required_edges and first_base_position is not None and last_base_position is not None:
-                if norm_delta(first_base_position, last_base_position) >= args.min_base_delta:
+                if complete_since is None:
+                    complete_since = time.monotonic()
+                has_enough_motion = max_base_delta >= args.min_base_delta
+                observed_static_window = (
+                    args.max_base_delta is None
+                    or time.monotonic() - complete_since >= max(0.0, args.stable_observe_seconds)
+                    or max_base_delta > args.max_base_delta
+                )
+                if has_enough_motion and observed_static_window:
                     break
 
         missing_edges = required_edges - seen_edges
@@ -70,6 +83,7 @@ def main():
         print(f"message_count={message_count}")
         print("seen_edges=" + ",".join(f"{parent}->{child}" for parent, child in sorted(seen_edges)))
         print(f"base_delta={base_delta:.3f}")
+        print(f"max_base_delta={max_base_delta:.3f}")
         if first_base_position is not None:
             print("first_base_position=" + ",".join(f"{value:.3f}" for value in first_base_position))
         if last_base_position is not None:
@@ -80,8 +94,10 @@ def main():
             errors.append("缺少 TF 边：" + ",".join(f"{parent}->{child}" for parent, child in sorted(missing_edges)))
         if first_base_position is None or last_base_position is None:
             errors.append("未收到 map->base_link 位姿")
-        elif base_delta < args.min_base_delta:
-            errors.append(f"base_link 运动距离 {base_delta:.3f}m，期望至少 {args.min_base_delta:.3f}m")
+        elif max_base_delta < args.min_base_delta:
+            errors.append(f"base_link 最大运动距离 {max_base_delta:.3f}m，期望至少 {args.min_base_delta:.3f}m")
+        if args.max_base_delta is not None and max_base_delta > args.max_base_delta:
+            errors.append(f"base_link 最大运动距离 {max_base_delta:.3f}m，期望不超过 {args.max_base_delta:.3f}m")
 
         if errors:
             print("车辆 TF 校验失败：", file=sys.stderr)

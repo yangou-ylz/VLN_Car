@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# 运行阶段 7：移动占位车体 + 传感器挂载 + TF 树联合闭环测试。
-# 验收内容：图像、点云、/tf 同时正常；base_link 随占位车体移动；camera/lidar 挂在 base_link 下。
+# 运行阶段 7：占位车体 + 传感器挂载 + TF 树联合闭环测试。
+# 验收内容：图像、点云、/tf 同时正常；无 /vln/cmd_vel 指令时 base_link 保持静止；camera/lidar 挂在 base_link 下。
 
 set -eo pipefail
 
@@ -77,7 +77,7 @@ camera_info_pid=$!
 timeout 90s bash -lc "$ROS_ENV; python3 /home/ubuntu22/VLN/scripts/ros2_wait_for_pointcloud2_once.py --topic $POINTS_TOPIC --width 7200 --point-step 16 --frame-id lidar_link --timeout 85 --min-nonzero-points 20" >"$CLOUD_LOG" 2>&1 &
 cloud_pid=$!
 
-timeout 90s bash -lc "$ROS_ENV; python3 /home/ubuntu22/VLN/scripts/ros2_wait_for_vehicle_tf.py --topic $TF_TOPIC --timeout 85 --min-base-delta 0.25" >"$TF_LOG" 2>&1 &
+timeout 90s bash -lc "$ROS_ENV; python3 /home/ubuntu22/VLN/scripts/ros2_wait_for_vehicle_tf.py --topic $TF_TOPIC --timeout 85 --min-base-delta 0.0 --max-base-delta 0.05 --stable-observe-seconds 6.0" >"$TF_LOG" 2>&1 &
 tf_pid=$!
 
 bash -lc "sleep 8; $ROS_ENV; timeout 12s ros2 topic list -t" >"$TOPIC_LOG" 2>&1 &

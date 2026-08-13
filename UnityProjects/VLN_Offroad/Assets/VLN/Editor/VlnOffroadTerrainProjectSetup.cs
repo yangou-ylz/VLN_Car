@@ -19,6 +19,7 @@ namespace VLN.Editor
         const string ImageTopic = "/vln/front/image_raw";
         const string CameraInfoTopic = "/vln/front/camera_info";
         const string PointCloudTopic = "/vln/lidar/points";
+        const string CmdVelTopic = "/vln/cmd_vel";
         const string CameraFrameId = "front_camera_optical_frame";
         const string LidarFrameId = "lidar_link";
         const float FrequencyHz = 5f;
@@ -356,10 +357,15 @@ namespace VLN.Editor
             var serializedPublisher = new SerializedObject(publisher);
             serializedPublisher.FindProperty("m_CameraTransform").objectReferenceValue = cameraTransform;
             serializedPublisher.FindProperty("m_LidarTransform").objectReferenceValue = lidarTransform;
+            serializedPublisher.FindProperty("m_CmdVelTopic").stringValue = CmdVelTopic;
             serializedPublisher.FindProperty("m_TfFrequencyHz").floatValue = 10f;
             serializedPublisher.FindProperty("m_VehicleSpeedMetersPerSecond").floatValue = 1.4f;
             serializedPublisher.FindProperty("m_PathStartZ").floatValue = -24f;
             serializedPublisher.FindProperty("m_PathEndZ").floatValue = 24f;
+            serializedPublisher.FindProperty("m_AutopilotUntilFirstCommand").boolValue = false;
+            serializedPublisher.FindProperty("m_CommandTimeoutSeconds").floatValue = 0.75f;
+            serializedPublisher.FindProperty("m_MaxLinearSpeedMetersPerSecond").floatValue = 2.0f;
+            serializedPublisher.FindProperty("m_MaxAngularSpeedRadPerSecond").floatValue = 1.2f;
             serializedPublisher.ApplyModifiedPropertiesWithoutUndo();
         }
 

@@ -87,11 +87,13 @@ python3 /home/ubuntu22/VLN/scripts/ros2_wait_for_pointcloud2_once.py \
   --min-nonzero-points 20 | tee "$LOG_DIR/pointcloud2_once.log"
 
 echo
-echo "== 车辆 TF 树 =="
+echo "== 车辆 TF 树 / 默认静止 =="
 python3 /home/ubuntu22/VLN/scripts/ros2_wait_for_vehicle_tf.py \
   --topic "$TF_TOPIC" \
   --timeout 15 \
-  --min-base-delta 0.10 | tee "$LOG_DIR/vehicle_tf.log"
+  --min-base-delta 0.0 \
+  --max-base-delta 0.05 \
+  --stable-observe-seconds 6.0 | tee "$LOG_DIR/vehicle_tf.log"
 
 echo
 echo "== 频率快照 =="

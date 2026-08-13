@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using RosMessageTypes.BuiltinInterfaces;
 using RosMessageTypes.Geometry;
 using RosMessageTypes.Std;
@@ -15,12 +17,17 @@ namespace VLN.ROS2
         [SerializeField] string m_BaseFrame = "base_link";
         [SerializeField] string m_CameraFrame = "front_camera_optical_frame";
         [SerializeField] string m_LidarFrame = "lidar_link";
+        [SerializeField] string m_CmdVelTopic = "/vln/cmd_vel";
         [SerializeField] Transform m_CameraTransform;
         [SerializeField] Transform m_LidarTransform;
         [SerializeField] float m_TfFrequencyHz = 10f;
         [SerializeField] float m_VehicleSpeedMetersPerSecond = 1.4f;
         [SerializeField] float m_PathStartZ = -24f;
         [SerializeField] float m_PathEndZ = 24f;
+        [SerializeField] bool m_AutopilotUntilFirstCommand = false;
+        [SerializeField] float m_CommandTimeoutSeconds = 0.75f;
+        [SerializeField] float m_MaxLinearSpeedMetersPerSecond = 2.0f;
+        [SerializeField] float m_MaxAngularSpeedRadPerSecond = 1.2f;
 
         const float TerrainSize = 80f;
         const float TerrainHeight = 7f;
@@ -29,16 +36,34 @@ namespace VLN.ROS2
         float m_StartRealtime;
         float m_NextPublishTime;
         Vector3 m_LastPosition;
+        float m_CommandedLinearX;
+        float m_CommandedAngularZ;
+        float m_LastCommandRealtime = -999f;
+        int m_CommandCount;
+        string m_ControlResultPath;
+        bool m_FinalControlSnapshotWritten;
         bool m_Registered;
 
         void Start()
         {
             m_StartRealtime = Time.realtimeSinceStartup;
             m_LastPosition = transform.position;
+            m_ControlResultPath = Path.Combine(Application.dataPath, "../Logs/vln_vehicle_control_result.txt");
+            Directory.CreateDirectory(Path.GetDirectoryName(m_ControlResultPath));
+            File.WriteAllText(m_ControlResultPath,
+                $"started={DateTime.UtcNow:O}\n" +
+                $"cmd_vel_topic={m_CmdVelTopic}\n" +
+                "cmd_vel_type=geometry_msgs/msg/Twist\n" +
+                $"autopilot_until_first_command={m_AutopilotUntilFirstCommand}\n" +
+                $"command_timeout_seconds={m_CommandTimeoutSeconds:F2}\n" +
+                $"max_linear_speed_mps={m_MaxLinearSpeedMetersPerSecond:F2}\n" +
+                $"max_angular_speed_radps={m_MaxAngularSpeedRadPerSecond:F2}\n");
+
             m_Ros = ROSConnection.GetOrCreateInstance();
             m_Ros.RegisterPublisher<TFMessageMsg>(m_TfTopic, queue_size: 10);
+            m_Ros.Subscribe<TwistMsg>(m_CmdVelTopic, OnCmdVel);
             m_Registered = true;
-            Debug.Log($"VLN_VEHICLE_TF_READY topic={m_TfTopic} map={m_MapFrame} base={m_BaseFrame} camera={m_CameraFrame} lidar={m_LidarFrame}");
+            Debug.Log($"VLN_VEHICLE_TF_READY topic={m_TfTopic} map={m_MapFrame} base={m_BaseFrame} camera={m_CameraFrame} lidar={m_LidarFrame} cmd_vel={m_CmdVelTopic}");
         }
 
         void Update()
@@ -56,6 +81,23 @@ namespace VLN.ROS2
 
         void UpdateVehiclePose()
         {
+            if (HasRecentCommand())
+            {
+                UpdateVehiclePoseFromCommand();
+                return;
+            }
+
+            if (m_CommandCount == 0 && m_AutopilotUntilFirstCommand)
+            {
+                UpdateVehiclePoseFromAutopilot();
+                return;
+            }
+
+            SnapVehicleToTerrain();
+        }
+
+        void UpdateVehiclePoseFromAutopilot()
+        {
             float pathLength = Mathf.Max(0.1f, m_PathEndZ - m_PathStartZ);
             float distance = Mathf.PingPong((Time.realtimeSinceStartup - m_StartRealtime) * m_VehicleSpeedMetersPerSecond, pathLength);
             float z = m_PathStartZ + distance;
@@ -72,6 +114,77 @@ namespace VLN.ROS2
 
             transform.position = nextPosition;
             m_LastPosition = nextPosition;
+        }
+
+        void UpdateVehiclePoseFromCommand()
+        {
+            float dt = Mathf.Clamp(Time.deltaTime, 0f, 0.1f);
+            float linear = Mathf.Clamp(m_CommandedLinearX, -m_MaxLinearSpeedMetersPerSecond, m_MaxLinearSpeedMetersPerSecond);
+            float angular = Mathf.Clamp(m_CommandedAngularZ, -m_MaxAngularSpeedRadPerSecond, m_MaxAngularSpeedRadPerSecond);
+
+            transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y + angular * Mathf.Rad2Deg * dt, 0f);
+            Vector3 nextPosition = transform.position + transform.forward * (linear * dt);
+            float halfBound = TerrainSize * 0.46f;
+            nextPosition.x = Mathf.Clamp(nextPosition.x, -halfBound, halfBound);
+            nextPosition.z = Mathf.Clamp(nextPosition.z, -halfBound, halfBound);
+            nextPosition.y = TerrainWorldY(nextPosition.x, nextPosition.z);
+
+            transform.position = nextPosition;
+            m_LastPosition = nextPosition;
+        }
+
+        bool HasRecentCommand()
+        {
+            return m_CommandCount > 0 && Time.realtimeSinceStartup - m_LastCommandRealtime <= Mathf.Max(0.1f, m_CommandTimeoutSeconds);
+        }
+
+        void SnapVehicleToTerrain()
+        {
+            Vector3 position = transform.position;
+            position.y = TerrainWorldY(position.x, position.z);
+            transform.position = position;
+            m_LastPosition = position;
+        }
+
+        void OnCmdVel(TwistMsg msg)
+        {
+            m_CommandedLinearX = Mathf.Clamp((float)msg.linear.x, -m_MaxLinearSpeedMetersPerSecond, m_MaxLinearSpeedMetersPerSecond);
+            m_CommandedAngularZ = Mathf.Clamp((float)msg.angular.z, -m_MaxAngularSpeedRadPerSecond, m_MaxAngularSpeedRadPerSecond);
+            m_LastCommandRealtime = Time.realtimeSinceStartup;
+            m_CommandCount++;
+
+            string line = $"cmd_vel_received={m_CommandCount};time={DateTime.UtcNow:O};linear_x={m_CommandedLinearX:F3};angular_z={m_CommandedAngularZ:F3}";
+            File.AppendAllText(m_ControlResultPath, line + "\n");
+            if (m_CommandCount == 1 || m_CommandCount % 10 == 0)
+            {
+                Debug.Log($"VLN_CMD_VEL_RX count={m_CommandCount} linear_x={m_CommandedLinearX:F3} angular_z={m_CommandedAngularZ:F3}");
+            }
+        }
+
+        void OnApplicationQuit()
+        {
+            WriteFinalControlSnapshot();
+        }
+
+        void OnDestroy()
+        {
+            WriteFinalControlSnapshot();
+        }
+
+        void WriteFinalControlSnapshot()
+        {
+            if (m_FinalControlSnapshotWritten || string.IsNullOrEmpty(m_ControlResultPath))
+            {
+                return;
+            }
+
+            m_FinalControlSnapshotWritten = true;
+            Vector3 euler = transform.eulerAngles;
+            File.AppendAllText(m_ControlResultPath,
+                $"finished={DateTime.UtcNow:O}\n" +
+                $"cmd_vel_count={m_CommandCount}\n" +
+                $"final_position={transform.position.x:F3},{transform.position.y:F3},{transform.position.z:F3}\n" +
+                $"final_yaw_deg={euler.y:F3}\n");
         }
 
         void PublishTf()

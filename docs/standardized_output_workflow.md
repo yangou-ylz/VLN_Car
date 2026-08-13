@@ -25,6 +25,7 @@
 | 车体坐标系 | `base_link` |
 | 相机 frame | `front_camera_optical_frame` |
 | LiDAR frame | `lidar_link` |
+| 无控制指令时车体行为 | 保持静止 |
 
 当前 TF 树：
 
@@ -51,19 +52,20 @@ VLN_STANDARDIZED_OUTPUTS_SMOKE_TEST_PASS
 最近一次通过结果：
 
 ```text
-run_id=vln_standardized_outputs_20260814_011059
-log_dir=/home/ubuntu22/VLN/UnityProjects/_SmokeTestLogs/vln_standardized_outputs_20260814_011059
-bag_dir=/home/ubuntu22/VLN/VLN_BAGS/vln_standardized_outputs_20260814_011059
+run_id=vln_standardized_outputs_20260814_021919
+log_dir=/home/ubuntu22/VLN/UnityProjects/_SmokeTestLogs/vln_standardized_outputs_20260814_021919
+bag_dir=/home/ubuntu22/VLN/VLN_BAGS/vln_standardized_outputs_20260814_021919
 ```
 
 该次自动验收记录到：
 
-- 图像 39 帧
+- 图像 40 帧
 - CameraInfo 39 帧
 - 点云 39 帧
 - TF 78 条消息
-- rosbag 大小约 38.7 MiB
-- rosbag 时长约 7.71 秒
+- rosbag 大小约 39.6 MiB
+- rosbag 时长约 7.78 秒
+- `base_link` 无控制指令时最大位移 0.000m
 
 ## 手工启动顺序
 
@@ -161,4 +163,5 @@ rosbag 固定输出到：
 - 一键脚本输出 `VLN_STANDARDIZED_OUTPUTS_SMOKE_TEST_PASS`。
 - rosbag info 中同时出现 `/vln/front/image_raw`、`/vln/front/camera_info`、`/vln/lidar/points`、`/tf`。
 - RViz 使用 `config/vln_vehicle_sensors.rviz` 时不需要临时静态 TF。
+- Unity Play 后无 `/vln/cmd_vel` 时车体保持静止，运动由阶段 9/10 或后续导航/VLN 控制器触发。
 - 新终端按本文件手工启动顺序可以复现图像、点云和 TF。

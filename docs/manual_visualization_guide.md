@@ -4,10 +4,11 @@
 
 ## 当前能看到什么
 
-- Unity 里能看到三个测试场景：通信测试场景、相机测试场景、LiDAR 点云测试场景。
-- `UnitySensorsImageSmokeTest.unity` 中能看到简单地面和彩色目标，相机会发布 `/vln/front/image_raw`。
-- `UnitySensorsLidarSmokeTest.unity` 中能看到地面、墙、坡、障碍物和一个 VLP-16 占位 LiDAR，LiDAR 会发布 `/vln/lidar/points`。
-- 现在还不是最终越野环境，也还没有小车；下一阶段才把这两个传感器闭环迁移到极简越野 terrain。
+- Unity 里能看到通信测试场景、相机测试场景、LiDAR 点云测试场景，以及当前主场景 `VLNOffroadTerrainSmokeTest.unity`。
+- 主场景里已经有轻量越野地形、土路、坡、石块、树木、障碍物、可控占位车体、前向 RGB 相机和 VLP-16 LiDAR。
+- ROS2 侧已经能看到 `/vln/front/image_raw`、`/vln/front/camera_info`、`/vln/lidar/points`、`/tf` 和 `/vln/cmd_vel`。
+- 当前不是最终真实小车动力学，也不是完整 VLN 算法；但感知输入、TF、rosbag 和 ROS2 速度控制入口已经跑通。
+- 当前主场景点击 Play 后车体默认不动；这不是坏事，而是为了保证后续目标点、路径点、Nav2 或 VLN 控制器才是唯一运动来源。
 
 ## 打开 Unity 工程
 
@@ -29,6 +30,7 @@
 
 - 相机测试：`Assets/VLN/Scenes/UnitySensorsImageSmokeTest.unity`
 - 点云测试：`Assets/VLN/Scenes/UnitySensorsLidarSmokeTest.unity`
+- 当前主场景：`Assets/VLN/Scenes/VLNOffroadTerrainSmokeTest.unity`
 
 双击场景后点击 Unity 顶部 Play 按钮，就能看到当前测试场景。注意：如果你要让 ROS2 收到 topic，需要先启动 endpoint。
 
@@ -57,6 +59,7 @@
 3. Play 按钮正常会变成蓝色或高亮；这表示 Unity 进入运行态。
 4. 只有进入 Play 后，UnitySensors 才会真正往 ROS2 发 `/vln/front/image_raw` 或 `/vln/lidar/points`。
 5. 如果只是打开场景但没点 Play，ROS2 里通常只能看到 `/rosout` 和 `/parameter_events`，不会有 `/vln/...` topic。
+6. 打开主场景 `VLNOffroadTerrainSmokeTest.unity` 时，Play 后车体应保持静止；只有另一个 ROS2 终端向 `/vln/cmd_vel` 发指令，或运行路径点控制器时，车体才会移动。
 
 看画面的区别：
 
@@ -153,9 +156,54 @@ ros2 topic hz /vln/lidar/points
 ros2 topic bw /vln/lidar/points
 ```
 
-## 为什么现在 Fixed Frame 用 `map`
+## 当前主场景的正式查看方式
 
-当前只是传感器最小闭环，LiDAR 还没有挂到小车 `base_link` 下，也没有正式 `map -> odom -> base_link -> lidar_link` 的 TF 树。为了先看点云，`view_lidar_rviz.sh` 会临时发布一个身份变换 `map -> lidar_link`。后续导入小车后，再把 TF 标准化，并删除这个临时可视化补丁。
+阶段 7 之后已经有正式 TF 树：
+
+```text
+map -> base_link
+base_link -> front_camera_optical_frame
+base_link -> lidar_link
+```
+
+查看当前主场景时，优先使用：
+
+```bash
+/home/ubuntu22/VLN/scripts/view_vln_vehicle_rviz.sh
+```
+
+这个脚本不会临时发布静态 TF，它依赖 Unity 正式发布 `/tf`。旧脚本 `/home/ubuntu22/VLN/scripts/view_lidar_rviz.sh` 只保留给阶段 5 单 LiDAR 场景排障。
+
+## 手工控制小车
+
+前置：endpoint 已启动，Unity 打开 `VLNOffroadTerrainSmokeTest.unity` 并点击 Play。
+
+正常现象：刚点击 Play 时车体不会自己跑。先看图像、点云和 TF；需要运动时，再运行下面的 ROS2 控制命令。
+
+另开终端：
+
+```bash
+ros2env
+source /home/ubuntu22/VLN/unity_ros2_ws/install/setup.bash
+python3 /home/ubuntu22/VLN/scripts/ros2_send_cmd_vel_and_wait_tf.py \
+  --cmd-topic /vln/cmd_vel \
+  --tf-topic /tf \
+  --linear-x 0.8 \
+  --angular-z 0.7 \
+  --duration 4.0
+```
+
+如果只想手工发布速度，不自动校验 TF：
+
+```bash
+ros2 topic pub /vln/cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.5}, angular: {z: 0.3}}" -r 10
+```
+
+停止时发 0 速度：
+
+```bash
+ros2 topic pub --once /vln/cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.0}, angular: {z: 0.0}}"
+```
 
 ## 自动验收和手工查看的区别
 

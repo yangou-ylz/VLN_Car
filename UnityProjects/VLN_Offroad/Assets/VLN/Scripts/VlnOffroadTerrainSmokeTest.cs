@@ -12,6 +12,7 @@ namespace VLN.ROS2
         [SerializeField] string m_ImageTopic = "/vln/front/image_raw";
         [SerializeField] string m_CameraInfoTopic = "/vln/front/camera_info";
         [SerializeField] string m_PointCloudTopic = "/vln/lidar/points";
+        [SerializeField] string m_CmdVelTopic = "/vln/cmd_vel";
         [SerializeField] string m_CameraFrameId = "front_camera_optical_frame";
         [SerializeField] string m_LidarFrameId = "lidar_link";
         [SerializeField] float m_BatchModeAutoExitAfterSeconds = 28f;
@@ -30,14 +31,16 @@ namespace VLN.ROS2
                 $"image_topic={m_ImageTopic}\n" +
                 $"camera_info_topic={m_CameraInfoTopic}\n" +
                 $"pointcloud_topic={m_PointCloudTopic}\n" +
+                $"cmd_vel_topic={m_CmdVelTopic}\n" +
                 $"camera_frame_id={m_CameraFrameId}\n" +
                 $"lidar_frame_id={m_LidarFrameId}\n" +
                 "image_type=sensor_msgs/msg/Image\n" +
                 "pointcloud_type=sensor_msgs/msg/PointCloud2\n" +
                 "terrain=procedural_lightweight_offroad\n" +
-                "vehicle=procedural_moving_placeholder\n" +
+                "vehicle=procedural_cmd_vel_placeholder\n" +
                 "tf_topic=/tf\n" +
                 "tf_tree=map->base_link->front_camera_optical_frame,lidar_link\n" +
+                "cmd_vel_type=geometry_msgs/msg/Twist\n" +
                 "image_resolution=640x480\n" +
                 "lidar_scan_pattern=VLP-16\n" +
                 "lidar_points_per_scan=7200\n" +

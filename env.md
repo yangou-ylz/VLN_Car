@@ -323,12 +323,13 @@ VLN_OFFROAD_TERRAIN_SMOKE_TEST_PASS
 
 注意：阶段 6 自动验收脚本必须保留图形上下文，因此使用 `-batchmode`，不要加 `-nographics`。当前机器上 `-nographics` 会让 Unity 在 UnitySensors `RGBCameraSensor` 的 `Camera.Render` 路径段错误。这个限制只影响阶段 6 这种带复杂 terrain 场景的自动验收；阶段 4/5 原有单独 smoke test 已回归通过。
 
-### 阶段 7：移动占位车体与 TF 树闭环
+### 阶段 7：可控占位车体与 TF 树闭环
 
 当前场景继续使用：
 
 - Unity 场景：`Assets/VLN/Scenes/VLNOffroadTerrainSmokeTest.unity`
-- 车体：程序化移动占位车体，后续真实小车/URDF 导入前的传感器载体 baseline
+- 车体：程序化可控占位车体，后续真实小车/URDF 导入前的传感器载体 baseline
+- 默认行为：Unity 点击 Play 后不自动巡航；未收到 `/vln/cmd_vel` 时保持静止
 - TF topic：`/tf`，`tf2_msgs/msg/TFMessage`
 - TF 树：`map -> base_link`，`base_link -> front_camera_optical_frame`，`base_link -> lidar_link`
 
@@ -344,9 +345,9 @@ VLN_OFFROAD_TERRAIN_SMOKE_TEST_PASS
 VLN_VEHICLE_TF_SMOKE_TEST_PASS
 ```
 
-最近一次通过日志：`/home/ubuntu22/VLN/UnityProjects/_SmokeTestLogs/vln_vehicle_tf_20260814_010331`。
+最近一次通过日志：`/home/ubuntu22/VLN/UnityProjects/_SmokeTestLogs/vln_vehicle_tf_20260814_021645`。
 
-该次结果：图像、CameraInfo、点云和 TF 全部通过；`base_link` 在验收窗口内移动约 `0.374m`。阶段 7 通过后，阶段 4/5 已顺序回归：图像 `vln_image_20260814_010438`，LiDAR `vln_lidar_20260814_010511`。
+该次结果：图像、CameraInfo、点云和 TF 全部通过；无 `/vln/cmd_vel` 指令时 `base_link` 最大位移 `0.000m`，满足默认静止要求。该阶段不再用自动巡航作为通过条件。
 
 ### 阶段 8：标准化 topic / TF / RViz / rosbag
 
@@ -369,9 +370,9 @@ VLN_VEHICLE_TF_SMOKE_TEST_PASS
 VLN_STANDARDIZED_OUTPUTS_SMOKE_TEST_PASS
 ```
 
-最近一次通过日志：`/home/ubuntu22/VLN/UnityProjects/_SmokeTestLogs/vln_standardized_outputs_20260814_011059`。
+最近一次通过日志：`/home/ubuntu22/VLN/UnityProjects/_SmokeTestLogs/vln_standardized_outputs_20260814_021919`。
 
-最近一次 rosbag：`/home/ubuntu22/VLN/VLN_BAGS/vln_standardized_outputs_20260814_011059`，大小约 `38.7 MiB`，时长约 `7.71s`，包含图像 39 帧、CameraInfo 39 帧、点云 39 帧、TF 78 条消息。
+最近一次 rosbag：`/home/ubuntu22/VLN/VLN_BAGS/vln_standardized_outputs_20260814_021919`，大小约 `39.6 MiB`，时长约 `7.78s`，包含图像 40 帧、CameraInfo 39 帧、点云 39 帧、TF 78 条消息；无控制指令时车体保持静止。
 
 手工检查标准输出：
 
@@ -400,6 +401,111 @@ VLN_STANDARDIZED_OUTPUTS_SMOKE_TEST_PASS
 ```
 
 rosbag 固定输出到 `/home/ubuntu22/VLN/VLN_BAGS`。该目录已被 `.gitignore` 忽略，不提交到 git。
+
+### 阶段 9：ROS2 `/vln/cmd_vel` 控制闭环
+
+当前固定控制接口：
+
+- 控制 topic：`/vln/cmd_vel`
+- 控制消息：`geometry_msgs/msg/Twist`
+- 线速度：`linear.x`，单位 m/s
+- 角速度：`angular.z`，单位 rad/s
+- 当前最大线速度：2.0 m/s
+- 当前最大角速度：1.2 rad/s
+- 指令超时：0.75s
+
+一键自动验收：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_cmd_vel_control_smoke_test.sh
+```
+
+成功输出：
+
+```text
+VLN_CMD_VEL_CONTROL_SMOKE_TEST_PASS
+```
+
+最近一次通过日志：`/home/ubuntu22/VLN/UnityProjects/_SmokeTestLogs/vln_cmd_vel_control_20260814_021738`。
+
+该次结果：ROS2 发布 `/vln/cmd_vel [geometry_msgs/msg/Twist]`，Unity 收到 48 条指令，`base_link` 位移约 `2.262m`，yaw 变化约 `2.851rad`，图像、CameraInfo、点云仍全部通过字段校验。`vln_vehicle_control_result.txt` 记录 `autopilot_until_first_command=False`。
+
+手工控制验证：
+
+```bash
+ros2env
+source /home/ubuntu22/VLN/unity_ros2_ws/install/setup.bash
+python3 /home/ubuntu22/VLN/scripts/ros2_send_cmd_vel_and_wait_tf.py \
+  --cmd-topic /vln/cmd_vel \
+  --tf-topic /tf \
+  --linear-x 0.8 \
+  --angular-z 0.7 \
+  --duration 4.0
+```
+
+也可以用 ROS2 CLI 手工发一次持续速度，但这种方式不会自动校验 TF：
+
+```bash
+ros2env
+source /home/ubuntu22/VLN/unity_ros2_ws/install/setup.bash
+ros2 topic pub /vln/cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.5}, angular: {z: 0.3}}" -r 10
+```
+
+停止时发布 0 速度：
+
+```bash
+ros2 topic pub --once /vln/cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.0}, angular: {z: 0.0}}"
+```
+
+注意：当前控制模型是轻量运动学模型，主要用于验证 ROS2 控制接口、传感器随车体移动和 TF 更新；它不是最终真实底盘动力学。
+
+### 阶段 10：ROS2 路径点控制闭环
+
+当前固定路径点控制方式：
+
+- 输入 TF：`/tf` 中的 `map -> base_link`
+- 输出控制：`/vln/cmd_vel [geometry_msgs/msg/Twist]`
+- 默认相对路径点：`1.2,0.0;2.4,0.0`
+- 路径点坐标含义：以启动时 `base_link` 为原点，x 为前向米，y 为左向米
+- 默认到点阈值：0.35m
+
+一键自动验收：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_waypoint_control_smoke_test.sh
+```
+
+成功输出：
+
+```text
+VLN_WAYPOINT_CONTROL_SMOKE_TEST_PASS
+```
+
+最近一次通过日志：`/home/ubuntu22/VLN/UnityProjects/_SmokeTestLogs/vln_waypoint_control_20260814_021829`。
+
+该次结果：到达 2/2 个路径点，总位移约 `2.100m`，最终距离最后路径点约 `0.300m`，ROS2 发布 `/vln/cmd_vel` 共 49 条，图像、CameraInfo、点云仍全部通过字段校验。
+
+手工路径点控制验证：
+
+```bash
+ros2env
+source /home/ubuntu22/VLN/unity_ros2_ws/install/setup.bash
+python3 /home/ubuntu22/VLN/scripts/ros2_drive_waypoints.py \
+  --cmd-topic /vln/cmd_vel \
+  --tf-topic /tf \
+  --relative-waypoints '1.2,0.0;2.4,0.0'
+```
+
+如果要改目标距离，例如前进 1m、2m、3m：
+
+```bash
+python3 /home/ubuntu22/VLN/scripts/ros2_drive_waypoints.py \
+  --cmd-topic /vln/cmd_vel \
+  --tf-topic /tf \
+  --relative-waypoints '1.0,0.0;2.0,0.0;3.0,0.0'
+```
+
+注意：这是轻量路径点控制器，不是 navigation2。它用于验证后续 VLN/规划模块可以“读 TF、发 cmd_vel、驱动车体”。
 
 ### Unity Hub 保持登录态的使用规则
 
@@ -518,5 +624,8 @@ curl -fsSL --max-time 12 --proxy http://127.0.0.1:7897 https://api.ipify.org
 - 2026-08-13：新增并验证 Unity-ROS2 最小闭环脚本 `/home/ubuntu22/VLN/scripts/run_ros2_unity_smoke_test.sh`；阶段 3 已通过，下一阶段可以开始 UnitySensors 相机图像闭环。
 - 2026-08-13：新增并验证 UnitySensors 相机图像闭环脚本 `/home/ubuntu22/VLN/scripts/run_unitysensors_image_smoke_test.sh` 和 ROS2 字段校验脚本 `/home/ubuntu22/VLN/scripts/ros2_wait_for_image_once.py`；阶段 4 已通过，下一阶段可以开始 UnitySensors LiDAR 点云闭环。
 - 2026-08-13：新增并验证 UnitySensors LiDAR 点云闭环脚本 `/home/ubuntu22/VLN/scripts/run_unitysensors_lidar_smoke_test.sh` 和 ROS2 字段校验脚本 `/home/ubuntu22/VLN/scripts/ros2_wait_for_pointcloud2_once.py`；阶段 5 已通过，下一阶段可以开始极简越野 terrain 闭环。
-- 2026-08-14：新增并验证移动占位车体和 TF 树闭环脚本 `/home/ubuntu22/VLN/scripts/run_vehicle_tf_smoke_test.sh`；阶段 7 已通过，正式 TF 树为 `map -> base_link -> front_camera_optical_frame,lidar_link`。
-- 2026-08-14：新增并验证标准化输出脚本 `/home/ubuntu22/VLN/scripts/run_standardized_outputs_smoke_test.sh`、`check_standardized_vln_outputs.sh`、`view_vln_vehicle_rviz.sh`、`record_vln_sensor_bag_sample.sh` 和 RViz 配置 `/home/ubuntu22/VLN/config/vln_vehicle_sensors.rviz`；阶段 8 已通过，并记录标准 rosbag 样本到 `/home/ubuntu22/VLN/VLN_BAGS/vln_standardized_outputs_20260814_011059`。
+- 2026-08-14：新增并验证可控占位车体和 TF 树闭环脚本 `/home/ubuntu22/VLN/scripts/run_vehicle_tf_smoke_test.sh`；阶段 7 已通过，正式 TF 树为 `map -> base_link -> front_camera_optical_frame,lidar_link`，当前默认无 `/vln/cmd_vel` 指令时静止。
+- 2026-08-14：新增并验证标准化输出脚本 `/home/ubuntu22/VLN/scripts/run_standardized_outputs_smoke_test.sh`、`check_standardized_vln_outputs.sh`、`view_vln_vehicle_rviz.sh`、`record_vln_sensor_bag_sample.sh` 和 RViz 配置 `/home/ubuntu22/VLN/config/vln_vehicle_sensors.rviz`；阶段 8 已通过，并在默认静止修复后回归通过，最近标准 rosbag 样本位于 `/home/ubuntu22/VLN/VLN_BAGS/vln_standardized_outputs_20260814_021919`。
+- 2026-08-14：修复 Unity Play 后车体自动巡航问题；将 `m_AutopilotUntilFirstCommand` 默认值、场景生成器和已保存主场景都改为 false。该改动未安装任何新系统包、Python 包或 Conda 包。
+- 2026-08-14：新增并验证 ROS2 `/vln/cmd_vel` 控制闭环脚本 `/home/ubuntu22/VLN/scripts/run_cmd_vel_control_smoke_test.sh` 和 `/home/ubuntu22/VLN/scripts/ros2_send_cmd_vel_and_wait_tf.py`；阶段 9 已通过。该阶段只使用已有 ROS2 `geometry_msgs`，未安装任何新系统包或 Python 包。
+- 2026-08-14：新增并验证 ROS2 路径点控制脚本 `/home/ubuntu22/VLN/scripts/ros2_drive_waypoints.py` 和 `/home/ubuntu22/VLN/scripts/run_waypoint_control_smoke_test.sh`；阶段 10 已通过。该阶段只使用已有 ROS2 `geometry_msgs`、`tf2_msgs`，未安装任何新系统包或 Python 包。

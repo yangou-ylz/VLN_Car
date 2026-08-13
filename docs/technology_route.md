@@ -4,7 +4,7 @@
 
 本项目当前采用：Unity3D + ROS-TCP-Connector + ROS-TCP-Endpoint + UnitySensors / UnitySensorsROS + ROS2 Humble。
 
-该路线服务于一个明确目标：先在仿真中稳定产生 VLN 感知层需要的相机图像和 3D LiDAR 点云，而不是马上实现完整 VLN 推理、训练或真实车控制。
+该路线服务于一个明确目标：先在仿真中稳定产生 VLN 感知层需要的相机图像和 3D LiDAR 点云，并建立 ROS2 到 Unity 的基础控制入口，而不是马上实现完整 VLN 推理、训练或真实车动力学。
 
 ## 为什么先用 Unity
 
@@ -30,7 +30,9 @@
 4. UnitySensors 发布相机图像，ROS2 能 `rqt_image_view`。
 5. UnitySensors 发布 LiDAR 点云，ROS2 能 RViz2 显示 `PointCloud2`。
 6. 加入极简越野 terrain，确认图像和点云随环境变化。
-7. 加入小车模型或占位车体，传感器随车体运动。
+7. 加入小车模型或占位车体，传感器挂载到车体并发布正式 TF；无控制指令时默认静止。
+8. 固化 topic、TF、RViz 和 rosbag 工作流。
+9. ROS2 发布 `/vln/cmd_vel`，Unity 车体按 `geometry_msgs/msg/Twist` 响应。
 
 ## 标准 topic 草案
 
@@ -40,8 +42,8 @@
 | 相机内参 | `/vln/front/camera_info` | `sensor_msgs/msg/CameraInfo` | 已验证 5Hz |
 | 全景图像 | `/vln/panorama/image_raw` | `sensor_msgs/msg/Image` | 5-10Hz |
 | LiDAR 点云 | `/vln/lidar/points` | `sensor_msgs/msg/PointCloud2` | 已验证 5Hz，7200 点/帧 |
-| 车体控制 | `/cmd_vel` | `geometry_msgs/msg/Twist` | 按控制器 |
-| 坐标变换 | `/tf`、`/tf_static` | `tf2_msgs/msg/TFMessage` | 按 frame |
+| 车体控制 | `/vln/cmd_vel` | `geometry_msgs/msg/Twist` | 已验证 10Hz 指令发布 |
+| 坐标变换 | `/tf` | `tf2_msgs/msg/TFMessage` | 已验证 10Hz 左右 |
 
 ## frame 草案
 
@@ -59,4 +61,5 @@
 - 图像和点云 topic 优先控制频率、分辨率和点数，先稳定再提高质量。
 - 每个 topic 都必须能用 `ros2 topic info`、`ros2 topic hz`、`ros2 topic bw` 验证。
 - 每次新增传感器或 frame，都要更新 `env.md` 或本文件。
-- 当前已完成通信、前向 RGB 图像、VLP-16 低负载点云三个闭环；下一步只能进入极简越野 terrain，不跳到完整 VLN 算法或大型训练环境。
+- 当前已完成通信、前向 RGB 图像、VLP-16 低负载点云、极简越野 terrain、可控占位车体、标准 TF/RViz/rosbag、`/vln/cmd_vel` 控制闭环和路径点控制闭环；下一步仍应围绕真实小车模型、轻量数据采集或 navigation2 前置条件，不跳到完整 VLN 算法或大型训练环境。
+- Unity Play 后默认静止是当前主线约束：运动必须由 `/vln/cmd_vel`、路径点控制器、后续 navigation2 或 VLN 决策模块触发，避免 Unity 侧自动巡航污染控制与数据采集。

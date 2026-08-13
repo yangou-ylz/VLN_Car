@@ -319,7 +319,16 @@
 
 - 现象：阶段 5 的 `/home/ubuntu22/VLN/scripts/view_lidar_rviz.sh` 会临时发布 `map -> lidar_link`，但阶段 7/8 已经由 Unity 发布正式 `/tf`。如果继续把旧脚本当作主查看方式，容易掩盖正式 TF 树是否真的存在。
 - 环境：阶段 8 标准输出，TF 树为 `map -> base_link -> front_camera_optical_frame,lidar_link`。
-- 根因：单 LiDAR smoke test 阶段没有车体 TF，只能临时补 `map -> lidar_link`；进入移动占位车体阶段后，这个补丁不再是主路线。
+- 根因：单 LiDAR smoke test 阶段没有车体 TF，只能临时补 `map -> lidar_link`；进入可控占位车体阶段后，这个补丁不再是主路线。
 - 解决方案：新增 `/home/ubuntu22/VLN/scripts/view_vln_vehicle_rviz.sh` 和 `/home/ubuntu22/VLN/config/vln_vehicle_sensors.rviz`，正式 RViz 配置只依赖 Unity 发布的 `/tf`，不主动发布静态 TF。旧 `view_lidar_rviz.sh` 保留给阶段 5 单 LiDAR 排障。
 - 验收方式：`/home/ubuntu22/VLN/scripts/run_standardized_outputs_smoke_test.sh` 输出 `VLN_STANDARDIZED_OUTPUTS_SMOKE_TEST_PASS`，rosbag 中包含 `/tf`、图像、CameraInfo 和点云四类 topic。
 - 状态：已解决。
+
+## 2026-08-14：Unity Play 后车体未收到目标仍自动运动
+
+- 现象：用户在 Unity 主场景点击 Play 后，即使没有运行路径点控制器、没有向 `/vln/cmd_vel` 发布速度或目标位置，车体仍按旧自动轨迹前进。
+- 环境：Unity Editor `2022.3.62f1`，主场景 `Assets/VLN/Scenes/VLNOffroadTerrainSmokeTest.unity`，运行时脚本 `VlnVehicleTfPublisher`。
+- 根因：`VlnVehicleTfPublisher` 中 `m_AutopilotUntilFirstCommand` 默认值为 `true`，并且 `VlnOffroadTerrainProjectSetup.ConfigureTfPublisher()` 重建场景时也会把该字段写回 `true`。因此 Play 以后车体会在首次 ROS2 控制指令到达前自动巡航。
+- 解决方案：将 `VlnVehicleTfPublisher.cs`、`VlnOffroadTerrainProjectSetup.cs` 和已保存的 `VLNOffroadTerrainSmokeTest.unity` 中的 `m_AutopilotUntilFirstCommand` 改为 `false`；扩展 `ros2_wait_for_vehicle_tf.py` 支持 `--max-base-delta` 静止验收；阶段 7/8 脚本改为无指令 6 秒内最大位移不超过 0.05m。
+- 验收方式：`run_vehicle_tf_smoke_test.sh` 通过，run id `vln_vehicle_tf_20260814_021645`，`max_base_delta=0.000m`；`run_cmd_vel_control_smoke_test.sh` 通过，run id `vln_cmd_vel_control_20260814_021738`，发 `/vln/cmd_vel` 后位移约 `2.262m`；`run_waypoint_control_smoke_test.sh` 通过，run id `vln_waypoint_control_20260814_021829`，到达 2/2 个路径点；`run_standardized_outputs_smoke_test.sh` 通过，run id `vln_standardized_outputs_20260814_021919`，rosbag 包含图像、CameraInfo、点云和 TF。
+- 状态：已解决。后续主线规定：Unity Play 只启动仿真与传感器发布，车体运动必须来自 ROS2 `/vln/cmd_vel` 或其上层路径点/导航/VLN 控制器。
