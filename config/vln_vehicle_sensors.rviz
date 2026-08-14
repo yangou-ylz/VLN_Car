@@ -134,14 +134,14 @@ Visualization Manager:
     Saved: ~
 Window Geometry:
   Displays:
-    collapsed: false
-  Height: 900
-  Hide Left Dock: false
+    collapsed: true
+  Height: 950
+  Hide Left Dock: true
   Hide Right Dock: false
   Time:
     collapsed: false
   Views:
     collapsed: false
-  Width: 1300
-  X: 60
-  Y: 60
+  Width: 1500
+  X: 30
+  Y: 30

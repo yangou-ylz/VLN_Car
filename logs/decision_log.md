@@ -148,3 +148,45 @@
 - 备选项：继续保留“首次收到控制指令前自动巡航”、完全删除自动巡航代码、或继续让阶段 7/8 自动验收依赖车体移动。
 - 理由：后续 VLN、路径点控制和 navigation2 都应该通过 ROS2 输出控制指令；如果 Unity 自己先动，会让用户误以为已经发了目标点，也会污染数据采集、TF 起点和控制闭环判断。
 - 影响：阶段 7/8 的验收条件改为“无指令静止 + 感知和 TF 正常”；阶段 9/10 继续负责验证“有 `/vln/cmd_vel` 后车体运动”。保留自动巡航字段但默认 false，必要时可手工打开做演示，不作为主线。
+
+## 2026-08-14：控制面板采用浏览器 UI + ROS2 Python 后端
+
+- 决策：本地控制面板不使用 PyQt、Tkinter 或 Electron，而是用 Python 标准库 HTTP server 提供浏览器中文界面，后端在同一 ROS2 Python 进程中读取 `/tf` 并发布 `/vln/cmd_vel`。
+- 备选项：Unity 内嵌 UI、PyQt 桌面 UI、rqt 插件、Electron 应用。
+- 理由：浏览器 UI 不需要安装新系统包或 Python 包，能快速做中文输入、步进按钮和触发按钮；ROS2 后端复用已有控制闭环，风险最低。
+- 影响：启动方式固定为 `/home/ubuntu22/VLN/scripts/start_vln_control_panel.sh`，默认 URL 为 `http://127.0.0.1:8765/`；相机和雷达按钮只触发已有 rqt/RViz 脚本，不把传感器窗口嵌入网页。
+
+## 2026-08-14：复杂地图和真实小车采用候选场景导入
+
+- 决策：成熟越野地图和真实小车模型进入阶段 12，但不直接替换当前主场景；先登记候选来源、许可证、体积和渲染管线，再导入候选场景测试。
+- 备选项：直接下载大型 Asset Store 地图覆盖主场景、直接导入真实小车替换占位车体、继续只用程序化简陋场景。
+- 理由：当前基线已经满足师兄最小要求，下一步的风险主要来自大资产、许可证、显存、渲染管线和 frame/TF 破坏。候选场景能保护当前已跑通的通信、图像、点云、TF 和控制闭环。
+- 影响：资料记录在 `/home/ubuntu22/VLN/VLN_REFERENCE_LIBRARY/asset_candidates/index.md`；导入前后必须跑标准输出、cmd_vel 控制和控制面板验收；未确认前不下载或导入大型资产。
+
+## 2026-08-14：阶段 12 第一轮先导复杂地图，不先换真实小车
+
+- 决策：阶段 12 第一轮优先筛选并导入中等复杂度越野地图候选，保留当前可控占位车体、传感器、TF 和 `/vln/cmd_vel` 控制接口。
+- 备选项：先导 Husky/Jackal 真实 UGV、同时导地图和小车、继续只优化程序化地图。
+- 理由：地图升级直接改善师兄关心的越野环境、相机图像和 LiDAR 点云；保留当前车体能降低问题面。真实小车导入会触碰 URDF/mesh、frame、碰撞体、控制和传感器挂载，应放在地图候选通过回归后再做。
+- 影响：下一步先做地图候选筛选和候选场景导入；主场景 `VLNOffroadTerrainSmokeTest.unity` 保留为回归基线。分析文档为 `/home/ubuntu22/VLN/docs/asset_selection_analysis.md`。
+
+## 2026-08-14：阶段 12 第一轮地图候选采用 Kenney Nature Kit 轻量子集
+
+- 决策：第一轮复杂地图候选采用 Kenney Nature Kit 2.1，不直接导入大型 Asset Store/HDRP 森林资产；Unity 工程只导入 70 个 FBX 子集。
+- 备选项：Unity Asset Store 大型越野/森林地图、Quaternius Ultimate Nature、Sketchfab 通用地形模型、继续只用程序化地形。
+- 理由：Kenney Nature Kit 许可证为 CC0，原始包约 `11M`，模型低多边形，不要求 URP/HDRP，不引入第三方 C# 脚本；非常适合 RTX 5060 Laptop 8GB 显存下做第一轮安全复杂度提升。它能增加树、岩石、灌木、栅栏、木桥和营地等越野语义元素，同时不触碰现有 `/vln/cmd_vel`、相机、LiDAR 和 TF 主链路。
+- 影响：新增候选场景 `Assets/VLN/Scenes/VLNOffroadAssetCandidate.unity`，新增自动验收脚本 `/home/ubuntu22/VLN/scripts/run_offroad_asset_candidate_smoke_test.sh`，完整资产升级回归 `/home/ubuntu22/VLN/scripts/run_asset_upgrade_baseline_check.sh` 已扩展为 4 步：候选场景、标准输出、cmd_vel 控制、中文控制面板。下一步进入真实 UGV/URDF 前，继续保留该地图候选作为回归场景。
+
+## 2026-08-14：真实小车第一轮采用 Husky 视觉导入，不直接做完整 URDF 动力学
+
+- 决策：第一轮真实小车候选选择 Clearpath Husky，导入 `.dae` 视觉 mesh 子集；Jackal 已下载但暂缓导入；暂不做完整 URDF Importer 和轮式动力学。
+- 备选项：直接导入 Husky 完整 URDF、直接导入 Jackal、同时导入两个小车、继续使用程序化占位车体。
+- 理由：Husky 有 `humble-devel` 分支，且关键视觉 mesh 为 `.dae`，更适合 Unity 直接候选导入；Jackal 主要是 `.stl`，更适合后续 URDF/转换路线。当前项目主线是师兄要求的 Unity 越野环境 + 相机图像 + LiDAR 点云，不应在已稳定的 ROS2 topic、TF 和控制接口上引入过多动力学风险。
+- 影响：新增候选场景 `Assets/VLN/Scenes/VLNOffroadVehicleCandidate.unity` 和自动验收脚本 `/home/ubuntu22/VLN/scripts/run_offroad_vehicle_candidate_smoke_test.sh`；完整资产升级回归扩展为 5 步：地图候选、车体候选、标准输出、cmd_vel 控制、中文控制面板。当前真实车体是视觉替换，不代表最终底盘动力学。
+
+## 2026-08-14：Husky 姿态修复限定为视觉网格修正
+
+- 决策：对 Husky 候选使用 `RosYawToUnityRotation()` 加 mesh upright correction 修正“四脚朝天/露底盘”问题，但不改变已稳定的 `/tf`、`/vln/cmd_vel`、相机和 LiDAR rig。
+- 备选项：整体翻转 `HuskyVisual_Root`、改传感器 rig、改 `base_link` TF、直接改完整 URDF/动力学导入路线。
+- 理由：当前故障是视觉 mesh 姿态问题，不是 ROS2 控制或 TF 语义问题；整体翻转 rig 或 frame 会破坏已经通过的相机、点云和控制闭环。
+- 影响：候选车体视觉上正过来，完整回归 `vln_asset_baseline_20260814_101820` 通过；后续如做真实动力学，需要作为单独阶段评估 Unity URDF Importer 和 wheel controller。

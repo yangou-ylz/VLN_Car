@@ -332,3 +332,66 @@
 - 解决方案：将 `VlnVehicleTfPublisher.cs`、`VlnOffroadTerrainProjectSetup.cs` 和已保存的 `VLNOffroadTerrainSmokeTest.unity` 中的 `m_AutopilotUntilFirstCommand` 改为 `false`；扩展 `ros2_wait_for_vehicle_tf.py` 支持 `--max-base-delta` 静止验收；阶段 7/8 脚本改为无指令 6 秒内最大位移不超过 0.05m。
 - 验收方式：`run_vehicle_tf_smoke_test.sh` 通过，run id `vln_vehicle_tf_20260814_021645`，`max_base_delta=0.000m`；`run_cmd_vel_control_smoke_test.sh` 通过，run id `vln_cmd_vel_control_20260814_021738`，发 `/vln/cmd_vel` 后位移约 `2.262m`；`run_waypoint_control_smoke_test.sh` 通过，run id `vln_waypoint_control_20260814_021829`，到达 2/2 个路径点；`run_standardized_outputs_smoke_test.sh` 通过，run id `vln_standardized_outputs_20260814_021919`，rosbag 包含图像、CameraInfo、点云和 TF。
 - 状态：已解决。后续主线规定：Unity Play 只启动仿真与传感器发布，车体运动必须来自 ROS2 `/vln/cmd_vel` 或其上层路径点/导航/VLN 控制器。
+
+## 2026-08-14：阶段 12 候选场景异步截图未落盘
+
+- 现象：首次运行 `/home/ubuntu22/VLN/scripts/run_offroad_asset_candidate_smoke_test.sh` 时，ROS2 图像、CameraInfo、点云和 TF 全部通过，但脚本最后报 `asset_candidate_screenshot_missing`。
+- 环境：Unity Editor `2022.3.62f1`，候选场景 `Assets/VLN/Scenes/VLNOffroadAssetCandidate.unity`，运行时脚本 `VlnOffroadAssetCandidateSmokeTest.cs`。
+- 根因：`ScreenCapture.CaptureScreenshot()` 是异步截图接口，batch 自动退出窗口内不保证 PNG 已完成写盘；传感器闭环实际已经正常。
+- 解决方案：将截图实现改为用 `Offroad_ViewerCamera` 同步渲染到 `RenderTexture`，再用 `Texture2D.ReadPixels()` 和 `File.WriteAllBytes()` 写 PNG。这样截图成为确定性产物。
+- 验收方式：重新运行 `/home/ubuntu22/VLN/scripts/run_offroad_asset_candidate_smoke_test.sh`，输出 `VLN_OFFROAD_ASSET_CANDIDATE_SMOKE_TEST_PASS`；截图文件为 `/home/ubuntu22/VLN/UnityProjects/_SmokeTestLogs/vln_offroad_asset_candidate_20260814_033514/vln_offroad_asset_candidate_screenshot.png`。
+- 状态：已解决。
+
+## 2026-08-14：控制面板 smoke test 遇到 8765 端口已占用
+
+- 现象：完整资产升级回归第一次通过时，`control_panel.log` 中出现 `OSError: [Errno 98] Address already in use` traceback，但 HTTP 客户端仍通过，因为旧控制面板已经在 `127.0.0.1:8765` 运行。
+- 环境：`/home/ubuntu22/VLN/scripts/run_control_panel_smoke_test.sh`，本地中文控制面板默认端口 `8765`。
+- 根因：测试脚本没有区分“端口被已有可用控制面板占用”和“端口异常占用”，直接尝试再启动一个面板进程，导致重复 bind 报错。
+- 解决方案：修改脚本：如果 `8765` 已监听且 `/api/status` 可响应，则复用已有控制面板，不再启动新进程，也不在 cleanup 中杀掉用户正在使用的面板；如果端口占用但不响应 `/api/status`，才作为错误退出。
+- 验收方式：端口已有面板时重新运行 `/home/ubuntu22/VLN/scripts/run_control_panel_smoke_test.sh`，输出 `panel_already_listening=true` 和 `VLN_CONTROL_PANEL_SMOKE_TEST_PASS`，日志只记录“复用已启动的控制面板”，无 traceback。完整回归 `vln_asset_baseline_20260814_033514` 输出 `VLN_ASSET_UPGRADE_BASELINE_CHECK_PASS`。
+- 状态：已解决。
+
+## 2026-08-14：Husky 车体候选首次编译缺少运行时命名空间引用
+
+- 现象：首次运行 `/home/ubuntu22/VLN/scripts/run_offroad_vehicle_candidate_smoke_test.sh` 时，Unity 在编译阶段停止，报 `VlnOffroadVehicleCandidateSmokeTest` 类型找不到，所有 ROS2 等待脚本随后因 Unity 未启动而退出。
+- 环境：Unity Editor `2022.3.62f1`，新增 Editor 脚本 `VlnOffroadVehicleCandidateProjectSetup.cs`，新增运行时脚本 `VlnOffroadVehicleCandidateSmokeTest.cs`。
+- 根因：Editor 脚本位于 `VLN.Editor` 命名空间，运行时脚本位于 `VLN.ROS2` 命名空间；新增场景生成器调用运行时组件时缺少 `using VLN.ROS2;`。
+- 解决方案：在 `VlnOffroadVehicleCandidateProjectSetup.cs` 中补充 `using VLN.ROS2;`，不改 Unity 包、不安装新依赖。
+- 验收方式：重新运行 `/home/ubuntu22/VLN/scripts/run_offroad_vehicle_candidate_smoke_test.sh` 输出 `VLN_OFFROAD_VEHICLE_CANDIDATE_SMOKE_TEST_PASS`；随后完整回归 `/home/ubuntu22/VLN/scripts/run_asset_upgrade_baseline_check.sh` 输出 `VLN_ASSET_UPGRADE_BASELINE_CHECK_PASS`，run id `vln_asset_baseline_20260814_040515`。
+- 状态：已解决。
+
+## 2026-08-14：Unity Game 视图中 Husky 候选车体和场景显得过糊
+
+- 现象：用户截图中 `VLNOffroadVehicleCandidate.unity` 的 Game 视图显示车体和场景像素块明显，用户反馈“这个是车吗、太糊、精细度不够”。
+- 环境：Unity Editor `2022.3.62f1`，候选场景 `Assets/VLN/Scenes/VLNOffroadVehicleCandidate.unity`，Game 视图右上方 Scale 显示为 `10x`。
+- 根因：第一，Unity Game 视图 Scale=`10x` 会把渲染画面放大十倍，任何 640x480 或 1280x720 图像都会被像素级放大成马赛克；第二，Husky ROS description mesh 是工程/仿真低多边形模型，不是高清游戏级车模，细节上限本来就有限。
+- 解决方案：在 `VlnOffroadVehicleCandidateProjectSetup.cs` 中新增近距离 `VehicleCandidate_GameCamera` 作为候选场景默认 Game 展示相机；仅在车体候选场景中把 `RGBCameraSensor` 分辨率从 `640x480` 提高到 `1280x720`，并同步更新 `VlnOffroadVehicleCandidateSmokeTest.cs` 和验收脚本的 Image/CameraInfo 校验尺寸。
+- 验收方式：重新运行 `/home/ubuntu22/VLN/scripts/run_offroad_vehicle_candidate_smoke_test.sh`，run id `vln_offroad_vehicle_candidate_20260814_095155`，输出 `width=1280`、`height=720`、`VLN_UNITYSENSORS_IMAGE_MSG_OK` 和 `VLN_UNITYSENSORS_CAMERA_INFO_MSG_OK`；自动截图显示车体近距离可见。
+- 状态：已解决显示/分辨率问题；模型本身仍是低多边形资产。若用户要求更真实外观，下一步应单独筛选高清 UGV/越野车资产。
+
+## 2026-08-14：Husky 车体候选姿态错误，轮子平躺、车身像侧翻
+
+- 现象：用户截图显示 Husky 视觉候选完全不像正常小车：车体近似侧翻，轮子平放在地面，整体姿态明显错误。
+- 环境：Unity Editor `2022.3.62f1`，候选场景 `Assets/VLN/Scenes/VLNOffroadVehicleCandidate.unity`，Husky mesh 来源为 ROS description 的 `.dae` 视觉件。
+- 根因：ROS mesh 使用 ROS 坐标语义，Unity 使用另一套坐标语义；首次导入只处理了 yaw 和位置近似转换，漏掉完整坐标基变换。第一次补 `RosYawToUnityRotation()` 后轮子虽然立起来，但截图仍能看到底盘下侧，用户判断像“四脚朝天”，说明 Unity DAE 导入后的可见 mesh 还需要额外 upright correction。
+- 解决方案：先在 `Assets/VLN/Editor/VlnOffroadVehicleCandidateProjectSetup.cs` 中新增 `RosYawToUnityRotation()`，用 ROS 局部 x/y/z 轴向量构造 Unity rotation matrix；随后对每个 Husky mesh 实例追加 `Quaternion.AngleAxis(180f, Vector3.right)`，只翻转视觉网格本身，不改传感器 rig、`/tf` 或 `/vln/cmd_vel` 控制接口。
+- 验收方式：关闭 Unity 后清理 stale lock，重新运行 `/home/ubuntu22/VLN/scripts/run_offroad_vehicle_candidate_smoke_test.sh`。最终通过 run id `vln_offroad_vehicle_candidate_20260814_101556`，近景截图 `UnityProjects/_SmokeTestLogs/vln_offroad_vehicle_candidate_20260814_101556/vln_offroad_vehicle_candidate_detail_screenshot.png` 显示黄色上盖在上、四个轮子竖直贴地；图像 `1280x720`、CameraInfo `1280x720`、点云 `7200` 点/帧、TF 静止验证均通过。
+- 状态：已解决。当前车体姿态已正过来，但 Husky mesh 仍是低多边形工程模型，不是高清游戏级外观。
+
+## 2026-08-14：用户关闭 Unity 后仍残留工程 lock 文件
+
+- 现象：用户手工关闭 Unity 后请求验证；本地检查没有 VLN Unity Editor/worker 进程，但 `Library/ArtifactDB-lock` 与 `Library/SourceAssetDB-lock` 仍存在。
+- 环境：Unity 工程 `/home/ubuntu22/VLN/UnityProjects/VLN_Offroad`。
+- 根因判断：Unity Editor 已退出，但上次打开工程后未清理完 Library lock 文件；如果不处理，下一次 batch smoke test 或手工打开可能误报工程被占用。
+- 解决方案：运行 `/home/ubuntu22/VLN/scripts/stop_unity_vln_project.sh`，只移动 stale lock 到 `/home/ubuntu22/VLN/UnityProjects/_ManualRecoveryLogs/stop_unity_20260814_101116/stale_locks/`，不删除整个 `Library/`，不改系统环境。
+- 验收方式：`pgrep` 未发现 VLN Unity 进程；`find UnityProjects/VLN_Offroad/Library -maxdepth 1 -type f -name '*lock*'` 无输出；随后车体候选 smoke test 通过，run id `vln_offroad_vehicle_candidate_20260814_101146`。
+- 状态：已解决。
+
+## 2026-08-14：Unity Game / 全局地图视角不能拖动
+
+- 现象：用户在 Unity 里看全局地图或候选车体时，不能像正常地图一样随便拖动视角，怀疑视角被锁死。
+- 环境：Unity Editor `2022.3.62f1`，主场景/地图候选/车体候选的 `Game` 标签页；展示相机为 `Offroad_ViewerCamera` 或 `VehicleCandidate_GameCamera`。
+- 根因：不是故意锁死。Unity 的 `Scene` 标签页是编辑器自由视角，天然支持拖动；`Game` 标签页显示的是运行时 Camera 画面，原来这些展示相机只是固定相机，没有挂输入控制器，所以拖动鼠标不会改变视角。
+- 解决方案：新增运行时脚本 `Assets/VLN/Scripts/VlnRuntimeMapCameraController.cs`，支持左/右键拖动旋转、中键拖动平移、滚轮缩放、右键按住时 WASD/QE 移动；在 `VlnOffroadTerrainProjectSetup.cs` 与 `VlnOffroadVehicleCandidateProjectSetup.cs` 中给展示相机挂载控制器；脚本还通过 `RuntimeInitializeOnLoadMethod` 自动给当前已打开场景中的展示相机补挂控制器，避免必须重建场景后才能用。
+- 验收方式：当前用户还开着 Unity Editor，自动 batch 验收因同一工程被占用而未运行；已检查 `Logs/AssetImportWorker*.log` 未发现 `error CS`、`Compilation failed` 或 `Scripts have compiler errors`。用户当前窗口等 Unity 编译完成后点击 Play，可直接在 `Game` 标签页测试拖动。
+- 状态：已实现，待用户手工拖动验证；关闭 Unity 后可再运行 `/home/ubuntu22/VLN/scripts/run_offroad_vehicle_candidate_smoke_test.sh` 做自动编译/传感器回归。

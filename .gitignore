@@ -136,6 +136,15 @@ UnityProjects/VLN_Offroad/[Rr]ecordings/
 UnityProjects/VLN_Offroad/[Cc]rash[Rr]eports/
 UnityProjects/VLN_Offroad/mono_crash*.blob
 
+# Guardrail: external Unity assets are ignored by default; allow only reviewed small subsets.
+UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/*
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/KenneyNatureKit.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/KenneyNatureKit/
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/KenneyNatureKit/**
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/HuskyVisual.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/HuskyVisual/
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/HuskyVisual/**
+
 # Unity Hub / Editor local install state
 tools/unityhub_download/
 tools/unityhub_extracted_*/

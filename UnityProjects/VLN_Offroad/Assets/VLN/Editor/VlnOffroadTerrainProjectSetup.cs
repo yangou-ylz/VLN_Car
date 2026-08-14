@@ -265,6 +265,9 @@ namespace VLN.Editor
             camera.nearClipPlane = 0.1f;
             camera.farClipPlane = 120f;
             camera.depth = -1f;
+
+            var controller = viewerObject.AddComponent<VlnRuntimeMapCameraController>();
+            controller.Configure("Offroad_SensorRig_StaticVehiclePlaceholder", new Vector3(0f, 1.1f, 0f), 2.0f, 90.0f);
         }
 
         static ScanPattern LoadVlp16ScanPattern()

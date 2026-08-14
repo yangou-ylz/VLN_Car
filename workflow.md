@@ -15,7 +15,9 @@
 9. topic、TF、rosbag、RViz 配置标准化。
 10. ROS2 `/vln/cmd_vel` 控制闭环。
 11. ROS2 路径点控制闭环。
-12. 进入 VLN 感知层数据集/训练/算法对接。
+12. 本地中文控制面板：目标位置、相机视图、雷达点云触发。
+13. 成熟越野地图与真实小车模型候选导入。
+14. 进入 VLN 感知层数据集/训练/算法对接。
 
 ## 阶段 0：项目约束与记忆机制
 
@@ -205,6 +207,69 @@ base_link -> lidar_link
 成功标志：`VLN_WAYPOINT_CONTROL_SMOKE_TEST_PASS`。
 
 阶段 10 完成定义：ROS2 路径点控制器输出 `VLN_WAYPOINT_CONTROL_MSG_OK`，到达 2/2 个路径点，最终距离最后路径点在阈值内，topic list 出现 `/vln/cmd_vel [geometry_msgs/msg/Twist]`，且 `/vln/front/image_raw`、`/vln/front/camera_info`、`/vln/lidar/points` 仍通过字段校验。最近通过 run id 为 `vln_waypoint_control_20260814_021829`。
+
+## 阶段 11：本地中文控制面板
+
+- 输入：浏览器 UI 中的相对目标坐标 `X,Y`。
+- 输出：ROS2 后端发布 `/vln/cmd_vel [geometry_msgs/msg/Twist]`。
+- 触发工具：相机按钮打开 `view_front_image.sh`，雷达按钮打开 `view_vln_vehicle_rviz.sh`。
+- 验收：HTTP 控制面板能收到 `/tf`，发送目标后 Unity 车体响应，传感器 topic 不受影响。
+
+当前状态：已完成。新增 `/home/ubuntu22/VLN/scripts/vln_control_panel.py`、`start_vln_control_panel.sh`、`vln_control_panel_smoke_client.py` 和 `run_control_panel_smoke_test.sh`。UI 使用 Python 标准库 HTTP server + 浏览器，不安装新库。
+
+阶段 11 固定启动命令：
+
+```bash
+/home/ubuntu22/VLN/scripts/start_vln_control_panel.sh
+```
+
+默认地址：
+
+```text
+http://127.0.0.1:8765/
+```
+
+阶段 11 固定验收命令：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_control_panel_smoke_test.sh
+```
+
+成功标志：`VLN_CONTROL_PANEL_SMOKE_TEST_PASS`。
+
+阶段 11 完成定义：UI 截图检查通过；HTTP 客户端发送相对目标后，Unity 收到 `/vln/cmd_vel`，车体到达目标附近。最近通过 run id 为 `vln_control_panel_20260814_025329`。
+
+## 阶段 12：成熟越野地图与真实小车模型候选导入
+
+- 目标：按师兄口径，从成熟资产中选择越野地图和更真实的小车模型，逐步替换当前轻量程序化场景和占位车体。
+- 原则：不直接替换主场景；不同时导入多个大资产；先记录许可证、体积、渲染管线和依赖，再导入候选场景。
+- 候选资料库：`/home/ubuntu22/VLN/VLN_REFERENCE_LIBRARY/asset_candidates/index.md`。
+- 工作流文档：`/home/ubuntu22/VLN/docs/asset_upgrade_workflow.md`。
+- 基线回归：导入前后必须跑候选场景、标准输出、cmd_vel 控制和控制面板 smoke test；可用 `/home/ubuntu22/VLN/scripts/run_asset_upgrade_baseline_check.sh` 一键执行。
+
+当前状态：已完成第一轮复杂越野地图候选导入。候选资产为 Kenney Nature Kit 2.1，许可证 CC0，下载缓存为 `/home/ubuntu22/VLN/VLN_ASSETS_CACHE/kenney_nature-kit.zip`，Unity 仅导入 70 个轻量 FBX 子集到 `Assets/VLN/ExternalAssets/KenneyNatureKit`，候选场景为 `Assets/VLN/Scenes/VLNOffroadAssetCandidate.unity`。该场景保留当前可控占位车体、相机、LiDAR、`/tf` 和 `/vln/cmd_vel`，没有覆盖主场景。
+
+当前状态补充：已完成第一轮真实小车视觉候选导入。已下载 Husky 与 Jackal 源仓；第一轮选择 Husky 作为视觉车体候选，只导入 `base_link.dae`、`top_chassis.dae`、`user_rail.dae`、`bumper.dae`、`wheel.dae` 到 `Assets/VLN/ExternalAssets/HuskyVisual`。候选场景为 `Assets/VLN/Scenes/VLNOffroadVehicleCandidate.unity`，采用“真实车体视觉替换 + 保留现有 ROS2 控制/TF/传感器 rig”的策略，不改 `/vln/front/*`、`/vln/lidar/points`、`/tf`、`/vln/cmd_vel`。
+
+阶段 12 固定候选场景验收命令：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_offroad_asset_candidate_smoke_test.sh
+/home/ubuntu22/VLN/scripts/run_offroad_vehicle_candidate_smoke_test.sh
+```
+
+成功标志：`VLN_OFFROAD_ASSET_CANDIDATE_SMOKE_TEST_PASS`。
+小车候选成功标志：`VLN_OFFROAD_VEHICLE_CANDIDATE_SMOKE_TEST_PASS`。
+
+阶段 12 固定完整回归命令：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_asset_upgrade_baseline_check.sh
+```
+
+成功标志：`VLN_ASSET_UPGRADE_BASELINE_CHECK_PASS`。
+
+最近通过 run id：`vln_asset_baseline_20260814_040515`。车体候选显示修正 run id：`vln_offroad_vehicle_candidate_20260814_095155`，该候选场景的图像输出已提高到 `1280x720`。手工查看时先把 Unity Game 视图 Scale 调回 `1x` 或 `Fit`，不要用 `10x` 放大画面判断模型质量。下一步不要直接上完整 URDF 动力学；推荐先确认 Husky 低多边形车体是否足够展示，如果不够，应筛选高清 UGV/越野车视觉资产。
 
 ## 工作流管理规则
 

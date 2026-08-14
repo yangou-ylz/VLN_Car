@@ -67,6 +67,16 @@
 - 想看相机渲染出来的画面：切到 `Game` 标签页，或者用 ROS2 的图像工具看 `/vln/front/image_raw`。
 - 想看 LiDAR 生成的点云：Unity 里主要看到场景几何体，真正点云在 RViz2 里看 `/vln/lidar/points`。
 
+Game 视图里的地图浏览控制：
+
+- `Scene` 标签页本来就是 Unity 编辑器自由视角，可以直接用 Unity 默认的右键 + WASD、滚轮、Alt 拖动等方式看全局地图。
+- `Game` 标签页看到的是运行时展示相机，不是 Unity 编辑器自由视角；现在已给 `Offroad_ViewerCamera` 和 `VehicleCandidate_GameCamera` 加运行时地图相机控制。
+- 在 `Game` 标签页点击 Play 后，左键或右键拖动可以绕目标旋转视角。
+- 鼠标中键拖动可以平移视角中心。
+- 鼠标滚轮可以拉近/拉远。
+- 按住右键时，`W/A/S/D` 平移，`Q/E` 上下移动。
+- 这个视角控制只影响你手工看场景，不改变 ROS2 的 `/tf`、`/vln/cmd_vel`、相机图像或 LiDAR 点云数据。
+
 ## 启动 ROS2 Endpoint
 
 另开一个终端：
@@ -179,6 +189,32 @@ base_link -> lidar_link
 前置：endpoint 已启动，Unity 打开 `VLNOffroadTerrainSmokeTest.unity` 并点击 Play。
 
 正常现象：刚点击 Play 时车体不会自己跑。先看图像、点云和 TF；需要运动时，再运行下面的 ROS2 控制命令。
+
+更推荐的手工方式是使用中文控制面板：
+
+```bash
+/home/ubuntu22/VLN/scripts/start_vln_control_panel.sh
+```
+
+浏览器打开：
+
+```text
+http://127.0.0.1:8765/
+```
+
+控制面板顶部有三个模块：
+
+- `目标位置`：输入相对 X/Y 坐标，用 `+` / `-` 调整步进，点击“发送目标”后后端发布 `/vln/cmd_vel`。
+- `相机视图`：触发 `/home/ubuntu22/VLN/scripts/view_front_image.sh`，弹出 rqt 图像窗口。
+- `雷达点云`：触发 `/home/ubuntu22/VLN/scripts/view_vln_vehicle_rviz.sh`，弹出 RViz 点云窗口。
+
+控制面板的自动验收命令：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_control_panel_smoke_test.sh
+```
+
+成功标志：`VLN_CONTROL_PANEL_SMOKE_TEST_PASS`。
 
 另开终端：
 
