@@ -17,7 +17,8 @@ RESULT_FILE="$VLN_ROOT/UnityProjects/VLN_Offroad/Logs/vln_unitysensors_image_res
 IMAGE_TOPIC="/vln/front/image_raw"
 CAMERA_INFO_TOPIC="/vln/front/camera_info"
 
-mkdir -p "$LOG_DIR"
+mkdir -p "$LOG_DIR" "$VLN_ROOT/.ros/log"
+export ROS_LOG_DIR="${ROS_LOG_DIR:-$VLN_ROOT/.ros/log}"
 
 endpoint_pid=""
 

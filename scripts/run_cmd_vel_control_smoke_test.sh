@@ -25,7 +25,8 @@ POINTS_TOPIC="/vln/lidar/points"
 TF_TOPIC="/tf"
 CMD_VEL_TOPIC="/vln/cmd_vel"
 
-mkdir -p "$LOG_DIR"
+mkdir -p "$LOG_DIR" "$VLN_ROOT/.ros/log"
+export ROS_LOG_DIR="${ROS_LOG_DIR:-$VLN_ROOT/.ros/log}"
 
 if pgrep -af "$VLN_ROOT/UnityEditors/2022.3.62f1/Editor/Unity" | grep -F -- "-projectPath $UNITY_PROJECT" >/dev/null 2>&1; then
   echo "unity_project_already_open=true" | tee "$LOG_DIR/run_summary.txt"

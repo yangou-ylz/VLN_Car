@@ -23,6 +23,7 @@ namespace VLN.ROS2
         {
             ConfigureCameraIfPresent("Offroad_ViewerCamera", "Offroad_SensorRig_StaticVehiclePlaceholder", new Vector3(0f, 1.1f, 0f), 2.0f, 90.0f);
             ConfigureCameraIfPresent("VehicleCandidate_GameCamera", "HuskyVisual_Root", new Vector3(0f, 0.55f, 0f), 1.2f, 45.0f);
+            ConfigureCameraIfPresent("ScoutUrdfCandidate_GameCamera", "ScoutUrdf_Root", new Vector3(0f, 0.45f, 0f), 1.15f, 44.0f);
         }
 
         static void ConfigureCameraIfPresent(string cameraName, string targetName, Vector3 targetOffset, float minDistance, float maxDistance)

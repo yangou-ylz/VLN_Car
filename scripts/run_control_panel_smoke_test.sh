@@ -18,7 +18,8 @@ RESULT_FILE="$UNITY_PROJECT/Logs/vln_offroad_terrain_result.txt"
 CONTROL_RESULT_FILE="$UNITY_PROJECT/Logs/vln_vehicle_control_result.txt"
 PORT="${VLN_CONTROL_PANEL_PORT:-8765}"
 
-mkdir -p "$LOG_DIR"
+mkdir -p "$LOG_DIR" "$VLN_ROOT/.ros/log"
+export ROS_LOG_DIR="${ROS_LOG_DIR:-$VLN_ROOT/.ros/log}"
 
 if pgrep -af "$VLN_ROOT/UnityEditors/2022.3.62f1/Editor/Unity" | grep -F -- "-projectPath $UNITY_PROJECT" >/dev/null 2>&1; then
   echo "unity_project_already_open=true" | tee "$LOG_DIR/run_summary.txt"

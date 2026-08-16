@@ -190,3 +190,94 @@
 - 备选项：整体翻转 `HuskyVisual_Root`、改传感器 rig、改 `base_link` TF、直接改完整 URDF/动力学导入路线。
 - 理由：当前故障是视觉 mesh 姿态问题，不是 ROS2 控制或 TF 语义问题；整体翻转 rig 或 frame 会破坏已经通过的相机、点云和控制闭环。
 - 影响：候选车体视觉上正过来，完整回归 `vln_asset_baseline_20260814_101820` 通过；后续如做真实动力学，需要作为单独阶段评估 Unity URDF Importer 和 wheel controller。
+
+## 2026-08-15：阶段 13 单独开启 Scout V2 URDF/STL 物理车体路线
+
+- 决策：根据师兄提供的 `scout_v2.xacro`，阶段 13 第一候选采用 AgileX Scout V2，并把 URDF/STL 物理车体作为独立候选场景推进。
+- 备选项：继续在 Husky 视觉候选上手工加碰撞体、直接覆盖现有车体候选、等待师兄返校后的完整小车模型再开始。
+- 理由：当前基础仿真链路已经打通，师兄明确给了可公开访问的 Scout V2 xacro 和 mesh；该模型包含 visual、collision、inertial 和 continuous wheel joint，适合作为物理车体流程的第一轮验证。独立阶段可以保护现有相机、LiDAR、TF、`/vln/cmd_vel` 和控制面板链路。
+- 影响：新增阶段 13 文档 `/home/ubuntu22/VLN/docs/urdf_physics_vehicle_workflow.md`；本地缓存位于 `/home/ubuntu22/VLN/VLN_ASSETS_CACHE/vehicles/ugv_gazebo_sim_scout_description_raw`；后续导入 Unity 时必须新建 Scout URDF 候选场景，不覆盖阶段 12 场景。
+
+## 2026-08-15：阶段 13 第一轮保留现有传感器 rig 和 ROS2 接口
+
+- 决策：Scout URDF 第一轮导入后，仍保留当前 UnitySensors 相机和 LiDAR rig，挂到 `base_link` 语义节点下；`/vln/front/image_raw`、`/vln/front/camera_info`、`/vln/lidar/points`、`/tf`、`/vln/cmd_vel` 不改名。
+- 备选项：完全按 Scout 原始 xacro/gazebo 插件重建传感器和控制、直接把 Gazebo transmission 当作 Unity 控制器、同时新增完整轮式动力学和传感器重构。
+- 理由：阶段 13 的第一目标是验证 URDF 物理底盘，不应同时重写已稳定的感知输出和控制入口；Gazebo 插件标签不能直接等价为 Unity 物理控制器。
+- 影响：第一轮完成定义聚焦于 URDF 展开、Unity 导入、物理稳定、collision 生效和旧 ROS2 topic 回归；`/vln/odom` 可以作为候选新增输出，`/joint_states` 延后到轮式动力学稳定后再做。
+
+## 2026-08-15：Scout V2 Unity 导入使用 `chosenAxis=yAxis`
+
+- 决策：Scout V2 通过 Unity URDF Importer 导入时固定使用 `ImportSettings.axisType.yAxis`。
+- 备选项：使用 `zAxis`、对导入后的整个 robot root 额外旋转、或手工逐个修正 mesh。
+- 理由：`zAxis` 会让 Scout 车体竖起；`yAxis` 后导入尺寸约 `0.700 x 0.351 x 0.930m`，截图显示车身平放、四轮竖直贴地。整体额外旋转会增加 TF、collision 和后续 wheel joint 解释成本。
+- 影响：`VlnOffroadScoutUrdfCandidateProjectSetup.cs` 中不要随意改回 `zAxis`；后续如果师兄给完整 xacro，应先单独验证坐标轴，而不是沿用假设。
+
+## 2026-08-15：Scout 第一轮控制仍采用现有运动学 rig
+
+- 决策：Scout URDF 第一轮通过后，`/vln/cmd_vel` 仍驱动当前已验证的 `VlnVehicleTfPublisher` rig，Scout URDF 车体作为 rig 子对象随车运动；暂不在同一轮把 `/vln/cmd_vel` 直接映射到 wheel joint / ArticulationBody。
+- 备选项：立即实现四轮差速/滑移控制、直接驱动 ArticulationBody、等待完整真实车体模型后再做控制。
+- 理由：本阶段主目标是按师兄要求跑通真实底盘 URDF 结构、相机图像和 LiDAR 点云，不应同时引入轮胎摩擦、悬挂、地面接触和电机控制问题。保留运动学 rig 可以证明旧 ROS2 感知/TF/控制接口不被 URDF 导入破坏。
+- 影响：当前 Scout 候选满足“URDF 物理结构 + ROS2 感知/控制接口稳定”的阶段目标，但还不是论文级完整车辆动力学；下一阶段应单独做 wheel joint 控制、`/vln/odom` 和可选 `/joint_states`。
+
+## 2026-08-15：Unity UPM 缓存固定在项目目录
+
+- 决策：在 `scripts/open_unity_vln_project.sh` 中显式设置 `UPM_CACHE_PATH`、`UPM_GIT_LFS_CACHE_PATH`、`UPM_NPM_CACHE_PATH` 到 `/home/ubuntu22/VLN/.unity_user/cache/upm`。
+- 备选项：使用 Unity 默认 `/home/ubuntu22/.config/unity3d/cache`，或修改系统级 Unity/UPM 配置。
+- 理由：当前项目要求所有工作目录在 `/home/ubuntu22/VLN` 内，且执行环境可能无法写用户 home 默认 Unity cache；固定项目内缓存可复现、可清理，也不污染系统环境。
+- 影响：后续 Unity 工程打开和批处理必须通过 `scripts/open_unity_vln_project.sh`；不要绕过该脚本直接调用 Unity 二进制做包导入。
+
+## 2026-08-15：Scout URDF 采用 Editor 导入路径，不采用 Runtime 导入
+
+- 决策：Scout V2 URDF 第一轮使用 `UrdfRobotExtensions.Create(... forceRuntimeMode:false)` 的 Editor 导入路径，不使用 `UrdfRobotExtensions.CreateRuntime`。
+- 备选项：继续调 runtime 导入、安装/链接 Assimp 相关系统库、手工把 DAE 转成其他格式、完全绕开 URDF Importer。
+- 理由：runtime 路径触发 Assimp `DllNotFoundException: libdl.so`，会把问题引向系统库和 Unity 动态加载；Editor 导入路径已经能稳定实例化 DAE、生成 collision asset，并通过 Scout 静态、控制和完整基线回归。用户环境保护优先级高，不应为了非阻塞日志去装系统库。
+- 影响：后续 Scout 或师兄完整车体的 URDF 导入优先走 Editor 资产导入流程；若必须做运行时动态导入，需要单独立项并先确认环境修改风险。
+
+## 2026-08-15：阶段 13 收口为“URDF 结构闭环”，动力学另开增强阶段
+
+- 决策：阶段 13 当前收口标准是 Scout URDF visual/collision/inertial/joint 结构导入成功，并保持 `/vln/front/*`、`/vln/lidar/points`、`/tf`、`/vln/cmd_vel` 主接口稳定；完整轮胎-地面摩擦、悬挂、电机、`/vln/odom` 和 `/joint_states` 放到下一阶段。
+- 备选项：在同一轮继续改为 wheel joint / ArticulationBody 真实驱动，或者直接把当前 rig 宣称为完整物理底盘。
+- 理由：当前已满足师兄给定的“导入小车模型、加入相机和雷达、跑通 ROS2 接口”的第一轮要求；真实动力学需要单独处理轮胎接触、摩擦参数、质量/惯性、控制器稳定性和 odom 语义，和 URDF 导入混在一起会扩大风险。
+- 影响：给师兄汇报时应表述为“Scout URDF 物理结构候选已打通，ROS2 感知/控制链路未破坏”；不要表述为“完整真实车辆动力学已完成”。下一阶段再做 wheel joint 控制和 odom。
+
+## 2026-08-15：Scout wheel joint 先做信号探针，不直接切换整车动力学
+
+- 决策：新增 `VlnScoutWheelJointCommandProbe`，把 `/vln/cmd_vel` 映射为四个 Scout wheel ArticulationBody 的 `xDrive.targetVelocity`，但暂时仍由现有 `VlnVehicleTfPublisher` 运动学 rig 负责整车位移。
+- 备选项：立即取消运动学 rig、打开重力和地面接触，让四轮 ArticulationBody 直接驱动车体；或者完全不接 wheel joint。
+- 理由：直接切换到真实轮胎-地面动力学会同时引入摩擦、接触稳定性、质量/惯性、joint 方向和 odom 语义问题，风险过大。先做信号探针能验证 ROS2 控制链路已经打到真实 URDF wheel joint，且不破坏已通过的图像、点云、TF 和 `/vln/cmd_vel` 回归。
+- 影响：当前结果可汇报为“`/vln/cmd_vel` 已能进入 Scout wheel joint drive 信号层”，但仍不能宣称“轮胎物理驱动车体已完成”。下一步应新建或扩展候选实验，让 wheel-ground 接触驱动整车，并保持已新增的 `/vln/odom` 接口稳定。
+
+## 2026-08-15：Scout 候选先新增基于 rig 位姿的 `/vln/odom`
+
+- 决策：在 Scout URDF 候选场景中新增 `VlnOdomPublisher`，发布 `/vln/odom [nav_msgs/msg/Odometry]`，frame 为 `map`，child frame 为 `base_link`；odom 来自当前 Unity rig 的实际位姿差分，不直接等待 wheel-ground 真实动力学完成。
+- 备选项：等真实轮地动力学完成后再发布 odom；或直接把 wheel joint 物理仿真结果作为唯一 odom 来源。
+- 理由：后续动力学、导航和 VLN 控制都需要稳定 odom 观测接口。先在已验证 rig 上固定消息类型、frame、验收脚本和回归口径，可以降低下一步替换动力学源时的接口风险。
+- 影响：当前可汇报为“Scout 候选已新增 `/vln/odom` 并与 TF 运动一致”，但必须说明它仍是 rig 位姿 odom，不是完整轮胎-地面物理 odom。下一阶段替换驱动源时应保持 `/vln/odom` 接口不变。
+
+## 2026-08-15：ROS2 日志强制写项目内 `.ros/log`
+
+- 决策：所有 ROS2 自动验收、手工查看、endpoint 和控制面板脚本统一导出 `ROS_LOG_DIR=/home/ubuntu22/VLN/.ros/log`。
+- 备选项：使用 ROS2 默认 `/home/ubuntu22/.ros/log`；或修改系统权限/全局 shell 配置。
+- 理由：项目约束要求工作目录都在 `/home/ubuntu22/VLN` 内；当前执行环境写 home 默认 ROS 日志目录会失败。脚本内显式导出变量可复现、可回滚，不污染全局环境。
+- 影响：后续新增 ROS2 脚本必须沿用该日志目录；旧完整回归已重新通过 `vln_asset_baseline_20260815_193207`。
+
+## 2026-08-15：阶段 14 第一版 wheel-ground 采用独立 `Rigidbody + WheelCollider` 候选
+
+- 决策：新建 `VLNOffroadScoutWheelGroundCandidate.unity`，用独立 `ScoutWheelGround_PhysicsRoot` 承载 `Rigidbody`、chassis `BoxCollider` 和 4 个 `WheelCollider`；Scout URDF mesh 只作为视觉模型，旧 Scout URDF 候选场景保持不变。
+- 备选项：直接在 `VLNOffroadScoutUrdfCandidate.unity` 上打开 ArticulationBody 重力和 wheel joint drive，让原始 URDF articulation 立即接管整车运动；或继续沿用运动学 rig。
+- 理由：Unity URDF Importer 的 ArticulationBody 轮地动力学会同时引入坐标轴、joint 轴、接触稳定、摩擦、质量/惯性和传感器 rig 跟随等风险；直接覆盖旧场景容易破坏已经通过的相机、LiDAR、TF、cmd_vel 和 odom。先用 WheelCollider 做独立候选可以验证“cmd_vel -> 轮地接触 -> 物理车体前进 -> TF/odom/传感器跟随”的最小闭环。
+- 影响：阶段 14 已通过 `vln_scout_wheel_ground_20260815_195417`，但只能称为第一版 wheel-ground 物理候选，不是最终论文级 Scout 动力学标定。后续应在该候选上继续验证差速转向、坡地、碰撞、轮胎参数、质量/惯性和 `/joint_states`，不要把阶段 13 的 URDF 结构候选删除或覆盖。
+
+## 2026-08-16：阶段 15 默认路线收敛为稳定短路线
+
+- 决策：新增 Scout wheel-ground 固定路线脚本，默认路线采用相对 `base_link` 前向 `3,0;6,0;9,0` 米，并固化为 `max_linear=0.45`、`max_angular=0.18`、`linear_gain=0.30`、`angular_gain=0.35`、`angular-sign=-1` 的低速小角度回正巡航。20m 长路线保留为实验覆盖，不作为默认验收。
+- 备选项：继续把 `4,0;8,0;12,0;16,0;20,0` 当默认路线；直接做复杂路径点纠偏、绕障转向、接 navigation2；或继续只让用户手工控制。
+- 理由：当前第一版 `WheelCollider + Rigidbody` skid-steer 车体在长路线第三段后会随机横向漂移到右侧障碍/不稳定地形区，在复杂高速转向时又容易横摆和侧滑；用户当前需求优先是观察轮地接触、坡地/路面交互、传感器跟随和穿模风险。稳定短路线可复现，并且不覆盖手动控制、控制面板、相机、LiDAR、TF 和 odom 主链路。
+- 影响：阶段 15 可以作为物理演示和回归入口，短路线最新通过 run id `vln_scout_wheel_ground_route_20260816_041954`；但不能汇报成完整绕障导航或长路线已稳定。后续如要真正绕障或复杂坡地路线，需先单独标定低速转向、横向摩擦、碰撞边界和差速控制。
+
+## 2026-08-16：阶段 15 默认路线升级为 54m 完整路线演示
+
+- 决策：废弃“默认 9m 短路线即完成”的口径，阶段 15 默认路线改为 `4,0;8,0;12,0;15,0;18,0;22,0;28,0;34,0;42,0;50,0;54,0`，让小车从起点沿道路通过桥/坡区域并跑向终点方向。
+- 备选项：继续保留 9m 短路线作为默认验收、直接接 navigation2、继续手工控制、或者只提高速度不改桥面碰撞体。
+- 理由：用户明确要观察完整路线、桥、坡和真实物理交互；短路线虽然稳定，但偏离学长项目目的。长路线原先卡在前向约 `13.7m`，不是单纯导航问题，而是桥面简化碰撞体硬边阻挡 WheelCollider；因此必须修桥面物理过渡，而不是继续压低速度或缩短路线。
+- 影响：阶段 15 当前完成定义变为完整路线自动验收通过：`vln_scout_wheel_ground_route_20260816_150349`，`reached_count=11/11`、`total_forward_progress=53.080m`、`stall_count=0`、`skipped_count=0`。控制器速度上限和助推参数已提高，Scout 视觉朝向与轮胎视觉偏移已修正。该阶段仍只代表写死路线物理巡航，不代表自主导航或 VLN 策略已经接入。

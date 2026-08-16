@@ -13,7 +13,8 @@ LOG_ROOT="/home/ubuntu22/VLN/UnityProjects/_SmokeTestLogs/manual_standardized_ch
 RUN_ID="vln_standardized_check_$(date +%Y%m%d_%H%M%S)"
 LOG_DIR="$LOG_ROOT/$RUN_ID"
 
-mkdir -p "$LOG_DIR"
+mkdir -p "$LOG_DIR" "/home/ubuntu22/VLN/.ros/log"
+export ROS_LOG_DIR="${ROS_LOG_DIR:-/home/ubuntu22/VLN/.ros/log}"
 
 source /home/ubuntu22/.bashrc >/dev/null 2>&1 || true
 

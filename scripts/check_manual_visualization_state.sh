@@ -4,6 +4,9 @@
 
 set -eo pipefail
 
+mkdir -p /home/ubuntu22/VLN/.ros/log
+export ROS_LOG_DIR="${ROS_LOG_DIR:-/home/ubuntu22/VLN/.ros/log}"
+
 source /home/ubuntu22/.bashrc >/dev/null 2>&1 || true
 
 if declare -F ros2env >/dev/null 2>&1; then

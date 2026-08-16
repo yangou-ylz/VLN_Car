@@ -6,6 +6,6 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/VLN/Scenes/VLNOffroadTerrainSmokeTest.unity
-    guid: d48e29875fa42457fa02fa4ddf626e03
+    path: Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity
+    guid: d70fd55df64ea5b0794edbdc05f58f66
   m_configObjects: {}

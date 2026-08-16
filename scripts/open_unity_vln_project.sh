@@ -22,12 +22,22 @@ fi
 mkdir -p \
   "$VLN_ROOT/.unity_user/config" \
   "$VLN_ROOT/.unity_user/cache" \
+  "$VLN_ROOT/.unity_user/cache/upm" \
+  "$VLN_ROOT/.unity_user/cache/upm/db" \
+  "$VLN_ROOT/.unity_user/cache/upm/git-lfs" \
+  "$VLN_ROOT/.unity_user/cache/upm/npm" \
   "$VLN_ROOT/.unity_user/data" \
   "$VLN_ROOT/.unity_user/logs"
 
 export XDG_CONFIG_HOME="$VLN_ROOT/.unity_user/config"
 export XDG_CACHE_HOME="$VLN_ROOT/.unity_user/cache"
 export XDG_DATA_HOME="$VLN_ROOT/.unity_user/data"
+
+# Unity Package Manager has its own cache knobs. Keep every package download
+# inside the VLN tree so sandboxed/batch runs never touch ~/.config/unity3d.
+export UPM_CACHE_PATH="$VLN_ROOT/.unity_user/cache/upm/db"
+export UPM_GIT_LFS_CACHE_PATH="$VLN_ROOT/.unity_user/cache/upm/git-lfs"
+export UPM_NPM_CACHE_PATH="$VLN_ROOT/.unity_user/cache/upm/npm"
 
 UNITY_PROXY="http://127.0.0.1:7897/"
 UNITY_NO_PROXY="localhost,127.0.0.1,::1"

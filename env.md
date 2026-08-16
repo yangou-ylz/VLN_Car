@@ -110,6 +110,16 @@ ROS_IP=0.0.0.0 ROS_TCP_PORT=10000 /home/ubuntu22/VLN/scripts/start_ros_tcp_endpo
 ss -ltnp | grep 10000
 ```
 
+### ROS2 日志目录约束
+
+本项目所有自动验收、手工查看和 ROS-TCP-Endpoint 启动脚本都应把 ROS2/rclpy 日志写到项目内：
+
+```bash
+export ROS_LOG_DIR=/home/ubuntu22/VLN/.ros/log
+```
+
+当前已加固 `scripts/start_ros_tcp_endpoint.sh`、各 `run_*_smoke_test.sh`、`check_standardized_vln_outputs.sh`、`record_vln_sensor_bag_sample.sh`、`view_front_image.sh`、`view_lidar_rviz.sh`、`view_vln_vehicle_rviz.sh` 和 `start_vln_control_panel.sh`。原因是当前执行环境只能写 `/home/ubuntu22/VLN` 和 `/tmp`，如果 ROS2 默认写 `/home/ubuntu22/.ros/log`，会触发 `Read-only file system`。后续新增 ROS2 脚本必须继承该变量。
+
 ## 当前代理
 
 - 本机代理服务：`verge-mihomo` / Clash Verge。
@@ -159,6 +169,8 @@ curl -I https://github.com
 - 已导入项目级 Unity 包：`com.frj.unity-sensors` 与 `com.frj.unity-sensors-ros`，来源为 `https://github.com/Field-Robotics-Japan/UnitySensors.git`，当前锁定 hash `91698e3593abdb04baac022a670cc52fee027238`。
 - 已导入项目级 Unity 包：`com.unity.ugui` `1.0.0`，用于满足 UnitySensors sample/UI 相关编译引用。
 - 已导入项目级 Unity 包：`com.unity.test-framework` `1.1.33`，连带 `com.unity.ext.nunit` `1.0.6`，用于满足 UnitySensors 包内 Tests asmdef 对 `UnityEngine.TestRunner`、`UnityEditor.TestRunner` 和 `nunit.framework.dll` 的引用。注意：这是 Unity 工程内 UPM 依赖，不是系统包、Python 包或 Conda 包。
+- 已导入项目级 Unity 包：`com.unity.robotics.urdf-importer`，来源为 `https://github.com/Unity-Technologies/URDF-Importer.git?path=/com.unity.robotics.urdf-importer#v0.5.2`，当前锁定 hash `90f353e4352aae4df52fa2c05e49b804631d2a63`；其依赖 `com.unity.editorcoroutines` `1.0.0`。注意：这是 Unity 工程内 UPM 依赖，不是系统包、Python 包或 Conda 包。
+- Unity Package Manager 缓存：`scripts/open_unity_vln_project.sh` 已设置 `UPM_CACHE_PATH=/home/ubuntu22/VLN/.unity_user/cache/upm/db`、`UPM_GIT_LFS_CACHE_PATH=/home/ubuntu22/VLN/.unity_user/cache/upm/git-lfs`、`UPM_NPM_CACHE_PATH=/home/ubuntu22/VLN/.unity_user/cache/upm/npm`，避免 batch 导入时访问 `/home/ubuntu22/.config/unity3d/cache`。
 - Unity ROS2 编译符号：`ProjectSettings/ProjectSettings.asset` 中 `Standalone: ROS2`。
 - Unity-ROS2 最小通信闭环脚本：`/home/ubuntu22/VLN/scripts/run_ros2_unity_smoke_test.sh`。
 
@@ -608,7 +620,7 @@ curl -fsSL --max-time 12 --proxy http://127.0.0.1:7897 https://api.ipify.org
 
 ## 后续安装记录
 
-暂无。本项目尚未执行任何系统包、Python 包或 Conda 包安装命令。已新增的 Unity 包均为 `/home/ubuntu22/VLN/UnityProjects/VLN_Offroad/Packages/manifest.json` 内的项目级 UPM 依赖。
+暂无。本项目尚未执行任何系统包、Python 包或 Conda 包安装命令。已新增的 Unity 包均为 `/home/ubuntu22/VLN/UnityProjects/VLN_Offroad/Packages/manifest.json` 内的项目级 UPM 依赖，包括 ROS-TCP-Connector、UnitySensors、UGUI、Test Framework 和 URDF Importer。
 
 ## 后续源码/工作区记录
 
@@ -639,3 +651,14 @@ curl -fsSL --max-time 12 --proxy http://127.0.0.1:7897 https://api.ipify.org
 - 2026-08-14：使用本地代理下载真实 UGV 候选源码到 `/home/ubuntu22/VLN/VLN_ASSETS_CACHE/vehicles/`。Husky：`https://github.com/husky/husky.git`，`humble-devel`，commit `729f8aa45ccd86fa33a05e07ef698c52c451cd9c`，缓存约 `16M`；Jackal：`https://github.com/jackal/jackal.git`，`foxy-devel`，commit `017b8b581a90873047f7d6fe438bd87513be4a76`，缓存约 `4.6M`。未安装任何系统包、Python 包或 Conda 包。
 - 2026-08-14：从 Husky 源仓只导入 5 个 `.dae` 视觉 mesh 到 Unity 工程 `Assets/VLN/ExternalAssets/HuskyVisual`，目录约 `5.0M`，包括 `base_link.dae`、`top_chassis.dae`、`user_rail.dae`、`bumper.dae`、`wheel.dae`。该导入只是 Unity 视觉资产拷贝，不是系统安装，不改 CUDA、PyTorch、ROS2 或 Conda。
 - 2026-08-14：新增真实小车视觉候选场景 `Assets/VLN/Scenes/VLNOffroadVehicleCandidate.unity`，场景生成器为 `VlnOffroadVehicleCandidateProjectSetup.cs`，运行时脚本为 `VlnOffroadVehicleCandidateSmokeTest.cs`，自动验收脚本为 `/home/ubuntu22/VLN/scripts/run_offroad_vehicle_candidate_smoke_test.sh`。最新完整回归 `/home/ubuntu22/VLN/scripts/run_asset_upgrade_baseline_check.sh` 输出 `VLN_ASSET_UPGRADE_BASELINE_CHECK_PASS`，run id 为 `vln_asset_baseline_20260814_040515`。
+- 2026-08-15：按师兄给定链接准备 AgileX Scout V2 URDF/STL 物理车体阶段。完整 `git clone` 超时后，改用本地代理轻量下载 `scout/scout_description` 子目录到 `/home/ubuntu22/VLN/VLN_ASSETS_CACHE/vehicles/ugv_gazebo_sim_scout_description_raw`，未安装任何系统包、Python 包或 Conda 包。系统已有 `/opt/ros/humble/bin/xacro` 可用；由于下载包未安装进 ament index，直接展开 `$(find scout_description)` 会失败，当前通过缓存 staging 副本把 include 路径改成绝对路径后生成 `generated/scout_v2.urdf`。
+- 2026-08-15：加入 Unity 工程级 URDF Importer 依赖 `com.unity.robotics.urdf-importer#v0.5.2`，并将 Unity Package Manager 的 db/git-lfs/npm 缓存固定到 `/home/ubuntu22/VLN/.unity_user/cache/upm`。这是 Unity 工程依赖变更，不是系统安装；未改动 CUDA、PyTorch、Conda、ROS2 或 Python 包。
+- 2026-08-15：新增 Scout V2 URDF Unity 导入子集 `Assets/VLN/ExternalAssets/ScoutUrdfPhysics`。主入口为 `scout_v2_unity_import.urdf`，mesh 为 `meshes/base_link.dae` 和 `meshes/wheel_type1.dae`，Unity URDF Importer 自动生成 `Materials/Default.mat` 与 `meshes/Cylinder.asset`。原始展开 URDF、xacro 和下载摘要保存在 `Reference/`；重复的 `scout_description/` 和 `scout_v2.urdf` 本地残留被 `.gitignore` 忽略，不作为正式入口。
+- 2026-08-15：URDF Importer 已锁定在 `UnityProjects/VLN_Offroad/Packages/packages-lock.json`，hash 为 `90f353e4352aae4df52fa2c05e49b804631d2a63`。后续不要随意改 Unity 版本或 URDF Importer 版本；如必须升级，先跑完整基线并记录差异。
+- 2026-08-15：Scout V2 URDF 候选静态验收通过：`/home/ubuntu22/VLN/scripts/run_scout_urdf_candidate_smoke_test.sh`，run id `vln_scout_urdf_candidate_20260815_185336`。结果：6 links、5 joints、4 continuous wheel joints、5 inertials、6 URDF collisions、6 Unity colliders、17 renderers、5 articulation bodies、静止位移 `0.0000m`，图像、CameraInfo、PointCloud2 和 TF 均通过。
+- 2026-08-15：Scout V2 URDF 候选控制验收通过：`/home/ubuntu22/VLN/scripts/run_scout_urdf_cmd_vel_smoke_test.sh`，run id `vln_scout_urdf_cmd_vel_20260815_185425`。ROS2 发布 `/vln/cmd_vel` 后 base_link 位移 `2.257m`、yaw 变化 `2.821rad`、`cmd_vel_count=48`、`collision_block_count=0`。
+- 2026-08-15：Scout V2 导入后完整资产基线回归通过：`/home/ubuntu22/VLN/scripts/run_asset_upgrade_baseline_check.sh`，run id `vln_asset_baseline_20260815_185533`。地图候选、Husky 视觉候选、标准输出、cmd_vel 控制和中文控制面板均通过。
+- 2026-08-15：Unity 日志可能出现 `DllNotFoundException: libdl.so` 或 Assimp fallback 信息。当前不安装系统库解决；稳定路线是使用 Editor 导入路径，不使用 `UrdfRobotExtensions.CreateRuntime`。如果该日志未阻断 smoke test，不作为当前环境故障处理。
+- 2026-08-15：新增 Scout 候选 `/vln/odom` 输出和 ROS2 odom 验收脚本。`VlnOdomPublisher` 发布 `/vln/odom [nav_msgs/msg/Odometry]`，frame 为 `map`，child frame 为 `base_link`；它使用现有 ROS-TCP-Connector 内置 `nav_msgs` 消息和系统已有 ROS2 `nav_msgs`，未安装任何系统包、Python 包或 Conda 包。静态验收 run id `vln_scout_urdf_candidate_20260815_192630`，控制验收 run id `vln_scout_urdf_cmd_vel_20260815_192732`，完整回归 run id `vln_asset_baseline_20260815_193207`。
+- 2026-08-15：所有 ROS2 脚本统一导出 `ROS_LOG_DIR=/home/ubuntu22/VLN/.ros/log`，避免 rclpy 写 `/home/ubuntu22/.ros/log`。这是脚本环境变量修复，不是系统安装或全局环境修改。
+- 2026-08-15：新增 Scout wheel-ground 真实动力学候选场景和验收脚本。场景为 `Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，脚本为 `/home/ubuntu22/VLN/scripts/run_scout_wheel_ground_smoke_test.sh`；Unity 侧新增 `VlnScoutWheelGroundController.cs` 和 `VlnFollowTransformPose.cs`，使用 Unity 内置 `Rigidbody`、`BoxCollider`、`WheelCollider` 和已有 ROS-TCP-Connector 消息，不安装任何系统包、Python 包或 Conda 包。验收 run id `vln_scout_wheel_ground_20260815_195417` 输出 `VLN_SCOUT_WHEEL_GROUND_SMOKE_TEST_PASS`。

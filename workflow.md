@@ -17,7 +17,10 @@
 11. ROS2 路径点控制闭环。
 12. 本地中文控制面板：目标位置、相机视图、雷达点云触发。
 13. 成熟越野地图与真实小车模型候选导入。
-14. 进入 VLN 感知层数据集/训练/算法对接。
+14. URDF/STL 物理车体闭环：导入真实底盘 URDF，验证 visual/collision/inertial/joint，并保持 ROS2 感知与控制接口稳定。
+15. Wheel-ground 真实动力学候选：新建独立候选场景，让轮地接触驱动车体，同时保持 ROS2 相机、LiDAR、TF、cmd_vel 和 odom 接口稳定。
+16. Scout wheel-ground 固定路线物理巡航：新增 ROS2 固定路线脚本，驱动物理车体从起点沿道路通过桥/坡区域并跑向终点方向，用于观察轮地接触、坡地/路面交互、传感器跟随和是否穿模。
+17. 进入 VLN 感知层数据集/训练/算法对接。
 
 ## 阶段 0：项目约束与记忆机制
 
@@ -269,7 +272,132 @@ http://127.0.0.1:8765/
 
 成功标志：`VLN_ASSET_UPGRADE_BASELINE_CHECK_PASS`。
 
-最近通过 run id：`vln_asset_baseline_20260814_040515`。车体候选显示修正 run id：`vln_offroad_vehicle_candidate_20260814_095155`，该候选场景的图像输出已提高到 `1280x720`。手工查看时先把 Unity Game 视图 Scale 调回 `1x` 或 `Fit`，不要用 `10x` 放大画面判断模型质量。下一步不要直接上完整 URDF 动力学；推荐先确认 Husky 低多边形车体是否足够展示，如果不够，应筛选高清 UGV/越野车视觉资产。
+最近完整资产基线回归 run id：`vln_asset_baseline_20260815_191337`。车体候选显示修正 run id：`vln_offroad_vehicle_candidate_20260814_095155`，该候选场景的图像输出已提高到 `1280x720`。手工查看时先把 Unity Game 视图 Scale 调回 `1x` 或 `Fit`，不要用 `10x` 放大画面判断模型质量。Husky 视觉候选保留为低多边形工程展示资产；真实物理底盘路线已经转入阶段 13 Scout URDF 候选。
+
+## 阶段 13：URDF/STL 物理车体闭环
+
+- 目标：把阶段 12 的“视觉车体候选”升级为“URDF 描述的物理底盘候选”，验证真实底盘的 visual、collision、inertial 和 wheel joint，同时保留已跑通的 ROS2 感知与控制主链路。
+- 原则：新建候选场景和候选资产目录，不覆盖 `VLNOffroadTerrainSmokeTest.unity`、`VLNOffroadAssetCandidate.unity` 或 `VLNOffroadVehicleCandidate.unity`。
+- 当前第一候选：AgileX Scout V2，来源为 `agilexrobotics/ugv_gazebo_sim` 的 `scout/scout_description/urdf/scout_v2.xacro`。
+- 本地缓存：`/home/ubuntu22/VLN/VLN_ASSETS_CACHE/vehicles/ugv_gazebo_sim_scout_description_raw`。
+- 已完成体检：`scout_v2.xacro` 可展开为 `generated/scout_v2.urdf`；展开后包含 `base_link`、`inertial_link`、四个 wheel link，四个 continuous wheel joint，6 个 collision，5 个 inertial。
+- 已完成导入前基线冻结：`/home/ubuntu22/VLN/scripts/run_asset_upgrade_baseline_check.sh` 输出 `VLN_ASSET_UPGRADE_BASELINE_CHECK_PASS`，run id 为 `vln_asset_baseline_20260815_182915`。
+- 已完成 Unity URDF 候选导入：新增候选场景 `Assets/VLN/Scenes/VLNOffroadScoutUrdfCandidate.unity`，Unity 导入入口为 `Assets/VLN/ExternalAssets/ScoutUrdfPhysics/scout_v2_unity_import.urdf`。
+- 已完成姿态修复：URDF Importer 的 `chosenAxis` 使用 `ImportSettings.axisType.yAxis`；`zAxis` 会让 Scout 车体竖起。当前截图显示车身平放、四轮竖直贴地。
+- 已完成静态验收：`/home/ubuntu22/VLN/scripts/run_scout_urdf_candidate_smoke_test.sh` 输出 `VLN_SCOUT_URDF_CANDIDATE_SMOKE_TEST_PASS`，run id `vln_scout_urdf_candidate_20260815_185336`。
+- 已完成控制验收：`/home/ubuntu22/VLN/scripts/run_scout_urdf_cmd_vel_smoke_test.sh` 输出 `VLN_SCOUT_URDF_CMD_VEL_SMOKE_TEST_PASS`，最新 run id `vln_scout_urdf_cmd_vel_20260815_195941`。
+- 已完成候选 odom 输出：Scout 候选场景新增 `/vln/odom [nav_msgs/msg/Odometry]`，frame 为 `map`，child frame 为 `base_link`，由当前 Unity rig 实际位姿差分生成；控制验收中 `odom_delta=2.261m`、`odom_yaw_delta=2.843rad`，与 TF 运动一致。
+- 已完成 wheel joint 信号探针：四个 wheel ArticulationBody 均被找到，`/vln/cmd_vel` 已映射为 wheel `xDrive.targetVelocity`，验收结果为 `wheel_found_count=4`、`wheel_command_count=48`、`nonzero_target_count=4`。
+- 已完成导入后完整基线回归：`/home/ubuntu22/VLN/scripts/run_asset_upgrade_baseline_check.sh` 输出 `VLN_ASSET_UPGRADE_BASELINE_CHECK_PASS`，最新 run id `vln_asset_baseline_20260815_200044`。
+- 初始接口保持不变：`/vln/front/image_raw`、`/vln/front/camera_info`、`/vln/lidar/points`、`/tf`、`/vln/cmd_vel` 不改名。
+- 第一轮传感器策略：保留当前 UnitySensors 相机与 LiDAR rig，挂到导入底盘的 `base_link` 语义节点下；不在第一轮同时重写传感器组件。
+- 第一轮控制策略：已把 `/vln/cmd_vel` 作为信号写入四个 wheel ArticulationBody 的 drive 目标速度，但暂不让 wheel-ground 接触决定整车位移。
+- 当前边界：阶段 13 已具备 URDF visual/collision/inertial/joint 结构、可用 ROS2 感知/控制闭环、wheel joint 信号接入和候选 `/vln/odom` 输出；整车位移仍沿用现有运动学 rig，还没有完成真实轮胎-地面摩擦、悬挂、电机、轮速闭环或 `/joint_states`。
+
+阶段 13 小步顺序：
+
+1. 已完成：冻结现有基线，确认已有图像、点云、TF、cmd_vel 和控制面板仍通过。
+2. 已完成：Scout URDF 体检，记录 xacro 展开结果、mesh 引用、collision/inertial/joint 清单和已知风险。
+3. 已完成：Unity 工程级加入 `com.unity.robotics.urdf-importer`，不安装系统包或 Python 包。
+4. 已完成：Scout 候选资产导入到 `Assets/VLN/ExternalAssets/ScoutUrdfPhysics`，候选场景不覆盖旧场景。
+5. 已完成：静态物理验收，Unity Play 后底盘不爆飞、不穿地、不自动运动；mesh、collision 和 wheel link 姿态正确。
+6. 已完成：传感器挂载回归，图像、CameraInfo、PointCloud2、TF 仍按旧 topic 输出。
+7. 已完成：控制闭环回归，ROS2 发布 `/vln/cmd_vel` 后 Scout 候选随当前 rig 运动；停止发布后车辆停止。
+8. 已完成：导入后完整资产基线回归，确认地图候选、Husky 视觉候选、标准输出、cmd_vel 控制和中文控制面板仍通过。
+9. 已完成：wheel joint 信号探针，确认 `/vln/cmd_vel` 能写入四个 wheel ArticulationBody 的目标速度。
+10. 已完成：新增候选 `/vln/odom`，静态和控制验收均通过。
+11. 已完成第一轮：新建独立 wheel-ground 候选场景，使用 Unity `Rigidbody + WheelCollider` 让轮地接触驱动车体前进，旧 Scout URDF 候选场景不覆盖。
+12. 下一步：增强差速转向、坡地、障碍物接触、轮胎参数标定和可选 `/joint_states`。
+
+阶段 13 完成定义：
+
+- `scout_v2.xacro` 或后续师兄提供的完整车体 xacro 能稳定展开为 URDF。
+- Unity 候选场景中能看到正常姿态的 Scout 底盘和四个轮子。
+- URDF collision/inertial/joint 不被丢弃，且物理稳定。
+- ROS2 侧仍能看到标准图像、点云、TF 和 `/vln/cmd_vel`。
+- 候选导入失败时，旧阶段 12 场景和脚本仍可独立回归。
+- 当前第一轮仍是“URDF 物理结构 + 运动学控制 rig + 候选 odom”的安全闭环，不等于完整轮胎-地面摩擦、悬挂和电机动力学；后续论文级真实仿真应继续做 wheel-ground 接触、摩擦、质量/惯性和 joint state 增强。阶段 14 已开始把整车位移源从运动学 rig 切到独立物理根，但仍作为候选场景验证，不覆盖阶段 13 的 URDF 结构闭环。
+
+阶段 13 关键风险记录：不要使用 `UrdfRobotExtensions.CreateRuntime` 做 DAE runtime 导入；该路径会触发 Assimp `DllNotFoundException: libdl.so`。当前稳定方案是 Editor 导入路径 `UrdfRobotExtensions.Create(... forceRuntimeMode:false)`，让 Unity 已导入的 DAE 资产实例化。日志里仍可能出现一次 `libdl.so` fallback 信息，但静态、控制和完整基线均已通过，暂不通过系统安装处理。
+
+## 阶段 14：Scout wheel-ground 真实动力学候选
+
+- 目标：让 Scout 候选小车不再由 `VlnVehicleTfPublisher` 运动学位移推动，而是由 Unity 物理系统中的轮地接触驱动车体。
+- 场景：`Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`。
+- 物理根：`ScoutWheelGround_PhysicsRoot`，包含 `Rigidbody`、1 个 chassis `BoxCollider` 和 4 个 `WheelCollider`。
+- 视觉根：`ScoutWheelGround_VisualUrdf`，复用 Scout V2 URDF mesh，但剥离 collider、Rigidbody、ArticulationBody 和 URDF 脚本，只作为渲染模型。
+- 控制器：`VlnScoutWheelGroundController` 订阅 `/vln/cmd_vel`，将 `geometry_msgs/msg/Twist` 转换为左右轮目标转速，并用 `WheelCollider.motorTorque/brakeTorque` 驱动。
+- TF/odom：`VlnVehicleTfPublisher` 在该场景中关闭 `m_EnableKinematicMotion`，只负责发布 TF 和接收 cmd_vel 计数；`VlnFollowTransformPose` 让传感器 rig 跟随物理根；`VlnOdomPublisher` 继续发布 `/vln/odom`。
+- 接口保持：`/vln/front/image_raw`、`/vln/front/camera_info`、`/vln/lidar/points`、`/tf`、`/vln/cmd_vel`、`/vln/odom` 不改名。
+
+阶段 14 固定验收命令：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_scout_wheel_ground_smoke_test.sh
+```
+
+成功标志：
+
+```text
+VLN_SCOUT_WHEEL_GROUND_SMOKE_TEST_PASS
+```
+
+最近通过：
+
+```text
+run id: vln_scout_wheel_ground_20260815_195417
+motion_source=wheel_ground_contact_not_kinematic_rig
+physics_backend=Unity WheelCollider + Rigidbody
+wheel_collider_count=4
+visual_renderer_count=17
+visual_collider_count=0
+visual_articulation_body_count=0
+physics_root_delta_m=1.7739
+forward_delta=1.771m
+odom_forward_delta=1.771m
+cmd_vel_count=58
+controller_cmd_count=58
+motor_command_count=614
+odom_publish_count=378
+```
+
+阶段 14 当前边界：这是第一版可验证 wheel-ground 动力学候选，已经证明车体前进来自物理轮地接触而不是旧运动学 rig；但还没有完成论文级车辆模型标定，后续仍需要验证差速转向、坡地通过、障碍物碰撞、轮胎摩擦参数、质量/惯性复核和可选 `/joint_states`。
+
+## 阶段 15：Scout wheel-ground 固定路线物理巡航
+
+- 目标：在不覆盖手动控制、中文控制面板、相机、LiDAR、TF 和 odom 的前提下，增加一条可重复的固定路线演示，用来观察 Scout 物理车体和越野场景的交互。
+- 场景：继续使用 `Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`。
+- ROS2 控制脚本：`/home/ubuntu22/VLN/scripts/ros2_drive_scout_physics_route.py`。
+- 手工演示入口：`/home/ubuntu22/VLN/scripts/drive_scout_wheel_ground_route_demo.sh`。
+- 自动验收入口：`/home/ubuntu22/VLN/scripts/run_scout_wheel_ground_route_smoke_test.sh`。
+- 默认路线：启动时以 `base_link` 为原点，沿前向依次到 `4,0;8,0;12,0;15,0;18,0;22,0;28,0;34,0;42,0;50,0;54,0` 米，用于从起点通过桥/坡区域并跑向终点方向。
+- 默认控制策略：固定路径点物理巡航，`max_linear=1.35m/s`、`linear_accel=0.95m/s^2`、`max_angular=0.42rad/s`、`angular_gain=0.62`、`angular-sign=-1`，用小角度回正抵消地形导致的横向漂移。
+- 物理场景修复：Scout wheel-ground 视觉 URDF 不再额外 yaw `180°`，避免肉眼看成倒着开；轮胎视觉偏移为 `0.085m`，避免轮胎显示扎进地面；桥面新增不可见物理过渡坡，避免 WheelCollider 顶住桥面硬边。
+
+阶段 15 固定验收命令：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_scout_wheel_ground_route_smoke_test.sh
+```
+
+成功标志：
+
+```text
+VLN_SCOUT_WHEEL_GROUND_ROUTE_SMOKE_TEST_PASS
+```
+
+最近通过：
+
+```text
+run id: vln_scout_wheel_ground_route_20260816_150349
+reached_count=11/11
+total_forward_progress=53.080m
+total_progress=53.102m
+stall_count=0
+skipped_count=0
+```
+
+阶段 15 当前边界：它是“写死完整路线物理巡航演示”，不是完整 navigation2，也不是 VLN 决策控制器；路线沿道路前向通过桥/坡区域，但不做语义导航、自主绕障或目标重规划。后续若要绕障、上坡路径选择或接入 VLN 决策，应另开小步阶段，继续做稳定差速转向、横向摩擦、碰撞边界和低速转弯标定。
 
 ## 工作流管理规则
 

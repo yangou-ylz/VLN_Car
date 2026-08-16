@@ -8,6 +8,9 @@ set -eo pipefail
 RVIZ_CONFIG="/home/ubuntu22/VLN/config/vln_lidar_pointcloud.rviz"
 tf_pid=""
 
+mkdir -p /home/ubuntu22/VLN/.ros/log
+export ROS_LOG_DIR="${ROS_LOG_DIR:-/home/ubuntu22/VLN/.ros/log}"
+
 cleanup()
 {
   if [ -n "$tf_pid" ]; then

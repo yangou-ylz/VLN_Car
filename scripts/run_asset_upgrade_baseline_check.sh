@@ -8,7 +8,8 @@ set -eo pipefail
 VLN_ROOT="/home/ubuntu22/VLN"
 RUN_ID="vln_asset_baseline_$(date +%Y%m%d_%H%M%S)"
 LOG_DIR="$VLN_ROOT/UnityProjects/_SmokeTestLogs/$RUN_ID"
-mkdir -p "$LOG_DIR"
+mkdir -p "$LOG_DIR" "$VLN_ROOT/.ros/log"
+export ROS_LOG_DIR="${ROS_LOG_DIR:-$VLN_ROOT/.ros/log}"
 
 echo "run_id=$RUN_ID" | tee "$LOG_DIR/run_summary.txt"
 echo "log_dir=$LOG_DIR" | tee -a "$LOG_DIR/run_summary.txt"

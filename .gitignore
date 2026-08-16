@@ -137,13 +137,39 @@ UnityProjects/VLN_Offroad/[Cc]rash[Rr]eports/
 UnityProjects/VLN_Offroad/mono_crash*.blob
 
 # Guardrail: external Unity assets are ignored by default; allow only reviewed small subsets.
-UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/*
+UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/**
 !UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/KenneyNatureKit.meta
 !UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/KenneyNatureKit/
 !UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/KenneyNatureKit/**
 !UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/HuskyVisual.meta
 !UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/HuskyVisual/
 !UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/HuskyVisual/**
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/scout_v2_unity_import.urdf
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/scout_v2_unity_import.urdf.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/Materials.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/Materials/
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/Materials/Default.mat
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/Materials/Default.mat.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/meshes.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/meshes/
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/meshes/base_link.dae
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/meshes/base_link.dae.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/meshes/wheel_type1.dae
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/meshes/wheel_type1.dae.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/meshes/Cylinder.asset
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/meshes/Cylinder.asset.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/Reference.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/Reference/
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/Reference/DOWNLOAD_SUMMARY.json
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/Reference/DOWNLOAD_SUMMARY.json.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/Reference/scout_v2_original_generated.urdf
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/Reference/scout_v2_original_generated.urdf.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/Reference/scout_v2.xacro
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/Reference/scout_v2.xacro.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/Reference/package.xml
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/Reference/package.xml.meta
 
 # Unity Hub / Editor local install state
 tools/unityhub_download/

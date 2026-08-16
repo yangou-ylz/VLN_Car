@@ -16,7 +16,8 @@ ECHO_LOG="$LOG_DIR/ros2_echo_unity_heartbeat.log"
 PUB_LOG="$LOG_DIR/ros2_pub_command.log"
 RESULT_FILE="$VLN_ROOT/UnityProjects/VLN_Offroad/Logs/vln_ros2_smoke_result.txt"
 
-mkdir -p "$LOG_DIR"
+mkdir -p "$LOG_DIR" "$VLN_ROOT/.ros/log"
+export ROS_LOG_DIR="${ROS_LOG_DIR:-$VLN_ROOT/.ros/log}"
 
 endpoint_pid=""
 

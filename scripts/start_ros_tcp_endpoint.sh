@@ -9,6 +9,10 @@ set -eo pipefail
 ROS_IP_VALUE="${ROS_IP:-127.0.0.1}"
 ROS_TCP_PORT_VALUE="${ROS_TCP_PORT:-10000}"
 WORKSPACE="${UNITY_ROS2_WS:-/home/ubuntu22/VLN/unity_ros2_ws}"
+VLN_ROOT="/home/ubuntu22/VLN"
+
+mkdir -p "$VLN_ROOT/.ros/log"
+export ROS_LOG_DIR="${ROS_LOG_DIR:-$VLN_ROOT/.ros/log}"
 
 if [ ! -f "$WORKSPACE/install/setup.bash" ]; then
   echo "未找到 $WORKSPACE/install/setup.bash，请先构建 ROS-TCP-Endpoint 工作区。"

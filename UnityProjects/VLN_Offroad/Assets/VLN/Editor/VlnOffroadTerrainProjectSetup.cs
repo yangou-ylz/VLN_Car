@@ -369,6 +369,11 @@ namespace VLN.Editor
             serializedPublisher.FindProperty("m_CommandTimeoutSeconds").floatValue = 0.75f;
             serializedPublisher.FindProperty("m_MaxLinearSpeedMetersPerSecond").floatValue = 2.0f;
             serializedPublisher.FindProperty("m_MaxAngularSpeedRadPerSecond").floatValue = 1.2f;
+            serializedPublisher.FindProperty("m_EnableObstacleCollisionStop").boolValue = true;
+            serializedPublisher.FindProperty("m_CollisionHalfExtents").vector3Value = new Vector3(0.62f, 0.42f, 0.95f);
+            serializedPublisher.FindProperty("m_CollisionCenterHeight").floatValue = 0.52f;
+            serializedPublisher.FindProperty("m_CollisionSkinMeters").floatValue = 0.05f;
+            serializedPublisher.FindProperty("m_ObstacleLayerMask").intValue = ~0;
             serializedPublisher.ApplyModifiedPropertiesWithoutUndo();
         }
 

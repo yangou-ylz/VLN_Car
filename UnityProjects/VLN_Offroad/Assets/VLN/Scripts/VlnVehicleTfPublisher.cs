@@ -24,10 +24,16 @@ namespace VLN.ROS2
         [SerializeField] float m_VehicleSpeedMetersPerSecond = 1.4f;
         [SerializeField] float m_PathStartZ = -24f;
         [SerializeField] float m_PathEndZ = 24f;
+        [SerializeField] bool m_EnableKinematicMotion = true;
         [SerializeField] bool m_AutopilotUntilFirstCommand = false;
         [SerializeField] float m_CommandTimeoutSeconds = 0.75f;
         [SerializeField] float m_MaxLinearSpeedMetersPerSecond = 2.0f;
         [SerializeField] float m_MaxAngularSpeedRadPerSecond = 1.2f;
+        [SerializeField] bool m_EnableObstacleCollisionStop = true;
+        [SerializeField] Vector3 m_CollisionHalfExtents = new(0.62f, 0.42f, 0.95f);
+        [SerializeField] float m_CollisionCenterHeight = 0.52f;
+        [SerializeField] float m_CollisionSkinMeters = 0.05f;
+        [SerializeField] LayerMask m_ObstacleLayerMask = ~0;
 
         const float TerrainSize = 80f;
         const float TerrainHeight = 7f;
@@ -43,6 +49,8 @@ namespace VLN.ROS2
         string m_ControlResultPath;
         bool m_FinalControlSnapshotWritten;
         bool m_Registered;
+        int m_CollisionBlockCount;
+        bool m_CollisionCurrentlyBlocked;
 
         void Start()
         {
@@ -57,7 +65,10 @@ namespace VLN.ROS2
                 $"autopilot_until_first_command={m_AutopilotUntilFirstCommand}\n" +
                 $"command_timeout_seconds={m_CommandTimeoutSeconds:F2}\n" +
                 $"max_linear_speed_mps={m_MaxLinearSpeedMetersPerSecond:F2}\n" +
-                $"max_angular_speed_radps={m_MaxAngularSpeedRadPerSecond:F2}\n");
+                $"max_angular_speed_radps={m_MaxAngularSpeedRadPerSecond:F2}\n" +
+                $"enable_kinematic_motion={m_EnableKinematicMotion}\n" +
+                $"obstacle_collision_stop={m_EnableObstacleCollisionStop}\n" +
+                $"collision_half_extents={m_CollisionHalfExtents.x:F2},{m_CollisionHalfExtents.y:F2},{m_CollisionHalfExtents.z:F2}\n");
 
             m_Ros = ROSConnection.GetOrCreateInstance();
             m_Ros.RegisterPublisher<TFMessageMsg>(m_TfTopic, queue_size: 10);
@@ -68,7 +79,10 @@ namespace VLN.ROS2
 
         void Update()
         {
-            UpdateVehiclePose();
+            if (m_EnableKinematicMotion)
+            {
+                UpdateVehiclePose();
+            }
 
             if (!m_Registered || Time.time < m_NextPublishTime)
             {
@@ -122,15 +136,72 @@ namespace VLN.ROS2
             float linear = Mathf.Clamp(m_CommandedLinearX, -m_MaxLinearSpeedMetersPerSecond, m_MaxLinearSpeedMetersPerSecond);
             float angular = Mathf.Clamp(m_CommandedAngularZ, -m_MaxAngularSpeedRadPerSecond, m_MaxAngularSpeedRadPerSecond);
 
-            transform.rotation = Quaternion.Euler(0f, transform.eulerAngles.y + angular * Mathf.Rad2Deg * dt, 0f);
-            Vector3 nextPosition = transform.position + transform.forward * (linear * dt);
+            Quaternion nextRotation = Quaternion.Euler(0f, transform.eulerAngles.y + angular * Mathf.Rad2Deg * dt, 0f);
+            Vector3 nextPosition = transform.position + (nextRotation * Vector3.forward) * (linear * dt);
             float halfBound = TerrainSize * 0.46f;
             nextPosition.x = Mathf.Clamp(nextPosition.x, -halfBound, halfBound);
             nextPosition.z = Mathf.Clamp(nextPosition.z, -halfBound, halfBound);
             nextPosition.y = TerrainWorldY(nextPosition.x, nextPosition.z);
 
-            transform.position = nextPosition;
+            if (Mathf.Abs(linear) > 0.001f && IsObstacleBlocking(nextPosition, nextRotation))
+            {
+                Vector3 currentPosition = transform.position;
+                currentPosition.y = TerrainWorldY(currentPosition.x, currentPosition.z);
+                transform.SetPositionAndRotation(currentPosition, nextRotation);
+                m_LastPosition = currentPosition;
+
+                if (!m_CollisionCurrentlyBlocked)
+                {
+                    m_CollisionCurrentlyBlocked = true;
+                    m_CollisionBlockCount++;
+                    string line = $"collision_blocked={m_CollisionBlockCount};time={DateTime.UtcNow:O};position={currentPosition.x:F3},{currentPosition.y:F3},{currentPosition.z:F3};yaw_deg={nextRotation.eulerAngles.y:F3}";
+                    File.AppendAllText(m_ControlResultPath, line + "\n");
+                    Debug.Log($"VLN_VEHICLE_COLLISION_BLOCKED count={m_CollisionBlockCount} position={currentPosition.x:F3},{currentPosition.y:F3},{currentPosition.z:F3}");
+                }
+                return;
+            }
+
+            m_CollisionCurrentlyBlocked = false;
+            transform.SetPositionAndRotation(nextPosition, nextRotation);
             m_LastPosition = nextPosition;
+        }
+
+        bool IsObstacleBlocking(Vector3 nextPosition, Quaternion nextRotation)
+        {
+            if (!m_EnableObstacleCollisionStop)
+            {
+                return false;
+            }
+
+            Vector3 center = nextPosition + Vector3.up * m_CollisionCenterHeight;
+            Vector3 halfExtents = new(
+                Mathf.Max(0.05f, m_CollisionHalfExtents.x + m_CollisionSkinMeters),
+                Mathf.Max(0.05f, m_CollisionHalfExtents.y),
+                Mathf.Max(0.05f, m_CollisionHalfExtents.z + m_CollisionSkinMeters));
+
+            var hits = Physics.OverlapBox(center, halfExtents, nextRotation, m_ObstacleLayerMask, QueryTriggerInteraction.Ignore);
+            foreach (var hit in hits)
+            {
+                if (hit == null || hit.transform == null)
+                {
+                    continue;
+                }
+
+                if (hit.transform.IsChildOf(transform))
+                {
+                    continue;
+                }
+
+                string objectName = hit.gameObject.name;
+                if (objectName.StartsWith("OffroadTerrain_", StringComparison.Ordinal) || objectName.StartsWith("Offroad_DirtRoad_", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                return true;
+            }
+
+            return false;
         }
 
         bool HasRecentCommand()
@@ -183,8 +254,23 @@ namespace VLN.ROS2
             File.AppendAllText(m_ControlResultPath,
                 $"finished={DateTime.UtcNow:O}\n" +
                 $"cmd_vel_count={m_CommandCount}\n" +
+                $"collision_block_count={m_CollisionBlockCount}\n" +
                 $"final_position={transform.position.x:F3},{transform.position.y:F3},{transform.position.z:F3}\n" +
                 $"final_yaw_deg={euler.y:F3}\n");
+        }
+
+        void OnDrawGizmosSelected()
+        {
+            if (!m_EnableObstacleCollisionStop)
+            {
+                return;
+            }
+
+            Gizmos.color = new Color(1f, 0.45f, 0.05f, 0.85f);
+            Matrix4x4 previous = Gizmos.matrix;
+            Gizmos.matrix = Matrix4x4.TRS(transform.position + Vector3.up * m_CollisionCenterHeight, transform.rotation, Vector3.one);
+            Gizmos.DrawWireCube(Vector3.zero, m_CollisionHalfExtents * 2f);
+            Gizmos.matrix = previous;
         }
 
         void PublishTf()

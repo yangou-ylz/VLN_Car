@@ -395,3 +395,120 @@
 - 解决方案：新增运行时脚本 `Assets/VLN/Scripts/VlnRuntimeMapCameraController.cs`，支持左/右键拖动旋转、中键拖动平移、滚轮缩放、右键按住时 WASD/QE 移动；在 `VlnOffroadTerrainProjectSetup.cs` 与 `VlnOffroadVehicleCandidateProjectSetup.cs` 中给展示相机挂载控制器；脚本还通过 `RuntimeInitializeOnLoadMethod` 自动给当前已打开场景中的展示相机补挂控制器，避免必须重建场景后才能用。
 - 验收方式：当前用户还开着 Unity Editor，自动 batch 验收因同一工程被占用而未运行；已检查 `Logs/AssetImportWorker*.log` 未发现 `error CS`、`Compilation failed` 或 `Scripts have compiler errors`。用户当前窗口等 Unity 编译完成后点击 Play，可直接在 `Game` 标签页测试拖动。
 - 状态：已实现，待用户手工拖动验证；关闭 Unity 后可再运行 `/home/ubuntu22/VLN/scripts/run_offroad_vehicle_candidate_smoke_test.sh` 做自动编译/传感器回归。
+
+## 2026-08-15：AgileX `ugv_gazebo_sim` 完整 git clone 过慢超时
+
+- 现象：按师兄链接克隆 `agilexrobotics/ugv_gazebo_sim` 时，即使设置 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY`，完整 `git clone --depth=1` 仍在 120 秒后超时。
+- 环境：本地代理 `127.0.0.1:7897`，目标仓库 `https://github.com/agilexrobotics/ugv_gazebo_sim.git`，缓存目录 `/home/ubuntu22/VLN/VLN_ASSETS_CACHE/vehicles`。
+- 根因判断：完整仓库克隆连接/对象传输不稳定；但 GitHub raw/API 经代理可正常下载，说明不是完全没挂代理，而是完整 git clone 对当前节点和仓库体积不友好。
+- 解决方案：未删除半截克隆，将其移动到 `VLN_ASSETS_CACHE/vehicles/ugv_gazebo_sim.partial_*` 保留现场；改用 GitHub API + 代理只下载 `scout/scout_description` 子目录，共 40 个文件、约 94.8MB。
+- 验收方式：本地存在 `/home/ubuntu22/VLN/VLN_ASSETS_CACHE/vehicles/ugv_gazebo_sim_scout_description_raw/DOWNLOAD_SUMMARY.json`，记录 commit `27633a956c845903ee630538afeb17fe70afdd84`、file_count `40`、bytes_total `94750231`。
+- 状态：已解决；后续如果只需要某个 ROS description 包，优先轻量下载子目录，不默认完整 clone 大仓库。
+
+## 2026-08-15：`scout_v2.xacro` 直接展开失败，找不到 `scout_description`
+
+- 现象：执行 ROS2 Humble 的 `xacro scout_v2.xacro` 时报 `PackageNotFoundError: package 'scout_description' not found`。
+- 环境：Scout 描述包只下载到 `/home/ubuntu22/VLN/VLN_ASSETS_CACHE/vehicles/ugv_gazebo_sim_scout_description_raw/scout/scout_description`，没有安装进 ROS2 workspace 或 ament index。
+- 根因：原始 xacro 使用 `$(find scout_description)` 解析 include 和 Gazebo 文件；ROS2 `xacro` 会从 ament index 查找 package，本地缓存目录不是已安装 ROS2 package。
+- 解决方案：不安装任何包；在缓存 `generated/staging` 下创建临时展开副本，把 `$(find scout_description)/urdf/` 指向 staging，把 mesh 路径指向本地缓存，然后生成 `generated/scout_v2.urdf`。
+- 验收方式：`generated/scout_v2.urdf` 已生成，体检显示 6 个 link、5 个有效 joint、6 个 collision、5 个 inertial；引用的 `base_link.dae` 和 `wheel_type1.dae` 均存在。
+- 状态：已解决；正式 Unity 导入前仍需决定是使用 staging 展开 URDF，还是把 `scout_description` 复制到 Unity 资产目录后统一修正 mesh 路径。
+
+## 2026-08-15：Scout V2 缓存目录出现重复轻量副本
+
+- 现象：排查 GitHub 下载时额外产生了 `VLN_ASSETS_CACHE/vehicles/agilex_scout_v2` 轻量副本，与正式缓存 `VLN_ASSETS_CACHE/vehicles/ugv_gazebo_sim_scout_description_raw` 同时存在，容易造成后续路径口径混乱。
+- 环境：阶段 13 Scout V2 URDF/STL 物理车体路线，本地缓存目录 `/home/ubuntu22/VLN/VLN_ASSETS_CACHE/vehicles`。
+- 根因：完整 git fetch 超时后，先手工下载了 `scout_v2.xacro`、include 文件和两个实际引用的 `.dae` mesh；随后发现标准缓存目录已存在完整 `scout/scout_description` 子目录和 `DOWNLOAD_SUMMARY.json`。
+- 解决方案：保留正式缓存作为唯一后续入口；将重复轻量副本移动到 `VLN_ASSETS_CACHE/vehicles/_scratch_duplicates/agilex_scout_v2_*`，不删除现场。
+- 验收方式：`find VLN_ASSETS_CACHE/vehicles -maxdepth 2 -type d` 显示正式入口为 `ugv_gazebo_sim_scout_description_raw`，重复副本只在 `_scratch_duplicates` 下。
+- 状态：已解决；后续阶段 13 全部使用 `ugv_gazebo_sim_scout_description_raw/generated/scout_v2.urdf` 和其 `scout/scout_description` 资产目录。
+
+## 2026-08-15：URDF Importer 触发 Unity UPM 写入 home 缓存失败
+
+- 现象：加入 `com.unity.robotics.urdf-importer` 后，控制面板回归中的 Unity 批处理退出码为 `1`，日志显示 `EROFS: read-only file system, mkdir '/home/ubuntu22/.config/unity3d/cache/npm/packages.unity.com/...'`。
+- 环境：Unity Editor `2022.3.62f1`，工程 `/home/ubuntu22/VLN/UnityProjects/VLN_Offroad`，当前执行环境只允许写 `/home/ubuntu22/VLN` 和 `/tmp`。
+- 根因：URDF Importer 依赖 `com.unity.editorcoroutines`，Unity Package Manager 尝试把 npm registry 缓存写到默认 home 配置目录，而不是项目内 `.unity_user/cache`。
+- 解决方案：在 `/home/ubuntu22/VLN/scripts/open_unity_vln_project.sh` 中设置 `UPM_CACHE_PATH`、`UPM_GIT_LFS_CACHE_PATH`、`UPM_NPM_CACHE_PATH` 到 `/home/ubuntu22/VLN/.unity_user/cache/upm/...`；不安装系统包，不修改全局 Unity 配置。
+- 验收方式：重新运行 `/home/ubuntu22/VLN/scripts/run_control_panel_smoke_test.sh`，run id `vln_control_panel_20260815_183918`，输出 `VLN_CONTROL_PANEL_SMOKE_TEST_PASS`。
+- 状态：已解决；后续所有 Unity 批处理必须通过 `scripts/open_unity_vln_project.sh` 入口。
+
+## 2026-08-15：控制面板测试退出时 ROS 上下文失效导致假 traceback
+
+- 现象：控制面板日志在测试结束时出现 `ExternalShutdownException`，随后 cleanup 发布 zero Twist 报 `publisher's context is invalid`。
+- 环境：`/home/ubuntu22/VLN/scripts/vln_control_panel.py`，ROS2 Humble，控制面板 smoke test 由外层脚本结束进程。
+- 根因：外层测试结束时 ROS2 上下文可能已经 shutdown，cleanup 仍尝试发布停止指令和销毁 ROS 对象，导致非业务失败的 traceback。
+- 解决方案：`publish_zero()` 在 `rclpy.ok()` 为 false 时直接返回，发布异常时 break；cleanup 销毁 ROS 对象加保护；主循环捕获 `rclpy.executors.ExternalShutdownException`。
+- 验收方式：`python3 -m py_compile scripts/vln_control_panel.py` 通过；`run_control_panel_smoke_test.sh` 输出 `VLN_CONTROL_PANEL_SMOKE_TEST_PASS`，无该 cleanup traceback。
+- 状态：已解决。
+
+## 2026-08-15：Scout V2 URDF 首次 Unity 导入姿态竖起
+
+- 现象：Scout V2 URDF 候选第一次自动截图显示车体竖起来，四轮在侧面，视觉上不符合正常小车姿态；虽然 URDF link/joint/collision 计数和 ROS2 topic 都通过，但不能算姿态验收通过。
+- 环境：Unity URDF Importer `v0.5.2`，Scout V2 DAE 的 `<up_axis>` 为 `Z_UP`，候选场景 `VLNOffroadScoutUrdfCandidate.unity`。
+- 根因：`VlnOffroadScoutUrdfCandidateProjectSetup.cs` 初次使用 `ImportSettings.axisType.zAxis`，URDF Importer 的坐标修正与 Scout DAE 的 Z-up 导入叠加后导致整体车体竖起。
+- 解决方案：将 `ImportSettings.chosenAxis` 改为 `ImportSettings.axisType.yAxis`，重新导入场景，并保持旧 ROS2 相机、LiDAR、TF 和 `/vln/cmd_vel` 接口不变。
+- 验收方式：`/home/ubuntu22/VLN/scripts/run_scout_urdf_candidate_smoke_test.sh` 输出 `VLN_SCOUT_URDF_CANDIDATE_SMOKE_TEST_PASS`，最终 run id `vln_scout_urdf_candidate_20260815_185336`；截图显示车身平放、四轮竖直贴地，导入尺寸约 `0.700 x 0.351 x 0.930m`。
+- 状态：已解决；后续 Scout V2 Unity 导入不要改回 `zAxis`。
+
+## 2026-08-15：Scout URDF 批处理后残留 Unity Library lock
+
+- 现象：一次 Scout URDF smoke test 通过后，紧接着再次运行 Unity batch 报 `It looks like another Unity instance is running with this project open`，但 `pgrep` 没有真实 Unity Editor 进程。
+- 环境：Unity 工程 `/home/ubuntu22/VLN/UnityProjects/VLN_Offroad`，残留文件为 `Library/ArtifactDB-lock` 和 `Library/SourceAssetDB-lock`。
+- 根因判断：Unity 批处理退出后偶发没有清理 Library lock，导致下一次 batch 误判工程被占用。
+- 解决方案：继续使用项目已有 `/home/ubuntu22/VLN/scripts/stop_unity_vln_project.sh`，只移动 stale lock 到 `_ManualRecoveryLogs`，不删除整个 `Library/`；新增的 Scout 静态/控制脚本在无真实 Unity 进程但发现 lock 时自动调用该恢复脚本。
+- 验收方式：`run_scout_urdf_cmd_vel_smoke_test.sh` 启动时自动移动 stale lock，并最终输出 `VLN_SCOUT_URDF_CMD_VEL_SMOKE_TEST_PASS`，run id `vln_scout_urdf_cmd_vel_20260815_185425`。
+- 状态：已解决；若其他旧脚本遇到相同假占用，先运行 `scripts/stop_unity_vln_project.sh`。
+
+## 2026-08-15：`.gitignore` 外部资产保护被全局 Assets 放行规则压过
+
+- 现象：`git check-ignore` 显示 Scout 重复目录 `ScoutUrdfPhysics/scout_description/...` 和原始 `scout_v2.urdf` 没有按预期被外部资产保护规则忽略，而是被 `!UnityProjects/VLN_Offroad/Assets/**` 放行。
+- 环境：`.gitignore` 中 Unity 工程源码放行规则和 `Assets/VLN/ExternalAssets` 保护规则同时存在。
+- 根因：外部资产默认忽略规则只写了 `ExternalAssets/*`，不能压住前面递归放行的 `Assets/**` 深层文件。
+- 解决方案：将默认忽略规则改为 `UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/**`，再显式放行 Kenney、Husky 和 Scout 已审子集；Scout 只放行正式 Unity 导入入口、mesh、默认材质、Cylinder collision asset 和 Reference 元数据。
+- 验收方式：`git check-ignore -v` 显示 `scout_description/...` 与 `scout_v2.urdf` 被忽略，`Materials/Default.mat` 与 `meshes/Cylinder.asset` 被放行。
+- 状态：已解决。
+
+## 2026-08-15：URDF Runtime 导入触发 Assimp `libdl.so` 异常
+
+- 现象：尝试使用 URDF Importer 的 runtime 导入路径时，Unity 日志出现 Assimp 相关 `DllNotFoundException: libdl.so` / fallback handler 信息，DAE mesh 不能按预期稳定实例化。
+- 环境：Unity Editor `2022.3.62f1`，`com.unity.robotics.urdf-importer` `v0.5.2`，Scout V2 的 `base_link.dae` 与 `wheel_type1.dae`。
+- 根因判断：`UrdfRobotExtensions.CreateRuntime` 走运行时 mesh 导入路径，会触发 Assimp 动态库加载问题；这不是 ROS2、CUDA、PyTorch 或 xacro 问题。
+- 解决方案：不通过系统安装或修改 Unity Editor 解决；改用 Editor 导入路径 `UrdfRobotExtensions.Create(... forceRuntimeMode:false)`，让 Unity 先把 DAE 作为资产导入，再由 URDF Importer 实例化。日志里仍可能出现一次 `libdl.so` fallback 信息，但不阻断当前 Editor 导入结果。
+- 验收方式：Scout 静态验收 `vln_scout_urdf_candidate_20260815_185336` 通过，控制验收 `vln_scout_urdf_cmd_vel_20260815_191235` 通过，导入后最新完整基线 `vln_asset_baseline_20260815_191337` 通过。
+- 状态：已解决；后续不要再把 `CreateRuntime` 作为 Scout DAE 导入主线。
+
+## 2026-08-15：旧 ROS2 验收脚本默认写 `/home/ubuntu22/.ros/log` 导致回归失败
+
+- 现象：完整资产基线回归 `vln_asset_baseline_20260815_192846` 和 `vln_asset_baseline_20260815_192954` 首轮失败。第一次是 ROS-TCP-Endpoint 启动时报 `Failed opening file /home/ubuntu22/.ros/log/... Read-only file system`；第二次是 ROS2 Python 字段校验脚本 `rclpy.init()` 同样尝试写 `/home/ubuntu22/.ros/log`。
+- 环境：当前执行环境只允许写 `/home/ubuntu22/VLN` 和 `/tmp`；项目约束要求工作目录都在 `/home/ubuntu22/VLN` 内。
+- 根因：部分旧 smoke test、手工查看脚本和 endpoint 启动脚本没有显式导出 `ROS_LOG_DIR`，ROS2/rclpy 回退到默认 home 日志目录。
+- 解决方案：在 `scripts/start_ros_tcp_endpoint.sh`、`run_asset_upgrade_baseline_check.sh`、所有 ROS2 自动验收脚本、手工检查/查看脚本和控制面板启动脚本中统一创建并导出 `ROS_LOG_DIR=/home/ubuntu22/VLN/.ros/log`。
+- 验收方式：`bash -n scripts/*.sh` 通过；检查所有含 ROS2 调用的 shell 脚本均包含 `ROS_LOG_DIR`；重新运行完整回归 `vln_asset_baseline_20260815_193207` 输出 `VLN_ASSET_UPGRADE_BASELINE_CHECK_PASS`。
+- 状态：已解决；后续新增 ROS2 脚本必须继承项目内日志目录。
+
+## 2026-08-15：wheel-ground 首轮视觉 URDF 残留 ArticulationBody
+
+- 现象：第一次运行 `/home/ubuntu22/VLN/scripts/run_scout_wheel_ground_smoke_test.sh` 时，ROS2 图像、点云、TF、odom 和物理前进都已通过，但脚本最后因 `visual_articulation_body_count=5` 失败；Unity 日志显示 `Can't remove ArticulationBody because UrdfInertial / UrdfJointContinuous / UrdfJointFixed depends on it`。
+- 环境：Unity URDF Importer `v0.5.2`，阶段 14 场景 `VLNOffroadScoutWheelGroundCandidate.unity`，Scout 视觉模型由 Editor URDF 导入后再挂到物理根下。
+- 根因：URDF Importer 生成的 `UrdfJoint`、`UrdfInertial`、`UrdfCollision`、`UrdfVisual`、`UrdfLink`、`UrdfRobot` 脚本依赖 `ArticulationBody`，如果先删 `ArticulationBody`，Unity 会拒绝删除。
+- 解决方案：在 `VlnOffroadScoutWheelGroundCandidateProjectSetup.RemovePhysicsComponents()` 中按依赖顺序先删除 URDF 相关脚本，再删除 `ArticulationBody`、`Rigidbody` 和 `Collider`；视觉模型只保留 Renderer。
+- 验收方式：重新运行 `run_scout_wheel_ground_smoke_test.sh`，run id `vln_scout_wheel_ground_20260815_195417` 输出 `VLN_SCOUT_WHEEL_GROUND_SMOKE_TEST_PASS`，结果文件显示 `visual_collider_count=0`、`visual_articulation_body_count=0`、`wheel_collider_count=4`。
+- 状态：已解决；后续如果将 URDF mesh 当纯视觉模型使用，必须先剥离 URDF 脚本依赖，再剥离物理组件。
+
+## 2026-08-16：wheel-ground 固定路线复杂转向不稳定
+
+- 现象：阶段 15 尝试使用路径点纠偏控制驱动 Scout wheel-ground 候选走复杂路线时，第二/第三路径点附近容易出现横摆、侧滑、偏离道路或进度不足；20m 长路线第三段后会随机横向漂移到右侧障碍/不稳定地形区；简单调高角速度会让 skid-steer 车体更不稳定。
+- 环境：Unity `VLNOffroadScoutWheelGroundCandidate.unity`，`Rigidbody + WheelCollider` 第一版物理车体，控制入口 `/vln/cmd_vel`。
+- 根因判断：当前轮胎横向摩擦、质心、差速转向和控制器还只是第一版候选参数；在没有完成低速转向标定前，把复杂路径点纠偏当成导航控制会混淆“物理属性问题”和“控制器未标定问题”。
+- 解决方案：阶段 15 默认收敛为 9m 短路线低速小角度回正巡航：路线 `3,0;6,0;9,0`，参数 `max_linear=0.45`、`linear_gain=0.30`、`linear_accel=0.12`、`max_angular=0.18`、`angular_gain=0.35`、`angular-sign=-1`、`angular_accel=0.08`、`min_linear_while_turning=0.32`。同时保留脚本参数覆盖能力，后续可单独做转向、摩擦和路线标定。
+- 验收方式：短路线运行 `run_scout_wheel_ground_route_smoke_test.sh`，最新 run id `vln_scout_wheel_ground_route_20260816_041954` 输出 `VLN_SCOUT_WHEEL_GROUND_ROUTE_SMOKE_TEST_PASS`，`reached_count=3/3`、`total_forward_progress=8.334m`、`total_progress=8.355m`、`stall_count=0`，图像、CameraInfo、PointCloud2 和 odom 同时通过。
+- 状态：已解决为第一版稳定短路线演示；20m 长路线、复杂绕障和高速转向路线暂不作为默认验收。
+
+## 2026-08-16：固定路线偏离用户要求、速度过慢、轮胎视觉陷地
+
+- 现象：用户手工验证后反馈上一版固定路线不是从起点走到桥/坡/终点方向的完整路线，而是短距离慢速巡航；小车视觉上像倒着走，速度太慢；轮胎看起来陷进地板。
+- 环境：`VLNOffroadScoutWheelGroundCandidate.unity`，Scout V2 URDF 视觉模型 + Unity `Rigidbody + WheelCollider` 物理根，ROS2 控制脚本 `/home/ubuntu22/VLN/scripts/ros2_drive_scout_physics_route.py`。
+- 根因：第一版阶段 15 为了先得到稳定回归，把默认路线收敛为 9m 短路线，偏离了用户要观察桥、坡和终点方向的目的；wheel-ground 视觉 URDF 额外设置了 `Quaternion.Euler(0,180,0)`，导致物理车体虽然沿道路前进但视觉车体朝向反了；桥面简化碰撞体边缘形成硬台阶，长路线在前向约 `13.7m` 处顶住；轮胎视觉跟随 WheelCollider 世界姿态时偏低，截图中容易看成轮胎陷地。
+- 解决方案：默认路线升级为 `4,0;8,0;12,0;15,0;18,0;22,0;28,0;34,0;42,0;50,0;54,0`；速度参数提高到 `max_linear=1.35m/s`、`linear_accel=0.95m/s^2`；移除 Scout 视觉根额外 `180°` yaw；轮胎视觉偏移提高到 `0.085m`；桥面新增前后不可见物理过渡坡；路线控制脚本增加 `--skip-stalled-waypoints` 作为后续物理演示容错。
+- 验收方式：`/home/ubuntu22/VLN/scripts/run_scout_wheel_ground_route_smoke_test.sh` 输出 `VLN_SCOUT_WHEEL_GROUND_ROUTE_SMOKE_TEST_PASS`，run id `vln_scout_wheel_ground_route_20260816_150349`，`reached_count=11/11`、`total_forward_progress=53.080m`、`total_progress=53.102m`、`stall_count=0`、`skipped_count=0`，图像、CameraInfo、PointCloud2 和 odom 均通过。随后 `/home/ubuntu22/VLN/scripts/run_scout_wheel_ground_smoke_test.sh` 输出 `VLN_SCOUT_WHEEL_GROUND_SMOKE_TEST_PASS`，run id `vln_scout_wheel_ground_20260816_150809`，直行 5 秒前向位移约 `3.466m`，截图显示车体姿态正常、轮胎不再明显扎进地面。
+- 状态：已解决为当前完整路线演示。注意：这仍不是 navigation2 或 VLN 决策控制器；它是写死路线物理巡航。

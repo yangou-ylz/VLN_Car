@@ -17,7 +17,8 @@ TOPIC_LOG="$LOG_DIR/ros2_topic_list.log"
 RESULT_FILE="$VLN_ROOT/UnityProjects/VLN_Offroad/Logs/vln_unitysensors_lidar_result.txt"
 POINTS_TOPIC="/vln/lidar/points"
 
-mkdir -p "$LOG_DIR"
+mkdir -p "$LOG_DIR" "$VLN_ROOT/.ros/log"
+export ROS_LOG_DIR="${ROS_LOG_DIR:-$VLN_ROOT/.ros/log}"
 
 endpoint_pid=""
 

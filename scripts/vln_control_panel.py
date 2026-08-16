@@ -419,9 +419,14 @@ class ControlPanel:
         self.publish_zero(repeat=6)
 
     def publish_zero(self, repeat=1):
+        if not rclpy.ok():
+            return
         zero = Twist()
         for _ in range(max(1, repeat)):
-            self.publisher.publish(zero)
+            try:
+                self.publisher.publish(zero)
+            except Exception:
+                break
             time.sleep(0.025)
 
     def update_control(self):
@@ -513,9 +518,12 @@ class ControlPanel:
                     os.killpg(process.pid, signal.SIGTERM)
                 except ProcessLookupError:
                     pass
-        self.node.destroy_subscription(self.subscription)
-        self.node.destroy_publisher(self.publisher)
-        self.node.destroy_node()
+        try:
+            self.node.destroy_subscription(self.subscription)
+            self.node.destroy_publisher(self.publisher)
+            self.node.destroy_node()
+        except Exception:
+            pass
         if rclpy.ok():
             rclpy.shutdown()
 
@@ -616,7 +624,7 @@ def main():
             rclpy.spin_once(panel.node, timeout_sec=0.02)
             panel.update_control()
             server.handle_request()
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, rclpy.executors.ExternalShutdownException):
         pass
     finally:
         server.server_close()
