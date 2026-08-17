@@ -27,6 +27,7 @@ namespace VLN.ROS2
         bool m_ScreenshotRequested;
         bool m_BridgeScreenshotRequested;
         bool m_ShortRampScreenshotRequested;
+        bool m_ChallengeScreenshotRequested;
         bool m_FinalSnapshotWritten;
 
         void Start()
@@ -117,6 +118,15 @@ namespace VLN.ROS2
                 Debug.Log($"VLN_OFFROAD_SCOUT_WHEEL_GROUND_SHORT_RAMP_SCREENSHOT {shortRampScreenshotPath}");
             }
 
+            if (!m_ChallengeScreenshotRequested && physicsRoot != null && physicsRoot.transform.position.z >= 24.0f && physicsRoot.transform.position.z <= 49.5f)
+            {
+                m_ChallengeScreenshotRequested = true;
+                string challengeScreenshotPath = Path.Combine(Application.dataPath, "../Logs/vln_offroad_scout_wheel_ground_challenge_screenshot.png");
+                SaveViewerCameraScreenshot(challengeScreenshotPath);
+                File.AppendAllText(m_ResultPath, $"challenge_screenshot={challengeScreenshotPath}\n");
+                Debug.Log($"VLN_OFFROAD_SCOUT_WHEEL_GROUND_CHALLENGE_SCREENSHOT {challengeScreenshotPath}");
+            }
+
             if (!Application.isBatchMode || elapsed < m_BatchModeAutoExitAfterSeconds)
             {
                 return;
@@ -177,6 +187,13 @@ namespace VLN.ROS2
                 $"road_seam_transition_count={CountGameObjectsByPrefix("ScoutWheelGround_PhysicalRoadSeam_")}\n" +
                 $"bridge_physics_count={CountGameObjectsByPrefix("ScoutWheelGround_PhysicalBridge")}\n" +
                 $"short_ramp_physics_count={CountGameObjectsByPrefix("ScoutWheelGround_PhysicalShortRamp")}\n" +
+                $"challenge_surface_count={CountGameObjectsByPrefix("ScoutWheelGround_ChallengeSurface_")}\n" +
+                $"challenge_grass_surface_count={CountGameObjectsByPrefix("ScoutWheelGround_ChallengeSurface_Grass")}\n" +
+                $"challenge_stone_surface_count={CountGameObjectsByPrefix("ScoutWheelGround_ChallengeSurface_Stone")}\n" +
+                $"challenge_sand_surface_count={CountGameObjectsByPrefix("ScoutWheelGround_ChallengeSurface_Sand")}\n" +
+                $"challenge_obstacle_count={CountGameObjectsByPrefix("ScoutWheelGround_ChallengeObstacle_")}\n" +
+                $"challenge_obstacle_collider_count={CountCollidersByPrefix("ScoutWheelGround_ChallengeObstacle_")}\n" +
+                $"challenge_marker_count={CountGameObjectsByPrefix("ScoutWheelGround_ChallengeMarker_")}\n" +
                 $"bridge_visual_detail_count={CountGameObjectsByPrefix("ScoutWheelGround_VisibleBridgeDetail_")}\n" +
                 $"bridge_rail_collider_count={CountBridgeRailColliders()}\n" +
                 $"short_ramp_visual_detail_count={CountGameObjectsByPrefix("ScoutWheelGround_VisibleShortRampDetail_")}\n" +
@@ -185,6 +202,10 @@ namespace VLN.ROS2
                 $"bridge_physical_height_span_m={MaxBoundsHeightByPrefix("ScoutWheelGround_PhysicalBridge"):F3}\n" +
                 $"short_ramp_physical_max_width_m={MaxBoundsWidthByPrefix("ScoutWheelGround_PhysicalShortRamp"):F3}\n" +
                 $"short_ramp_physical_height_span_m={MaxBoundsHeightByPrefix("ScoutWheelGround_PhysicalShortRamp"):F3}\n" +
+                $"challenge_surface_max_width_m={MaxBoundsWidthByPrefix("ScoutWheelGround_ChallengeSurface_"):F3}\n" +
+                $"challenge_surface_height_span_m={MaxBoundsHeightByPrefix("ScoutWheelGround_ChallengeSurface_"):F3}\n" +
+                $"challenge_obstacle_height_span_m={MaxBoundsHeightByPrefix("ScoutWheelGround_ChallengeObstacle_"):F3}\n" +
+                $"challenge_end_wall_z={ObjectWorldZ("Offroad_DistantWall_Target"):F3}\n" +
                 $"decorative_trail_collider_count={CountDecorativeTrailColliders()}\n" +
                 $"decorative_bridge_renderer_count={CountDecorativeBridgeRenderers()}\n" +
                 $"bridge_deck_has_renderer={HasComponentOnObject<Renderer>("ScoutWheelGround_PhysicalBridgeDeck")}\n" +
@@ -202,6 +223,19 @@ namespace VLN.ROS2
             foreach (var gameObject in FindObjectsOfType<GameObject>())
             {
                 if (gameObject.name.StartsWith(prefix, StringComparison.Ordinal))
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        static int CountCollidersByPrefix(string prefix)
+        {
+            int count = 0;
+            foreach (var collider in FindObjectsOfType<Collider>())
+            {
+                if (collider.gameObject.name.StartsWith(prefix, StringComparison.Ordinal))
                 {
                     count++;
                 }
@@ -349,6 +383,12 @@ namespace VLN.ROS2
             }
 
             return Mathf.Abs(renderer.bounds.max.y - collider.bounds.max.y);
+        }
+
+        static float ObjectWorldZ(string objectName)
+        {
+            var gameObject = GameObject.Find(objectName);
+            return gameObject != null ? gameObject.transform.position.z : -999f;
         }
 
         static void SaveViewerCameraScreenshot(string path)

@@ -21,7 +21,8 @@
 15. Wheel-ground 真实动力学候选：新建独立候选场景，让轮地接触驱动车体，同时保持 ROS2 相机、LiDAR、TF、cmd_vel 和 odom 接口稳定。
 16. Scout wheel-ground 固定路线物理巡航：新增 ROS2 固定路线脚本，驱动物理车体从起点沿道路通过桥/坡区域并跑向终点方向，用于观察轮地接触、坡地/路面交互、传感器跟随和是否穿模。
 17. 手动示教路线记录与回放：在中文控制面板中用键盘手动驾驶真实物理车体，记录 `/vln/cmd_vel` 速度序列，导出 JSON 后可复现回放。
-18. 进入 VLN 感知层数据集/训练/算法对接。
+18. Scout wheel-ground 后段挑战场地扩展：在旧桥/坡基线后追加草地、青石路、沙地和低矮可越障碍，仍使用自主路线演示并保持旧 13 点金标准可回归。
+19. 进入 VLN 感知层数据集/训练/算法对接。
 
 ## 阶段 0：项目约束与记忆机制
 
@@ -379,7 +380,7 @@ odom_publish_count=378
 - 目标：在不覆盖手动控制、中文控制面板、相机、LiDAR、TF 和 odom 的前提下，增加一条可重复的固定路线演示，用来观察 Scout 物理车体和越野场景的交互。
 - 场景：继续使用 `Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`。
 - ROS2 控制脚本：`/home/ubuntu22/VLN/scripts/ros2_drive_scout_physics_route.py`。
-- 手工演示入口：`/home/ubuntu22/VLN/scripts/drive_scout_wheel_ground_route_demo.sh`。
+- 手工演示入口：`/home/ubuntu22/VLN/scripts/drive_scout_wheel_ground_route_demo.sh`，要求用户已经打开 Unity 场景、启动 endpoint，并点击 Play。
 - 自动验收入口：`/home/ubuntu22/VLN/scripts/run_scout_wheel_ground_route_smoke_test.sh`。
 - 默认路线：启动时以 `base_link` 为原点，沿前向依次到 `4,0;8,0;12,0;15,0;18,0;22,0;26,0;28,0;30,0;34,0;42,0;50,0;54,0` 米，用于从起点通过桥/坡区域并跑向终点方向。
 - 默认控制策略：固定路径点物理巡航，`max_linear=1.05m/s`、`linear_accel=0.70m/s^2`、`max_angular=0.55rad/s`、`angular_gain=0.70`、`angular-sign=1`，不启用跳点，停滞即失败。`angular-sign=1` 必须与当前手动速度控制和 Unity wheel-ground 底层“正 angular.z 左转”的约定保持一致。
@@ -401,14 +402,14 @@ VLN_SCOUT_WHEEL_GROUND_ROUTE_SMOKE_TEST_PASS
 最近通过：
 
 ```text
-run id: vln_scout_wheel_ground_route_20260817_125552
+run id: vln_scout_wheel_ground_route_20260817_145357
 reached_count=13/13
-total_forward_progress=52.435m
-total_progress=52.435m
-final_lateral_offset=-0.015m
-max_reached_cross_track=0.015m
-max_abs_lateral_offset=0.015m
-max_bridge_abs_lateral_offset=0.014m
+total_forward_progress=52.427m
+total_progress=52.427m
+final_lateral_offset=-0.024m
+max_reached_cross_track=0.024m
+max_abs_lateral_offset=0.040m
+max_bridge_abs_lateral_offset=0.000m
 stall_count=0
 skipped_count=0
 broad_physical_trail_count=0
@@ -426,10 +427,10 @@ bridge_physical_max_width_m=2.250
 bridge_physical_height_span_m=0.235
 short_ramp_physical_max_width_m=4.800
 short_ramp_physical_height_span_m=0.804
-bridge_contact_steps=1629
+bridge_contact_steps=1628
 short_ramp_contact_steps=1648
 wheel_ground_height_span_m=0.821
-wheel_visual_total_abs_roll_deg=73393.0
+wheel_visual_total_abs_roll_deg=74073.8
 wheel_visual_direction_reversal_count=0
 bridge_screenshot=vln_offroad_scout_wheel_ground_bridge_screenshot.png
 short_ramp_screenshot=vln_offroad_scout_wheel_ground_short_ramp_screenshot.png
@@ -452,7 +453,7 @@ short_ramp_screenshot=vln_offroad_scout_wheel_ground_short_ramp_screenshot.png
 - 回放入口：`/home/ubuntu22/VLN/scripts/replay_manual_drive_recording.sh --file <manual_drive_*.json>`。
 - git 规则：`VLN_RECORDINGS/` 已加入 `.gitignore`，路线记录默认不提交，避免大量实验文件进入仓库。
 
-阶段 16 当前验收状态：`./scripts/run_control_panel_manual_velocity_unity_smoke_test.sh` 已通过，最新 run id `vln_control_panel_manual_velocity_unity_20260817_130258`，覆盖 `↑` 正向直行、A/D 原地左右转、方向键 `←/→` 原地左右转和停车漂移检查；`./scripts/run_control_panel_manual_recording_smoke_test.sh` 已通过，run id `vln_control_panel_manual_recording_20260817_041218`；基础 wheel-ground 回归 `vln_scout_wheel_ground_20260817_041230` 已通过。阶段 15 自动路线已恢复，最新通过 run id `vln_scout_wheel_ground_route_20260817_125552`；后续仍不能用隐藏托底、压平桥/坡、跳点或放宽 gate 修路线。
+阶段 16 当前验收状态：`./scripts/run_control_panel_manual_velocity_unity_smoke_test.sh` 已通过，最新 run id `vln_control_panel_manual_velocity_unity_20260817_130258`，覆盖 `↑` 正向直行、A/D 原地左右转、方向键 `←/→` 原地左右转和停车漂移检查；`./scripts/run_control_panel_manual_recording_smoke_test.sh` 已通过，run id `vln_control_panel_manual_recording_20260817_041218`；基础 wheel-ground 回归 `vln_scout_wheel_ground_20260817_041230` 已通过。阶段 15 自动路线已恢复，并在后段挑战场地重做后再次回归通过，最新通过 run id `vln_scout_wheel_ground_route_20260817_145357`；后续仍不能用隐藏托底、压平桥/坡、跳点或放宽 gate 修路线。
 
 阶段 16 记录/导出固定验收命令：
 
@@ -491,6 +492,52 @@ VLN_MANUAL_DRIVE_REPLAY_OK
 ```
 
 阶段 16 当前边界：记录/回放的是速度命令序列，不是闭环导航策略；如果仿真初始位置、场景物理参数、摩擦、碰撞体或车辆姿态改变，同一速度记录可能不会严格走出同一条空间轨迹。因此正式采集时应先固定起点、场景和车辆物理参数，再录制满意路线；后续若要变成鲁棒 VLN 或 Nav2，应另开阶段做定位、地图、路径规划和闭环纠偏。
+
+## 阶段 18：Scout wheel-ground 后段挑战场地扩展
+
+- 目标：在不破坏阶段 15 旧桥/坡金标准路线的前提下，沿路段末尾继续增加可见、可接触、可自主通过的新场地。
+- 场景：继续使用 `Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，由 `VlnOffroadScoutWheelGroundCandidateProjectSetup.cs` 程序化生成。
+- 新增地面：`ScoutWheelGround_ChallengeSurface_Grass`、`ScoutWheelGround_ChallengeSurface_Stone`、`ScoutWheelGround_ChallengeSurface_Sand`，分别代表草地、青石路和沙地；每段都有可见 mesh 和 collider，不是隐藏托底。三段分散在斜坡后的大空间：草地区约 `z=10.0..16.8`，青石路约 `z=20.0..28.0`，沙地区约 `z=32.0..49.0`。
+- 新增障碍：`ScoutWheelGround_ChallengeObstacle_*`，包括低矮石纹凸起、铺石缝隙/沉降、草簇/土斑、沙地波纹、浅洼和两侧导向石。目标是让轮胎/车体姿态出现扰动，但不形成不可越过硬墙。
+- 路段延长：原 `Offroad_DistantWall_Target` 从旧末端附近后移到 `z=53.5m`，让挑战区有完整通行空间。
+- 控制策略：新增挑战路线脚本复用阶段 15 路线控制器，不改 `/vln/cmd_vel`、TF、相机、LiDAR 或 odom 接口；旧 `run_scout_wheel_ground_route_smoke_test.sh` 默认仍是 13 点金标准回归。用户手工看效果时使用 `drive_scout_wheel_ground_challenge_route_demo.sh`，它只发布路线，不自动打开 Unity。
+
+阶段 18 固定验收命令：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_scout_wheel_ground_challenge_route_smoke_test.sh
+```
+
+成功标志：
+
+```text
+VLN_SCOUT_WHEEL_GROUND_CHALLENGE_ROUTE_SMOKE_TEST_PASS
+```
+
+最近通过：
+
+```text
+run id: vln_scout_wheel_ground_challenge_route_20260817_144908
+reached_count=16/16
+total_forward_progress=70.432m
+final_lateral_offset=0.065m
+max_abs_lateral_offset=0.088m
+stall_count=0
+skipped_count=0
+challenge_grass_surface_count=1
+challenge_stone_surface_count=1
+challenge_sand_surface_count=1
+challenge_obstacle_count=155
+challenge_obstacle_collider_count=15
+challenge_surface_contact_steps=16576
+challenge_obstacle_contact_steps=498
+challenge_surface_height_span_m=0.164
+challenge_obstacle_height_span_m=0.144
+challenge_end_wall_z=53.500
+challenge_screenshot=vln_offroad_scout_wheel_ground_challenge_screenshot.png
+```
+
+阶段 18 当前边界：这是“后段挑战场地 + 写死自主路线演示”，不是动态绕障导航，也不是完整 VLN 决策。新增障碍的难度必须通过真实接触、车体姿态变化和无停滞通过来验收；如果新增障碍导致卡死，优先调障碍几何、局部材质和路线参数，禁止回退到隐藏托底、压平桥/坡或关闭碰撞。
 
 ## 工作流管理规则
 

@@ -364,7 +364,7 @@
 - 决策：在用户要求老师演示视频前，优先恢复阶段 15 固定完整路线自动巡航；路线控制器统一使用 `angular-sign=1`，与当前手动速度控制和 Unity wheel-ground 底层“正 `angular.z` 左转”的约定一致。
 - 备选项：继续把固定路线标为阶段 16 外的失败旧分支、用示教回放代替自动路线、或者通过放宽路线 gate/跳点/改桥坡几何让路线通过。
 - 理由：复现显示失败根因是控制符号不同步，不是桥/坡物理几何必须再改；只改 `angular-sign` 能在不作弊、不降验收、不改地形的情况下恢复 13/13 完整路线。
-- 影响：`run_scout_wheel_ground_route_smoke_test.sh`、`drive_scout_wheel_ground_route_demo.sh`、`ros2_drive_scout_physics_route.py` 默认都必须保持 `angular-sign=1`。最新通过 run id `vln_scout_wheel_ground_route_20260817_125552` 可作为老师演示前的自动路线基线。
+- 影响：`run_scout_wheel_ground_route_smoke_test.sh`、`drive_scout_wheel_ground_route_demo.sh`、`ros2_drive_scout_physics_route.py` 默认都必须保持 `angular-sign=1`。该决策首次恢复通过 run id 为 `vln_scout_wheel_ground_route_20260817_125552`；当前最新 13 点金标准回归为 `vln_scout_wheel_ground_route_20260817_145357`。
 
 ## 2026-08-17：速度控制验收覆盖方向键和 A/D 两套输入
 
@@ -379,3 +379,31 @@
 - 备选项：继续每次全量读取所有长文档；完全取消记忆机制；或只依赖模型压缩摘要。
 - 理由：项目历史已经很长，全量读取会浪费时间和上下文，还容易把旧阶段失败方案重新带入当前子任务。短状态文件能保留当前基线和硬约束，长日志仍用于换阶段、排障、环境变更和历史追溯。
 - 影响：质量要求不降低。涉及自动路线金标准、物理真实性、环境安全、安装下载、阶段切换或失败排障时，仍必须定向查长文档并更新对应记录。
+
+## 2026-08-17：后段挑战场地作为扩展路线，不覆盖旧自动路线基线
+
+- 决策：新增草地、青石路、沙地和低矮可越障碍时，不直接替换旧 13 点自动路线完成标准，而是新增 `run_scout_wheel_ground_challenge_route_smoke_test.sh` 做 16 点扩展路线验收；旧 `run_scout_wheel_ground_route_smoke_test.sh` 默认仍作为老师演示金标准回归。
+- 备选项：直接把旧路线延长并替换金标准、只做场景视觉新增不做自动路线验收、用手动示教回放代替自主路线。
+- 理由：用户明确要求不要把之前验收好的独木桥、斜坡和自动路线改坏，同时演示仍要自主运行。独立扩展脚本能证明新增场地可自主通过，又能让旧 13 点路线继续一键回归。
+- 影响：新增对象统一使用 `ScoutWheelGround_ChallengeSurface_*`、`ScoutWheelGround_ChallengeObstacle_*`、`ScoutWheelGround_ChallengeMarker_*` 前缀；验收脚本新增挑战对象计数、挑战接触步数和挑战截图检查。当前扩展路线通过 run id `vln_scout_wheel_ground_challenge_route_20260817_144908`，旧基线回归通过 run id `vln_scout_wheel_ground_route_20260817_145357`。
+
+## 2026-08-17：阶段 18 挑战区从末端堆叠改为分散布局
+
+- 决策：草地、青石路、沙地不再全部挤在最后一块地；改为利用斜坡后的连续大空间分散布置，草地区约 `z=10.0..16.8`，青石路约 `z=20.0..28.0`，沙地区约 `z=32.0..49.0`，终点挡墙后移到 `z=53.5m`。
+- 备选项：继续在末端小范围堆叠三块区域；只把终点墙后移但不改三段分布；直接引入大型外部场景资产。
+- 理由：用户明确指出斜坡后有大空间，三段场地挤在最后不符合观察和演示需求；当前阶段仍应保护旧桥/坡和路线基线，所以优先用现有程序化低模生成器重做分布和细节，而不是立即引入不可控大资产。
+- 影响：挑战路线仍是独立 16 点扩展路线，不替代旧 13 点金标准；视觉细节必须体现草地、青石路、沙地的形态特征，物理障碍必须有接触但可通过。最新扩展路线 run id `vln_scout_wheel_ground_challenge_route_20260817_144908` 通过，旧 13 点路线 run id `vln_scout_wheel_ground_route_20260817_145357` 通过。
+
+## 2026-08-17：挑战障碍采用低矮扰动，不采用硬阻挡
+
+- 决策：新增障碍只做低矮石纹凸条、偏置低横木、沙地波纹和两侧导向石；它们必须可见、有 collider、能产生轮胎接触统计，但不能形成不可越过的横向硬墙。
+- 备选项：放置高石块/横木让车强行越障、只改材质不加物理扰动、铺隐藏平滑托底面保证通过。
+- 理由：项目主线是“真实物理链路”，既需要看出车受地形影响，也不能为了演示把车卡死或用隐藏几何作弊。第一版横向低横木/凸条组合已证明过强障碍会导致最后路径点前停滞，因此改成低矮扰动更符合当前阶段。
+- 影响：挑战路线要求 `challenge_surface_contact_steps>0` 和 `challenge_obstacle_contact_steps>0`，同时 `stall_count=0`、`skipped_count=0`。后续继续加障碍时先小幅增加难度并跑扩展路线，不要一次性放大障碍高度或恢复隐藏托底。
+
+## 2026-08-17：用户手工演示流程优先于一键 batch 验收
+
+- 决策：用户平时看效果时，默认流程是先打开 Unity 软件、进入场景、启动 ROS-TCP-Endpoint、点击 Play，再运行 `drive_*_demo.sh` 发布路线；`run_*_smoke_test.sh` 只作为我排查或改代码后的自动回归验收入口。
+- 备选项：继续把一键 batch 验收命令作为文档首选入口；或只保留手工流程、删除自动验收入口。
+- 理由：用户需要在 Unity 界面里亲自观察小车、相机、LiDAR、桥/坡和新增挑战场地的实时效果；batch 验收虽然可靠，但会自动打开 Unity 并隐藏主要观察过程，不符合演示和人工确认习惯。
+- 影响：新增 `scripts/drive_scout_wheel_ground_challenge_route_demo.sh`；`user.md` 已改为手工流程优先；`run_*_smoke_test.sh` 输出提示自己是自动回归入口。后续给用户操作步骤时，除非明确说“自动验收/回归/你自己跑测试”，否则优先给 `open_unity_vln_project.sh` + `start_ros_tcp_endpoint.sh` + Unity Play + `drive_*_demo.sh` 的顺序。

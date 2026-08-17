@@ -603,3 +603,30 @@
 - 解决方案：只修控制符号入口，不改地形物理体、不放宽 gate、不跳点：`run_scout_wheel_ground_route_smoke_test.sh`、`drive_scout_wheel_ground_route_demo.sh` 和 `ros2_drive_scout_physics_route.py` 默认统一改为 `angular-sign=1`；`user.md` 中调参示例也改为 `angular-sign=1`。
 - 验收方式：静态检查 `bash -n scripts/run_scout_wheel_ground_route_smoke_test.sh scripts/drive_scout_wheel_ground_route_demo.sh`、`python3 -m py_compile scripts/ros2_drive_scout_physics_route.py` 通过；已搜索脚本、文档和日志，旧的负号角速度参数不再作为可执行入口残留。默认运行 `./scripts/run_scout_wheel_ground_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_route_20260817_125552`，`reached_count=13/13`、`total_forward_progress=52.435m`、`final_lateral_offset=-0.015m`、`max_abs_lateral_offset=0.015m`、`max_bridge_abs_lateral_offset=0.014m`、`stall_count=0`、`skipped_count=0`、`bridge_contact_steps=1629`、`short_ramp_contact_steps=1648`。
 - 状态：已解决。后续如再改手动控制或底层 yaw 约定，必须同步检查固定路线的 `angular-sign`。
+
+## 2026-08-17：后段挑战场地第一版障碍过强导致路线末端停滞
+
+- 现象：在阶段 18 后段挑战场地第一版中，Scout 小车已经通过旧桥/坡和大部分新增路面，但在挑战路线最后路径点前停滞；失败 run id 为 `vln_scout_wheel_ground_challenge_route_20260817_135425`，脚本按 `stall_count>0` 正确判失败。
+- 环境：`Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，新增草地、青石路、沙地和低矮障碍，扩展路线入口为 `scripts/run_scout_wheel_ground_challenge_route_smoke_test.sh`。
+- 根因：第一版横向低横木和石纹凸条组合过强，障碍横向阻挡过长、局部高度/接触边缘对当前 WheelCollider 轮地模型不友好，变成了接近硬阻挡的卡点；这不符合用户要求的“有影响但能克服”，也不能用跳点、隐藏托底或降低验收掩盖。
+- 解决方案：保留挑战路面和可见物理接触原则，但降低凸条高度、缩短横向阻挡长度、把低横木偏置到路侧，并保留沙地波纹和两侧导向石作为低矮扰动；新增障碍继续要求有 collider、能接触、能通过，不做不可越过硬墙。
+- 验收方式：静态检查 `bash -n scripts/run_scout_wheel_ground_route_smoke_test.sh scripts/run_scout_wheel_ground_challenge_route_smoke_test.sh` 和 `python3 -m py_compile scripts/ros2_drive_scout_physics_route.py` 通过；扩展路线 `./scripts/run_scout_wheel_ground_challenge_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_challenge_route_20260817_135927`，`reached_count=16/16`、`total_forward_progress=60.947m`、`stall_count=0`、`skipped_count=0`、`challenge_surface_contact_steps=14513`、`challenge_obstacle_contact_steps=320`、`challenge_obstacle_collider_count=10`、`challenge_end_wall_z=39.200`；旧 13 点金标准路线随后回归通过，run id `vln_scout_wheel_ground_route_20260817_140352`。该版本随后被用户否定为“场地挤在最后、视觉粗糙、青石段卡住”，不是当前最终基线。
+- 状态：已解决并记录。后续继续加新障碍时先小幅提高难度并复跑 13 点旧基线和 16 点挑战路线；禁止为了通过而压平桥/坡、关闭碰撞、铺隐藏托底面、跳过卡点或放宽 gate。
+
+## 2026-08-17：后段挑战场地分布和视觉建模不符合用户要求
+
+- 现象：用户指出新增三个场地全部挤在最后一块地，斜坡后已有大空间没有利用；草地、青石路、沙地只是彩色地面加少量简单方块/木条，视觉不像对应材质；青石段小车会被弹回并卡住，说明物理交互存在但难度和几何不合适。
+- 环境：`Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，阶段 18 后段挑战场地，扩展路线脚本 `scripts/run_scout_wheel_ground_challenge_route_smoke_test.sh`。
+- 根因：第一版挑战区布局太集中，视觉细节不足；青石段采用过强或边缘过硬的低矮障碍，导致当前 WheelCollider 轮地模型被周期性弹回，变成卡点而不是可克服扰动。
+- 解决方案：不改旧桥/坡基线，把挑战区重做为斜坡后大空间分散布局：草地区约 `z=10.0..16.8`，青石路约 `z=20.0..28.0`，沙地区约 `z=32.0..49.0`，终点墙后移到 `z=53.5m`。草地增加草簇、土斑和根茎扰动；青石路改成铺石板、暗色缝隙和低矮沉降凸起；沙地增加沙纹、浅洼、软沙波纹和侧边石。物理扰动保持可见、有 collider、有接触统计，但不再做横向硬阻挡。
+- 验收方式：扩展路线 `./scripts/run_scout_wheel_ground_challenge_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_challenge_route_20260817_144908`，`reached_count=16/16`、`total_forward_progress=70.432m`、`final_lateral_offset=0.065m`、`max_abs_lateral_offset=0.088m`、`stall_count=0`、`skipped_count=0`、`challenge_obstacle_count=155`、`challenge_obstacle_collider_count=15`、`challenge_surface_contact_steps=16576`、`challenge_obstacle_contact_steps=498`、`challenge_end_wall_z=53.500`；旧 13 点金标准路线回归通过，run id `vln_scout_wheel_ground_route_20260817_145357`。
+- 状态：已解决并替换为当前阶段 18 基线。后续若用户手工观察仍认为视觉不够，应继续增加低模细节或引入合适外部材质/模型，但不能为了外观破坏旧路线、隐藏碰撞或降低物理真实性。
+
+## 2026-08-17：手工演示入口和自动回归入口被混淆
+
+- 现象：给用户后段挑战场地的操作建议时，把 `run_scout_wheel_ground_challenge_route_smoke_test.sh` 作为主要入口发给用户；该脚本会自动 batch 打开 Unity 并做回归验收，不符合用户一直采用的“先打开 Unity 软件，再开终端运行演示脚本、自己看效果”的工作习惯。
+- 环境：阶段 18 后段挑战场地已经通过自动回归，用户需要在 Unity 图形界面里观察小车通过新增草地、青石路、沙地和障碍，而不是只看自动验收日志。
+- 根因：上下文读取机制精简后，短状态里保留了自动验收命令，但没有把“用户手工演示默认入口”放在更高优先级，导致回答时把我用于回归的 `run_*_smoke_test.sh` 误当成用户操作入口。
+- 解决方案：新增 `scripts/drive_scout_wheel_ground_challenge_route_demo.sh`，它只在 Unity 已打开、endpoint 已启动、场景已 Play 的情况下发布 16 点挑战路线，不自动打开 Unity；重写 `user.md`，把手工流程放在最前；在 `CURRENT_STATE.md` 和 `AGENTS.md` 写入“手工演示优先、自动验收只用于回归”的约束。
+- 验收方式：`bash -n scripts/drive_scout_wheel_ground_route_demo.sh scripts/drive_scout_wheel_ground_challenge_route_demo.sh scripts/run_scout_wheel_ground_route_smoke_test.sh scripts/run_scout_wheel_ground_challenge_route_smoke_test.sh` 通过；`python3 -m py_compile scripts/ros2_drive_scout_physics_route.py` 通过；`git diff --check` 对相关文档和新脚本无输出。
+- 状态：已再次加固并写入最高约束。后续给用户“怎么看、怎么运行”的步骤时，除非用户明确说“自动验收/回归/你自己跑测试”，否则先给 `open_unity_vln_project.sh`、`start_ros_tcp_endpoint.sh`、Unity Play、`drive_*_demo.sh` 的顺序；自动回归只能作为我改代码后的内部验证。

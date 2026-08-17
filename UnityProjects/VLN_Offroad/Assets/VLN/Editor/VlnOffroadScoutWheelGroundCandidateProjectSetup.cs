@@ -22,6 +22,21 @@ namespace VLN.Editor
         const string BridgeSurfaceMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_VisibleBridgePhysics.mat";
         const string BridgeDetailMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_VisibleBridgeDetail.mat";
         const string RampDetailMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_VisibleRampDetail.mat";
+        const string ChallengeGrassSurfaceMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeGrassSurface.mat";
+        const string ChallengeGrassBladeMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeGrassBlade.mat";
+        const string ChallengeGrassSoilMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeGrassSoil.mat";
+        const string ChallengeStoneSurfaceMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeStoneSurface.mat";
+        const string ChallengeStonePaverMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeStonePaver.mat";
+        const string ChallengeStoneSeamMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeStoneSeam.mat";
+        const string ChallengeSandSurfaceMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeSandSurface.mat";
+        const string ChallengeSandRippleMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeSandRipple.mat";
+        const string ChallengeSandDepressionMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeSandDepression.mat";
+        const string ChallengeObstacleMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeObstacle.mat";
+        const string ChallengeMarkerMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeMarker.mat";
+        const string ChallengeGrassPhysicMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeGrass.physicMaterial";
+        const string ChallengeStonePhysicMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeStone.physicMaterial";
+        const string ChallengeSandPhysicMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeSand.physicMaterial";
+        const string ChallengeObstaclePhysicMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeObstacle.physicMaterial";
 
         const float TerrainSize = 80f;
         const float TerrainHeight = 7f;
@@ -68,10 +83,41 @@ namespace VLN.Editor
             var bridgeSurfaceMaterial = EnsureSurfaceMaterial(BridgeSurfaceMaterialPath, new Color(0.36f, 0.25f, 0.15f));
             var bridgeDetailMaterial = EnsureSurfaceMaterial(BridgeDetailMaterialPath, new Color(0.18f, 0.11f, 0.06f));
             var rampDetailMaterial = EnsureSurfaceMaterial(RampDetailMaterialPath, new Color(0.26f, 0.18f, 0.10f));
+            var challengeGrassMaterial = EnsureSurfaceMaterial(ChallengeGrassSurfaceMaterialPath, new Color(0.23f, 0.36f, 0.19f));
+            var challengeGrassBladeMaterial = EnsureSurfaceMaterial(ChallengeGrassBladeMaterialPath, new Color(0.10f, 0.34f, 0.10f));
+            var challengeGrassSoilMaterial = EnsureSurfaceMaterial(ChallengeGrassSoilMaterialPath, new Color(0.24f, 0.18f, 0.10f));
+            var challengeStoneMaterial = EnsureSurfaceMaterial(ChallengeStoneSurfaceMaterialPath, new Color(0.31f, 0.36f, 0.36f));
+            var challengeStonePaverMaterial = EnsureSurfaceMaterial(ChallengeStonePaverMaterialPath, new Color(0.42f, 0.50f, 0.50f));
+            var challengeStoneSeamMaterial = EnsureSurfaceMaterial(ChallengeStoneSeamMaterialPath, new Color(0.12f, 0.14f, 0.14f));
+            var challengeSandMaterial = EnsureSurfaceMaterial(ChallengeSandSurfaceMaterialPath, new Color(0.66f, 0.56f, 0.34f));
+            var challengeSandRippleMaterial = EnsureSurfaceMaterial(ChallengeSandRippleMaterialPath, new Color(0.78f, 0.69f, 0.45f));
+            var challengeSandDepressionMaterial = EnsureSurfaceMaterial(ChallengeSandDepressionMaterialPath, new Color(0.47f, 0.39f, 0.24f));
+            var challengeObstacleMaterial = EnsureSurfaceMaterial(ChallengeObstacleMaterialPath, new Color(0.28f, 0.25f, 0.21f));
+            var challengeMarkerMaterial = EnsureSurfaceMaterial(ChallengeMarkerMaterialPath, new Color(0.76f, 0.43f, 0.12f));
+            var challengeGrassPhysic = EnsurePhysicMaterial(ChallengeGrassPhysicMaterialPath, "ScoutWheelGround_ChallengeGrass", 1.05f, 0.92f, PhysicMaterialCombine.Maximum);
+            var challengeStonePhysic = EnsurePhysicMaterial(ChallengeStonePhysicMaterialPath, "ScoutWheelGround_ChallengeStone", 1.08f, 0.96f, PhysicMaterialCombine.Maximum);
+            var challengeSandPhysic = EnsurePhysicMaterial(ChallengeSandPhysicMaterialPath, "ScoutWheelGround_ChallengeSand", 0.78f, 0.64f, PhysicMaterialCombine.Average);
+            var challengeObstaclePhysic = EnsurePhysicMaterial(ChallengeObstaclePhysicMaterialPath, "ScoutWheelGround_ChallengeObstacle", 1.02f, 0.90f, PhysicMaterialCombine.Maximum);
             ReplaceDecorativeTrailCollidersWithLocalizedPhysics(frictionMaterial, roadSurfaceMaterial, rampDetailMaterial);
             RemoveDecorativeBridgeObjects();
             CreateDetailedPhysicalBridge(frictionMaterial, bridgeSurfaceMaterial, bridgeDetailMaterial);
             AssignSceneFrictionMaterial(frictionMaterial);
+            CreatePostRampChallengeCourse(
+                challengeGrassMaterial,
+                challengeGrassBladeMaterial,
+                challengeGrassSoilMaterial,
+                challengeStoneMaterial,
+                challengeStonePaverMaterial,
+                challengeStoneSeamMaterial,
+                challengeSandMaterial,
+                challengeSandRippleMaterial,
+                challengeSandDepressionMaterial,
+                challengeObstacleMaterial,
+                challengeMarkerMaterial,
+                challengeGrassPhysic,
+                challengeStonePhysic,
+                challengeSandPhysic,
+                challengeObstaclePhysic);
             var physicsRoot = CreatePhysicalScoutRoot(rig.transform.position, frictionMaterial);
             var visualRoot = ImportScoutVisualOnly(physicsRoot.transform);
             ConfigureController(physicsRoot, visualRoot);
@@ -410,6 +456,25 @@ namespace VLN.Editor
             return material;
         }
 
+        static PhysicMaterial EnsurePhysicMaterial(string assetPath, string materialName, float staticFriction, float dynamicFriction, PhysicMaterialCombine frictionCombine)
+        {
+            var material = AssetDatabase.LoadAssetAtPath<PhysicMaterial>(assetPath);
+            if (material == null)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(assetPath));
+                material = new PhysicMaterial(materialName);
+                AssetDatabase.CreateAsset(material, assetPath);
+            }
+
+            material.staticFriction = staticFriction;
+            material.dynamicFriction = dynamicFriction;
+            material.bounciness = 0f;
+            material.frictionCombine = frictionCombine;
+            material.bounceCombine = PhysicMaterialCombine.Minimum;
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
         static Material EnsureSurfaceMaterial(string assetPath, Color color)
         {
             var material = AssetDatabase.LoadAssetAtPath<Material>(assetPath);
@@ -441,6 +506,243 @@ namespace VLN.Editor
 
                 collider.material = material;
             }
+        }
+
+        static void CreatePostRampChallengeCourse(
+            Material grassMaterial,
+            Material grassBladeMaterial,
+            Material grassSoilMaterial,
+            Material stoneMaterial,
+            Material stonePaverMaterial,
+            Material stoneSeamMaterial,
+            Material sandMaterial,
+            Material sandRippleMaterial,
+            Material sandDepressionMaterial,
+            Material obstacleMaterial,
+            Material markerMaterial,
+            PhysicMaterial grassPhysic,
+            PhysicMaterial stonePhysic,
+            PhysicMaterial sandPhysic,
+            PhysicMaterial obstaclePhysic)
+        {
+            RemoveGeneratedObjectsByPrefix("ScoutWheelGround_ChallengeSurface_");
+            RemoveGeneratedObjectsByPrefix("ScoutWheelGround_ChallengeObstacle_");
+            RemoveGeneratedObjectsByPrefix("ScoutWheelGround_ChallengeMarker_");
+            RemoveIfExists("Offroad_DistantWall_Target");
+
+            CreateChallengeProfileSurface(
+                "ScoutWheelGround_ChallengeSurface_Grass",
+                0f,
+                5.4f,
+                new[] { 10.0f, 11.6f, 13.4f, 15.2f, 16.8f },
+                new[] { 0.068f, 0.096f, 0.078f, 0.105f, 0.072f },
+                0.055f,
+                grassPhysic,
+                grassMaterial);
+            CreateGrassDetails(grassBladeMaterial, grassSoilMaterial, obstacleMaterial, obstaclePhysic);
+
+            CreateChallengeProfileSurface(
+                "ScoutWheelGround_ChallengeSurface_Stone",
+                0f,
+                5.6f,
+                new[] { 20.0f, 21.5f, 23.1f, 24.8f, 26.5f, 28.0f },
+                new[] { 0.066f, 0.082f, 0.071f, 0.088f, 0.074f, 0.064f },
+                0.055f,
+                stonePhysic,
+                stoneMaterial);
+            CreateStonePaverDetails(stonePaverMaterial, stoneSeamMaterial, obstacleMaterial, obstaclePhysic);
+
+            CreateChallengeProfileSurface(
+                "ScoutWheelGround_ChallengeSurface_Sand",
+                0f,
+                5.8f,
+                new[] { 32.0f, 34.0f, 36.2f, 38.6f, 41.0f, 43.4f, 46.0f, 49.0f },
+                new[] { 0.060f, 0.102f, 0.052f, 0.116f, 0.071f, 0.086f, 0.064f, 0.058f },
+                0.062f,
+                sandPhysic,
+                sandMaterial);
+            CreateSandDetails(sandRippleMaterial, sandDepressionMaterial, obstacleMaterial, obstaclePhysic);
+
+            CreateChallengeBox(
+                "Offroad_DistantWall_Target",
+                0f,
+                53.50f,
+                8.0f,
+                2.3f,
+                0.4f,
+                1.15f,
+                markerMaterial,
+                obstaclePhysic,
+                true);
+            CreateChallengeBox(
+                "ScoutWheelGround_ChallengeMarker_EndWallMoved",
+                0f,
+                53.48f,
+                8.2f,
+                0.06f,
+                0.50f,
+                0.04f,
+                markerMaterial,
+                obstaclePhysic,
+                true);
+
+            Debug.Log("VLN_SCOUT_WHEEL_GROUND_CHALLENGE_COURSE_READY surfaces=3 grass_z=10.0..16.8 stone_z=20.0..28.0 sand_z=32.0..49.0 obstacles=scattered_passable_low_features end_wall_z=53.50 baseline_bridge_and_ramp_unchanged=true");
+        }
+
+        static void CreateChallengeProfileSurface(string name, float centerX, float width, float[] zValues, float[] yOffsets, float thickness, PhysicMaterial material, Material renderMaterial)
+        {
+            if (zValues == null || yOffsets == null || zValues.Length != yOffsets.Length)
+            {
+                throw new ArgumentException("Challenge profile surface requires matching z/y-offset arrays.");
+            }
+
+            var yValues = new float[zValues.Length];
+            for (int i = 0; i < zValues.Length; i++)
+            {
+                yValues[i] = TerrainWorldY(centerX, zValues[i]) + yOffsets[i];
+            }
+
+            CreateProfiledPhysicalSurface(name, centerX, width, zValues, yValues, thickness, material, renderMaterial);
+        }
+
+        static void CreateGrassDetails(Material bladeMaterial, Material soilMaterial, Material bumpMaterial, PhysicMaterial physicMaterial)
+        {
+            const float width = 4.8f;
+            for (int i = 0; i < 52; i++)
+            {
+                float laneOffset = ((i * 37) % 17 - 8) * 0.29f;
+                float z = 10.35f + (i % 26) * 0.245f + (i / 26) * 0.11f;
+                float x = Mathf.Clamp(laneOffset, -width * 0.5f, width * 0.5f);
+                float y = TerrainWorldY(x, z) + 0.132f;
+                CreateVisualBox($"ScoutWheelGround_ChallengeObstacle_GrassBladeVisual_{i:00}", x, y, z, 0.038f + 0.012f * (i % 3), 0.090f + 0.018f * (i % 4), 0.18f + 0.025f * (i % 5), i * 29f, bladeMaterial);
+            }
+
+            for (int i = 0; i < 8; i++)
+            {
+                float x = ((i * 5) % 9 - 4) * 0.45f;
+                float z = 10.8f + i * 0.72f;
+                CreateVisualBox($"ScoutWheelGround_ChallengeObstacle_GrassSoilPatch_{i:00}", x, TerrainWorldY(x, z) + 0.118f, z, 0.62f, 0.008f, 0.34f, i * 21f, soilMaterial);
+            }
+
+            CreateChallengeBox("ScoutWheelGround_ChallengeObstacle_GrassLowRoot_00", -0.80f, 12.20f, 0.34f, 0.024f, 0.46f, 0.101f, bumpMaterial, physicMaterial, false, 12f);
+            CreateChallengeBox("ScoutWheelGround_ChallengeObstacle_GrassLowRoot_01", 0.95f, 14.60f, 0.38f, 0.026f, 0.50f, 0.105f, bumpMaterial, physicMaterial, false, -18f);
+        }
+
+        static void CreateStonePaverDetails(Material paverMaterial, Material seamMaterial, Material bumpMaterial, PhysicMaterial physicMaterial)
+        {
+            int slabIndex = 0;
+            for (int row = 0; row < 8; row++)
+            {
+                float z = 20.35f + row * 0.88f;
+                float rowShift = row % 2 == 0 ? 0.0f : 0.36f;
+                for (int col = -3; col <= 3; col++)
+                {
+                    float x = col * 0.78f + rowShift;
+                    if (Mathf.Abs(x) > 2.45f)
+                    {
+                        continue;
+                    }
+
+                    float y = TerrainWorldY(x, z) + 0.093f + 0.003f * ((row + col + 8) % 3);
+                    CreateVisualBox($"ScoutWheelGround_ChallengeObstacle_StonePaverVisual_{slabIndex:00}", x, y, z, 0.64f, 0.014f, 0.58f, (row + col) * 2.0f, paverMaterial);
+                    slabIndex++;
+                }
+            }
+
+            for (int i = 0; i < 7; i++)
+            {
+                float z = 20.75f + i * 0.88f;
+                CreateVisualBox($"ScoutWheelGround_ChallengeObstacle_StoneDarkJoint_{i:00}", 0f, TerrainWorldY(0f, z) + 0.096f, z, 5.15f, 0.006f, 0.030f, 0f, seamMaterial);
+            }
+
+            CreateChallengeBox("ScoutWheelGround_ChallengeObstacle_StoneSettledBump_00", -0.62f, 22.35f, 0.52f, 0.018f, 0.38f, 0.106f, bumpMaterial, physicMaterial, false, 4f);
+            CreateChallengeBox("ScoutWheelGround_ChallengeObstacle_StoneSettledBump_01", 0.72f, 24.10f, 0.54f, 0.020f, 0.40f, 0.108f, bumpMaterial, physicMaterial, false, -6f);
+            CreateChallengeBox("ScoutWheelGround_ChallengeObstacle_StoneSettledBump_02", -0.10f, 26.10f, 0.48f, 0.018f, 0.34f, 0.106f, bumpMaterial, physicMaterial, false, 9f);
+        }
+
+        static void CreateSandDetails(Material rippleMaterial, Material depressionMaterial, Material bumpMaterial, PhysicMaterial physicMaterial)
+        {
+            for (int i = 0; i < 14; i++)
+            {
+                float z = 32.55f + i * 1.12f;
+                float x = (i % 2 == 0) ? -0.26f : 0.24f;
+                float yaw = (i % 2 == 0) ? 8f : -10f;
+                CreateVisualBox($"ScoutWheelGround_ChallengeObstacle_SandRippleVisual_{i:00}", x, TerrainWorldY(x, z) + 0.126f, z, 4.6f, 0.010f, 0.070f, yaw, rippleMaterial);
+            }
+
+            for (int i = 0; i < 7; i++)
+            {
+                float x = (i - 3) * 0.46f;
+                float z = 33.2f + i * 2.05f;
+                CreateVisualCylinderDisk($"ScoutWheelGround_ChallengeObstacle_SandShallowDepression_{i:00}", x, TerrainWorldY(x, z) + 0.123f, z, 0.44f + 0.04f * (i % 2), 0.22f, 0.006f, i * 19f, depressionMaterial);
+            }
+
+            for (int i = 0; i < 8; i++)
+            {
+                float z = 33.0f + i * 1.85f;
+                float x = i % 2 == 0 ? -0.22f : 0.28f;
+                CreateChallengeBox($"ScoutWheelGround_ChallengeObstacle_SandSoftRipple_{i:00}", x, z, 2.55f, 0.018f, 0.050f, 0.135f + 0.003f * (i % 2), bumpMaterial, physicMaterial, false, i % 2 == 0 ? 7f : -7f);
+            }
+
+            CreateChallengeBox("ScoutWheelGround_ChallengeObstacle_SandSideStoneLeft", -1.95f, 39.70f, 0.34f, 0.070f, 0.42f, 0.135f, bumpMaterial, physicMaterial, false, 14f);
+            CreateChallengeBox("ScoutWheelGround_ChallengeObstacle_SandSideStoneRight", 1.90f, 41.10f, 0.32f, 0.065f, 0.40f, 0.132f, bumpMaterial, physicMaterial, false, -12f);
+        }
+
+        static void CreateVisualBox(string name, float x, float y, float z, float width, float height, float length, float yawDegrees, Material material)
+        {
+            var box = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            box.name = name;
+            box.transform.position = new Vector3(x, y, z);
+            box.transform.rotation = Quaternion.Euler(0f, yawDegrees, 0f);
+            box.transform.localScale = new Vector3(width, height, length);
+            box.layer = 0;
+            box.isStatic = true;
+            box.GetComponent<Renderer>().sharedMaterial = material;
+            UnityEngine.Object.DestroyImmediate(box.GetComponent<BoxCollider>());
+        }
+
+        static void CreateVisualCylinderDisk(string name, float x, float y, float z, float radiusX, float radiusZ, float height, float yawDegrees, Material material)
+        {
+            var disk = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            disk.name = name;
+            disk.transform.position = new Vector3(x, y, z);
+            disk.transform.rotation = Quaternion.Euler(0f, yawDegrees, 0f);
+            disk.transform.localScale = new Vector3(radiusX, height * 0.5f, radiusZ);
+            disk.layer = 0;
+            disk.isStatic = true;
+            disk.GetComponent<Renderer>().sharedMaterial = material;
+            UnityEngine.Object.DestroyImmediate(disk.GetComponent<Collider>());
+        }
+
+        static void CreateChallengeBox(string name, float x, float z, float width, float height, float length, float topOffset, Material material, PhysicMaterial physicMaterial, bool centerHeightIsTopOffset, float yawDegrees = 0f)
+        {
+            float centerY = centerHeightIsTopOffset ? TerrainWorldY(x, z) + topOffset : TerrainWorldY(x, z) + topOffset - height * 0.5f;
+            var box = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            box.name = name;
+            box.transform.position = new Vector3(x, centerY, z);
+            box.transform.rotation = Quaternion.Euler(0f, yawDegrees, 0f);
+            box.transform.localScale = new Vector3(width, height, length);
+            box.layer = 0;
+            box.isStatic = true;
+            box.GetComponent<Renderer>().sharedMaterial = material;
+            var collider = box.GetComponent<BoxCollider>();
+            collider.material = physicMaterial;
+        }
+
+        static void CreateChallengeCylinder(string name, float x, float z, float length, float diameter, Material material, PhysicMaterial physicMaterial)
+        {
+            float radius = diameter * 0.5f;
+            float y = TerrainWorldY(x, z) + 0.155f + radius;
+            var cylinder = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            cylinder.name = name;
+            cylinder.transform.position = new Vector3(x, y, z);
+            cylinder.transform.rotation = Quaternion.Euler(0f, 0f, 90f);
+            cylinder.transform.localScale = new Vector3(diameter, length * 0.5f, diameter);
+            cylinder.layer = 0;
+            cylinder.isStatic = true;
+            cylinder.GetComponent<Renderer>().sharedMaterial = material;
+            var collider = cylinder.GetComponent<Collider>();
+            collider.material = physicMaterial;
         }
 
         static void ReplaceDecorativeTrailCollidersWithLocalizedPhysics(PhysicMaterial material, Material roadSurfaceMaterial, Material rampDetailMaterial)

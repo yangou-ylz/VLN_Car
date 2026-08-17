@@ -72,6 +72,8 @@ namespace VLN.ROS2
         int m_RoadContactSteps;
         int m_BridgeContactSteps;
         int m_ShortRampContactSteps;
+        int m_ChallengeSurfaceContactSteps;
+        int m_ChallengeObstacleContactSteps;
         int m_TerrainContactSteps;
         int m_OtherContactSteps;
         int m_NoWheelContactSteps;
@@ -485,13 +487,15 @@ namespace VLN.ROS2
             bool road = false;
             bool bridge = false;
             bool shortRamp = false;
+            bool challengeSurface = false;
+            bool challengeObstacle = false;
             bool terrain = false;
             bool other = false;
 
-            SampleWheelContact(m_FrontLeftWheel, ref any, ref road, ref bridge, ref shortRamp, ref terrain, ref other);
-            SampleWheelContact(m_FrontRightWheel, ref any, ref road, ref bridge, ref shortRamp, ref terrain, ref other);
-            SampleWheelContact(m_RearLeftWheel, ref any, ref road, ref bridge, ref shortRamp, ref terrain, ref other);
-            SampleWheelContact(m_RearRightWheel, ref any, ref road, ref bridge, ref shortRamp, ref terrain, ref other);
+            SampleWheelContact(m_FrontLeftWheel, ref any, ref road, ref bridge, ref shortRamp, ref challengeSurface, ref challengeObstacle, ref terrain, ref other);
+            SampleWheelContact(m_FrontRightWheel, ref any, ref road, ref bridge, ref shortRamp, ref challengeSurface, ref challengeObstacle, ref terrain, ref other);
+            SampleWheelContact(m_RearLeftWheel, ref any, ref road, ref bridge, ref shortRamp, ref challengeSurface, ref challengeObstacle, ref terrain, ref other);
+            SampleWheelContact(m_RearRightWheel, ref any, ref road, ref bridge, ref shortRamp, ref challengeSurface, ref challengeObstacle, ref terrain, ref other);
 
             if (!any)
             {
@@ -509,6 +513,14 @@ namespace VLN.ROS2
             {
                 m_ShortRampContactSteps++;
             }
+            if (challengeSurface)
+            {
+                m_ChallengeSurfaceContactSteps++;
+            }
+            if (challengeObstacle)
+            {
+                m_ChallengeObstacleContactSteps++;
+            }
             if (terrain)
             {
                 m_TerrainContactSteps++;
@@ -519,7 +531,7 @@ namespace VLN.ROS2
             }
         }
 
-        void SampleWheelContact(WheelCollider wheel, ref bool any, ref bool road, ref bool bridge, ref bool shortRamp, ref bool terrain, ref bool other)
+        void SampleWheelContact(WheelCollider wheel, ref bool any, ref bool road, ref bool bridge, ref bool shortRamp, ref bool challengeSurface, ref bool challengeObstacle, ref bool terrain, ref bool other)
         {
             if (wheel == null || !wheel.GetGroundHit(out WheelHit hit))
             {
@@ -538,6 +550,14 @@ namespace VLN.ROS2
             else if (name.StartsWith("ScoutWheelGround_PhysicalShortRamp", StringComparison.Ordinal))
             {
                 shortRamp = true;
+            }
+            else if (name.StartsWith("ScoutWheelGround_ChallengeSurface_", StringComparison.Ordinal))
+            {
+                challengeSurface = true;
+            }
+            else if (name.StartsWith("ScoutWheelGround_ChallengeObstacle_", StringComparison.Ordinal))
+            {
+                challengeObstacle = true;
             }
             else if (name.StartsWith("ScoutWheelGround_PhysicalRoad", StringComparison.Ordinal))
             {
@@ -655,6 +675,8 @@ namespace VLN.ROS2
                 $"road_contact_steps={m_RoadContactSteps}\n" +
                 $"bridge_contact_steps={m_BridgeContactSteps}\n" +
                 $"short_ramp_contact_steps={m_ShortRampContactSteps}\n" +
+                $"challenge_surface_contact_steps={m_ChallengeSurfaceContactSteps}\n" +
+                $"challenge_obstacle_contact_steps={m_ChallengeObstacleContactSteps}\n" +
                 $"terrain_contact_steps={m_TerrainContactSteps}\n" +
                 $"other_contact_steps={m_OtherContactSteps}\n" +
                 $"no_wheel_contact_steps={m_NoWheelContactSteps}\n" +

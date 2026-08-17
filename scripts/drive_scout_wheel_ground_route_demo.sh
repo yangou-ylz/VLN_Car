@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 # 手工演示：在 Unity wheel-ground 场景已经 Play、ROS-TCP-Endpoint 已启动时，发布固定路线 /vln/cmd_vel。
+# 不自动打开 Unity，不做 batch 回归；用户看效果时优先用这个入口。
 
 set -eo pipefail
 
@@ -19,6 +20,8 @@ else
 fi
 
 source "$WORKSPACE/install/setup.bash"
+
+echo "手工演示入口：请确认 Unity 已打开目标场景、endpoint 已启动、Unity 已点击 Play。"
 
 exec python3 "$VLN_ROOT/scripts/ros2_drive_scout_physics_route.py" \
   --centerline-corridor \

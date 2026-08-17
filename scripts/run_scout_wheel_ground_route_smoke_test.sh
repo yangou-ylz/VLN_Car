@@ -7,7 +7,7 @@ set -eo pipefail
 
 VLN_ROOT="/home/ubuntu22/VLN"
 UNITY_PROJECT="$VLN_ROOT/UnityProjects/VLN_Offroad"
-RUN_ID="vln_scout_wheel_ground_route_$(date +%Y%m%d_%H%M%S)"
+RUN_ID="${RUN_ID_PREFIX:-vln_scout_wheel_ground_route}_$(date +%Y%m%d_%H%M%S)"
 LOG_DIR="$VLN_ROOT/UnityProjects/_SmokeTestLogs/$RUN_ID"
 ENDPOINT_LOG="$LOG_DIR/endpoint.log"
 UNITY_LOG="$LOG_DIR/unity.log"
@@ -20,6 +20,7 @@ RESULT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_candidate_result
 SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_candidate_screenshot.png"
 BRIDGE_SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_bridge_screenshot.png"
 SHORT_RAMP_SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_short_ramp_screenshot.png"
+CHALLENGE_SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_challenge_screenshot.png"
 CONTROLLER_RESULT_FILE="$UNITY_PROJECT/Logs/vln_scout_wheel_ground_controller_result.txt"
 ROUTE_RESULT_FILE="$UNITY_PROJECT/Logs/vln_scout_physics_route_demo_result.txt"
 
@@ -30,9 +31,15 @@ CMD_VEL_TOPIC="/vln/cmd_vel"
 ODOM_TOPIC="/vln/odom"
 RELATIVE_WAYPOINTS="${RELATIVE_WAYPOINTS:-4.0,0.0;8.0,0.0;12.0,0.0;15.0,0.0;18.0,0.0;22.0,0.0;26.0,0.0;28.0,0.0;30.0,0.0;34.0,0.0;42.0,0.0;50.0,0.0;54.0,0.0}"
 ROUTE_EXTRA_ARGS="${ROUTE_EXTRA_ARGS:---centerline-corridor --centerline-forward-max 22.8 --progress-only-gates --skip-angular-calibration --angular-sign 1 --lookahead-distance 5.00 --corridor-lateral-gain 0.28 --corridor-max-heading-correction 0.32 --max-angular 0.55 --angular-gain 0.70 --max-linear 1.05 --linear-gain 0.62 --linear-accel 0.70 --angular-accel 0.30 --min-linear-while-turning 0.38 --max-lateral-offset 1.15 --max-final-lateral-offset 0.80 --max-bridge-lateral-offset 0.85 --bridge-forward-min 9.5 --bridge-forward-max 22.8 --stall-skip-seconds 12.0 --stall-skip-forward-margin 4.0}"
+EXPECTED_ROUTE_WAYPOINT_COUNT="${EXPECTED_ROUTE_WAYPOINT_COUNT:-13}"
+REQUIRE_CHALLENGE_COURSE="${REQUIRE_CHALLENGE_COURSE:-0}"
+MIN_CHALLENGE_SURFACE_CONTACT_STEPS="${MIN_CHALLENGE_SURFACE_CONTACT_STEPS:-0}"
+MIN_CHALLENGE_OBSTACLE_CONTACT_STEPS="${MIN_CHALLENGE_OBSTACLE_CONTACT_STEPS:-0}"
 
 mkdir -p "$LOG_DIR" "$VLN_ROOT/.ros/log"
 export ROS_LOG_DIR="${ROS_LOG_DIR:-$VLN_ROOT/.ros/log}"
+
+echo "自动回归验收入口：该脚本会 batch 打开 Unity。手工看效果请用 open_unity_vln_project.sh + start_ros_tcp_endpoint.sh + drive_scout_wheel_ground_route_demo.sh。"
 
 if pgrep -af "$VLN_ROOT/UnityEditors/2022.3.62f1/Editor/Unity" | grep -F -- "-projectPath $UNITY_PROJECT" >/dev/null 2>&1; then
   echo "unity_project_already_open=true" | tee "$LOG_DIR/run_summary.txt"
@@ -57,7 +64,7 @@ cleanup()
 
 trap cleanup EXIT
 
-for old_file in "$RESULT_FILE" "$SCREENSHOT_FILE" "$BRIDGE_SCREENSHOT_FILE" "$SHORT_RAMP_SCREENSHOT_FILE" "$CONTROLLER_RESULT_FILE" "$ROUTE_RESULT_FILE"; do
+for old_file in "$RESULT_FILE" "$SCREENSHOT_FILE" "$BRIDGE_SCREENSHOT_FILE" "$SHORT_RAMP_SCREENSHOT_FILE" "$CHALLENGE_SCREENSHOT_FILE" "$CONTROLLER_RESULT_FILE" "$ROUTE_RESULT_FILE"; do
   if [ -f "$old_file" ]; then
     mv "$old_file" "$LOG_DIR/previous_$(basename "$old_file")"
   fi
@@ -130,6 +137,9 @@ fi
 if [ -f "$SHORT_RAMP_SCREENSHOT_FILE" ]; then
   cp "$SHORT_RAMP_SCREENSHOT_FILE" "$LOG_DIR/vln_offroad_scout_wheel_ground_short_ramp_screenshot.png"
 fi
+if [ -f "$CHALLENGE_SCREENSHOT_FILE" ]; then
+  cp "$CHALLENGE_SCREENSHOT_FILE" "$LOG_DIR/vln_offroad_scout_wheel_ground_challenge_screenshot.png"
+fi
 
 for current_file in "$RESULT_FILE" "$CONTROLLER_RESULT_FILE" "$ROUTE_RESULT_FILE"; do
   if [ -f "$current_file" ]; then
@@ -152,6 +162,17 @@ road_physical_slab_count=$(grep -E '^road_physical_slab_count=' "$RESULT_FILE" 2
 road_seam_transition_count=$(grep -E '^road_seam_transition_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 bridge_physics_count=$(grep -E '^bridge_physics_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 short_ramp_physics_count=$(grep -E '^short_ramp_physics_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_surface_count=$(grep -E '^challenge_surface_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_grass_surface_count=$(grep -E '^challenge_grass_surface_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_stone_surface_count=$(grep -E '^challenge_stone_surface_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_sand_surface_count=$(grep -E '^challenge_sand_surface_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_obstacle_count=$(grep -E '^challenge_obstacle_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_obstacle_collider_count=$(grep -E '^challenge_obstacle_collider_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_marker_count=$(grep -E '^challenge_marker_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_surface_max_width=$(grep -E '^challenge_surface_max_width_m=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_surface_height_span=$(grep -E '^challenge_surface_height_span_m=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_obstacle_height_span=$(grep -E '^challenge_obstacle_height_span_m=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_end_wall_z=$(grep -E '^challenge_end_wall_z=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 bridge_visual_detail_count=$(grep -E '^bridge_visual_detail_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 bridge_rail_collider_count=$(grep -E '^bridge_rail_collider_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 short_ramp_visual_detail_count=$(grep -E '^short_ramp_visual_detail_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
@@ -170,6 +191,8 @@ motor_command_count=$(grep -E '^motor_command_count=' "$CONTROLLER_RESULT_FILE" 
 road_contact_steps=$(grep -E '^road_contact_steps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 bridge_contact_steps=$(grep -E '^bridge_contact_steps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 short_ramp_contact_steps=$(grep -E '^short_ramp_contact_steps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_surface_contact_steps=$(grep -E '^challenge_surface_contact_steps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_obstacle_contact_steps=$(grep -E '^challenge_obstacle_contact_steps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 body_height_span=$(grep -E '^body_height_span_m=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 wheel_ground_height_span=$(grep -E '^wheel_ground_height_span_m=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 wheel_visual_total_abs_roll_deg=$(grep -E '^wheel_visual_total_abs_roll_deg=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
@@ -185,9 +208,12 @@ wheel_visual_direction_reversal_count=$(grep -E '^wheel_visual_direction_reversa
   echo "topic_status=$topic_status"
   echo "log_dir=$LOG_DIR"
   echo "relative_waypoints=$RELATIVE_WAYPOINTS"
+  echo "expected_route_waypoint_count=$EXPECTED_ROUTE_WAYPOINT_COUNT"
+  echo "require_challenge_course=$REQUIRE_CHALLENGE_COURSE"
   echo "route_result_file=$ROUTE_RESULT_FILE"
   echo "bridge_screenshot_file=${BRIDGE_SCREENSHOT_FILE}"
   echo "short_ramp_screenshot_file=${SHORT_RAMP_SCREENSHOT_FILE}"
+  echo "challenge_screenshot_file=${CHALLENGE_SCREENSHOT_FILE}"
   echo "reached_count=${reached_count:-0}"
   echo "route_waypoint_count=${route_waypoint_count:-0}"
   echo "total_progress=${total_progress:-0}"
@@ -203,6 +229,17 @@ wheel_visual_direction_reversal_count=$(grep -E '^wheel_visual_direction_reversa
   echo "road_seam_transition_count=${road_seam_transition_count:-missing}"
   echo "bridge_physics_count=${bridge_physics_count:-missing}"
   echo "short_ramp_physics_count=${short_ramp_physics_count:-missing}"
+  echo "challenge_surface_count=${challenge_surface_count:-missing}"
+  echo "challenge_grass_surface_count=${challenge_grass_surface_count:-missing}"
+  echo "challenge_stone_surface_count=${challenge_stone_surface_count:-missing}"
+  echo "challenge_sand_surface_count=${challenge_sand_surface_count:-missing}"
+  echo "challenge_obstacle_count=${challenge_obstacle_count:-missing}"
+  echo "challenge_obstacle_collider_count=${challenge_obstacle_collider_count:-missing}"
+  echo "challenge_marker_count=${challenge_marker_count:-missing}"
+  echo "challenge_surface_max_width_m=${challenge_surface_max_width:-missing}"
+  echo "challenge_surface_height_span_m=${challenge_surface_height_span:-missing}"
+  echo "challenge_obstacle_height_span_m=${challenge_obstacle_height_span:-missing}"
+  echo "challenge_end_wall_z=${challenge_end_wall_z:-missing}"
   echo "bridge_visual_detail_count=${bridge_visual_detail_count:-missing}"
   echo "bridge_rail_collider_count=${bridge_rail_collider_count:-missing}"
   echo "short_ramp_visual_detail_count=${short_ramp_visual_detail_count:-missing}"
@@ -221,6 +258,8 @@ wheel_visual_direction_reversal_count=$(grep -E '^wheel_visual_direction_reversa
   echo "road_contact_steps=${road_contact_steps:-0}"
   echo "bridge_contact_steps=${bridge_contact_steps:-0}"
   echo "short_ramp_contact_steps=${short_ramp_contact_steps:-0}"
+  echo "challenge_surface_contact_steps=${challenge_surface_contact_steps:-0}"
+  echo "challenge_obstacle_contact_steps=${challenge_obstacle_contact_steps:-0}"
   echo "body_height_span_m=${body_height_span:-0}"
   echo "wheel_ground_height_span_m=${wheel_ground_height_span:-0}"
   echo "wheel_visual_total_abs_roll_deg=${wheel_visual_total_abs_roll_deg:-0}"
@@ -298,7 +337,7 @@ if [ "${motor_command_count:-0}" -lt 20 ]; then
   echo "scout_route_motor_command_count_too_low"
   exit 1
 fi
-if [ "${route_waypoint_count:-0}" -ne 13 ]; then
+if [ "${route_waypoint_count:-0}" -ne "${EXPECTED_ROUTE_WAYPOINT_COUNT:-13}" ]; then
   echo "scout_route_waypoint_count_unexpected"
   exit 1
 fi
@@ -425,6 +464,33 @@ fi
 if [ "${wheel_visual_direction_reversal_count:-999}" -gt 8 ]; then
   echo "wheel_visual_direction_flapping"
   exit 1
+fi
+
+if [ "${REQUIRE_CHALLENGE_COURSE:-0}" -eq 1 ]; then
+  if [ ! -s "$LOG_DIR/vln_offroad_scout_wheel_ground_challenge_screenshot.png" ]; then
+    echo "challenge_visual_evidence_screenshot_missing"
+    exit 1
+  fi
+  if [ "${challenge_grass_surface_count:-0}" -lt 1 ] || [ "${challenge_stone_surface_count:-0}" -lt 1 ] || [ "${challenge_sand_surface_count:-0}" -lt 1 ]; then
+    echo "challenge_special_surface_types_missing"
+    exit 1
+  fi
+  if [ "${challenge_obstacle_collider_count:-0}" -lt 8 ]; then
+    echo "challenge_passable_obstacle_colliders_too_few"
+    exit 1
+  fi
+  if ! awk "BEGIN { exit !(${challenge_end_wall_z:-0} >= 38.8) }"; then
+    echo "challenge_end_wall_not_moved_back"
+    exit 1
+  fi
+  if ! awk "BEGIN { exit !(${challenge_surface_contact_steps:-0} >= ${MIN_CHALLENGE_SURFACE_CONTACT_STEPS:-0}) }"; then
+    echo "challenge_surface_contact_steps_too_low"
+    exit 1
+  fi
+  if ! awk "BEGIN { exit !(${challenge_obstacle_contact_steps:-0} >= ${MIN_CHALLENGE_OBSTACLE_CONTACT_STEPS:-0}) }"; then
+    echo "challenge_obstacle_contact_steps_too_low"
+    exit 1
+  fi
 fi
 
 echo "VLN_SCOUT_WHEEL_GROUND_ROUTE_SMOKE_TEST_PASS"
