@@ -172,7 +172,7 @@ cd /home/ubuntu22/VLN
 ./scripts/run_scout_wheel_ground_route_smoke_test.sh
 ```
 
-希望最后看到 `VLN_SCOUT_WHEEL_GROUND_ROUTE_SMOKE_TEST_PASS`。最近一次通过 run id 是 `vln_scout_wheel_ground_route_20260817_125552`，其中 `reached_count=13`、`route_waypoint_count=13`、`stall_count=0`、`skipped_count=0`、`final_lateral_offset=-0.015m`、`bridge_contact_steps=1629`、`short_ramp_contact_steps=1648`、`decorative_bridge_renderer_count=0`、`bridge_deck_renderer_collider_top_delta_m=0.0000`、`bridge_physical_height_span_m=0.235`、`short_ramp_physical_height_span_m=0.804`、`wheel_visual_direction_reversal_count=0`。本次 run 归档了桥区和短坡截图，方便你手工检查有没有压平或托底。
+希望最后看到 `VLN_SCOUT_WHEEL_GROUND_ROUTE_SMOKE_TEST_PASS`。最近一次通过 run id 是 `vln_scout_wheel_ground_route_20260817_125552`，其中 `reached_count=13`、`route_waypoint_count=13`、`stall_count=0`、`skipped_count=0`、`final_lateral_offset=-0.015m`、`bridge_contact_steps=1629`、`short_ramp_contact_steps=1648`、`decorative_bridge_renderer_count=0`、`bridge_deck_renderer_collider_top_delta_m=0.0000`、`bridge_physical_height_span_m=0.235`、`short_ramp_physical_height_span_m=0.804`、`wheel_visual_direction_reversal_count=0`。这个 run 是当前自动路线金标准基线；以后除非明确加入新障碍物、新路线或新物理阶段，否则不要大改，表现变差就优先退回或修回该水平。本次 run 归档了桥区和短坡截图，方便你手工检查有没有压平或托底。
 
 ## 13. 手动驾驶记录路线
 

@@ -1,6 +1,6 @@
 # VLN Unity-ROS2 仿真项目长期约束
 
-本文件是本仓库最高优先级的项目协作约束。后续所有开发、排错、环境搭建和文档更新，都必须先阅读本文件，再阅读 `PROJECT_MEMORY.md`、`env.md`、`workflow.md` 和 `logs/issue_log.md`。
+本文件是本仓库最高优先级的项目协作约束。后续所有开发、排错、环境搭建和文档更新，都必须先阅读本文件，再阅读 `CURRENT_STATE.md`。不要默认每次全量读取所有长文档；按“分级上下文读取机制”决定是否追加阅读 `PROJECT_MEMORY.md`、`env.md`、`workflow.md` 和日志。
 
 ## 交流与执行原则
 
@@ -20,8 +20,10 @@
 
 ## 工作流约束
 
-- 每次继续开发前先读：`PROJECT_MEMORY.md`、`workflow.md`、`env.md`、`logs/issue_log.md`。
+- 每次继续开发前先读：`CURRENT_STATE.md`。如果任务涉及新阶段、环境变更、安装/下载、基线风险、排障或历史追溯，再按关键词定向读取 `PROJECT_MEMORY.md`、`workflow.md`、`env.md`、`logs/issue_log.md`、`logs/decision_log.md` 的相关小节。
+- 禁止在普通子任务中无差别全量读取所有长记忆文件；优先使用 `grep` / `sed` 定位相关段落，减少上下文浪费。
 - 每次完成环境变更、关键决策、踩坑修复、版本选择后，必须同步更新对应文档。
+- `CURRENT_STATE.md` 必须保持短小，专门记录当前阶段、最新金标准基线、常用命令和快速读取策略；长历史仍归档到 `PROJECT_MEMORY.md`、`logs/issue_log.md` 和 `logs/decision_log.md`。
 - 所有本项目相关工作目录都必须放在 `/home/ubuntu22/VLN` 内部；不要在 `/home/ubuntu22` 下散放 `unity_ros2_ws`、资料库、资产库、bag 目录或 Unity 工程目录。
 - 官方资料、网页快照、外部仓库摘要放在 `/home/ubuntu22/VLN/VLN_REFERENCE_LIBRARY`，该目录在 git 中忽略，不提交。
 - 大型 Unity 资产、模型、rosbag、构建产物、缓存目录不得提交到 git。
@@ -39,5 +41,6 @@
 
 - 工作流应高效、复杂度可控、安全、通用、易扩展、易维护。
 - 不追求一步到位的大而全搭建；优先构建可验证、可复现、可回滚的小闭环。
+- 当前自动路线 `vln_scout_wheel_ground_route_20260817_125552` 是阶段 15 金标准基线。后续除非明确加入新障碍物、新路线或新物理阶段，否则不要大改；任何改动后的表现如果低于该基线，应优先回退或修回。
 - 对官方文档和社区经验的引用必须标注来源，并在本地资料库建立索引。
 - 每个阶段都要有“完成定义”：能看到什么、能 echo 什么、能记录什么、失败时查哪里。

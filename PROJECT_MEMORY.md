@@ -1,6 +1,12 @@
 # 项目记忆总览
 
-本文件用于防止上下文丢失。每次继续工作前先读本文件，再读 `AGENTS.md`、`workflow.md`、`env.md` 和 `logs/issue_log.md`。
+本文件用于长期历史归档，防止上下文丢失。每次继续工作默认先读 `AGENTS.md` 和 `CURRENT_STATE.md`；只有进入新阶段、排障、改环境、追溯历史或修改基线时，再按关键词定向读取本文件相关小节。
+
+## 快速入口
+
+- 当前短上下文：`CURRENT_STATE.md`。
+- 当前自动路线金标准：`vln_scout_wheel_ground_route_20260817_125552`。
+- 当前原则：普通子任务不再全量读取所有长记忆文件；先用 `CURRENT_STATE.md` 和关键词定位，必要时再查长文档。
 
 ## 项目目标
 
@@ -114,3 +120,4 @@
 - 2026-08-17：二次修复用户反馈的手动速度控制严重问题。根因是纯转向阶段让 WheelCollider 差速电机直接推动车体，导致原地转变成大平移；禁用轮端纯转向电机后，普通 AddTorque 又会被轮地约束吃掉。当前修复为：UI 保持 ROS 常规方向 `←/A` 正 `angular.z`、`→/D` 负 `angular.z`；Unity 物理层 `m_WheelAngularMotorScale=0`，用 yaw-rate PID 计算目标角速度，并通过 Rigidbody 角速度伺服/`MoveRotation` 施加低层底盘转向。专项 Unity 验收 `vln_control_panel_manual_velocity_unity_20260817_040919` 通过：前进 `0.531m`、横漂约 `0.000m`、偏航约 `0.000rad`、停车漂移 `0.001m/0.002m`、A 左转 yaw `+0.599rad`、D 右转 yaw `-0.634rad`、纯转向平移约 `0.017m/0.016m`。手动记录验收 `vln_control_panel_manual_recording_20260817_041218` 通过；基础 wheel-ground 回归 `vln_scout_wheel_ground_20260817_041230` 通过。旧固定路线控制器仍不作为阶段 16 完成标准。
 - 2026-08-17：按用户要求优先恢复老师演示用自动路线。将固定路线默认角速度符号统一为 `angular-sign=1` 后，默认完整路线验收 `./scripts/run_scout_wheel_ground_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_route_20260817_125552`，`VLN_SCOUT_WHEEL_GROUND_ROUTE_SMOKE_TEST_PASS`，13/13 路径点全部到达，桥/短坡接触、非扁平高度、截图归档和传感器/odom 校验全部通过。本轮只改控制符号入口和文档，没有改地图、桥、坡、碰撞体或降低验收。
 - 2026-08-17：继续补强速度控制验收。`scripts/vln_control_panel_manual_velocity_unity_client.py` 新增方向键 `←/→` 的 Unity 实车响应检查，防止只用 A/D 通过。最新速度控制 Unity 联动 run id `vln_control_panel_manual_velocity_unity_20260817_130258` 通过：`↑` 前进 `0.531m`、横漂约 `0.000m`、A 左转 `+0.575rad`、D 右转 `-0.609rad`、`←` 左转 `+0.600rad`、`→` 右转 `-0.659rad`、纯转向平移约 `0.015-0.016m`、最终停车漂移 `0.002m`。
+- 2026-08-17：根据用户反馈精简长期上下文启动流程。新增 `CURRENT_STATE.md` 作为短状态入口，把自动路线金标准、速度控制基线、硬约束和常用命令集中记录；`AGENTS.md` 与 `workflow.md` 已改为分级上下文读取机制：普通子任务先读 `AGENTS.md` + `CURRENT_STATE.md`，只有换阶段、环境变更、排障、基线风险或历史追溯时才定向读取长记忆文件。

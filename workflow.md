@@ -25,8 +25,18 @@
 
 ## 阶段 0：项目约束与记忆机制
 
-- 产物：`AGENTS.md`、`PROJECT_MEMORY.md`、`env.md`、`logs/issue_log.md`、`logs/decision_log.md`、`.gitignore`。
+- 产物：`AGENTS.md`、`CURRENT_STATE.md`、`PROJECT_MEMORY.md`、`env.md`、`logs/issue_log.md`、`logs/decision_log.md`、`.gitignore`。
 - 验收：这些文件存在，且明确禁止未确认安装、禁止污染 CUDA/PyTorch/ROS2 环境。
+
+### 分级上下文读取机制
+
+为避免每次上下文压缩后都重复读取大段历史，后续启动流程改为三层：
+
+1. **快速层**：每次先读 `AGENTS.md` 和 `CURRENT_STATE.md`，确认硬约束、当前阶段、金标准基线和常用入口。
+2. **任务层**：只读取本次任务直接相关的小节，例如 `workflow.md` 阶段 15/16、`user.md` 对应命令、相关脚本或代码文件。
+3. **追溯层**：只有换阶段、排障、环境变更、安装/下载、基线风险或用户要求复盘时，才定向读取 `PROJECT_MEMORY.md`、`env.md`、`logs/issue_log.md`、`logs/decision_log.md` 的相关历史。
+
+普通子任务中不要全量扫完 `PROJECT_MEMORY.md`、`workflow.md`、`env.md` 和所有日志。质量要求不降低：涉及环境、安全红线、自动路线基线、物理真实性和验收标准时，仍必须查对应长文档并更新记录。
 
 ## 阶段 1：只读环境体检
 
@@ -444,10 +454,16 @@ short_ramp_screenshot=vln_offroad_scout_wheel_ground_short_ramp_screenshot.png
 
 阶段 16 当前验收状态：`./scripts/run_control_panel_manual_velocity_unity_smoke_test.sh` 已通过，最新 run id `vln_control_panel_manual_velocity_unity_20260817_130258`，覆盖 `↑` 正向直行、A/D 原地左右转、方向键 `←/→` 原地左右转和停车漂移检查；`./scripts/run_control_panel_manual_recording_smoke_test.sh` 已通过，run id `vln_control_panel_manual_recording_20260817_041218`；基础 wheel-ground 回归 `vln_scout_wheel_ground_20260817_041230` 已通过。阶段 15 自动路线已恢复，最新通过 run id `vln_scout_wheel_ground_route_20260817_125552`；后续仍不能用隐藏托底、压平桥/坡、跳点或放宽 gate 修路线。
 
-阶段 16 固定验收命令：
+阶段 16 记录/导出固定验收命令：
 
 ```bash
 /home/ubuntu22/VLN/scripts/run_control_panel_manual_recording_smoke_test.sh
+```
+
+成功标志：
+
+```text
+VLN_CONTROL_PANEL_MANUAL_RECORDING_SMOKE_TEST_PASS
 ```
 
 速度控制 Unity 联动验收命令：
@@ -460,12 +476,6 @@ short_ramp_screenshot=vln_offroad_scout_wheel_ground_short_ramp_screenshot.png
 
 ```text
 VLN_CONTROL_PANEL_MANUAL_VELOCITY_UNITY_SMOKE_TEST_PASS
-```
-
-成功标志：
-
-```text
-VLN_CONTROL_PANEL_MANUAL_RECORDING_SMOKE_TEST_PASS
 ```
 
 回放文件最小验收示例：
