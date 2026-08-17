@@ -202,9 +202,10 @@ base_link -> lidar_link
 http://127.0.0.1:8765/
 ```
 
-控制面板顶部有三个模块：
+控制面板顶部有四个模块：
 
 - `目标位置`：输入相对 X/Y 坐标，用 `+` / `-` 调整步进，点击“发送目标”后后端发布 `/vln/cmd_vel`。
+- `速度控制`：用 `↑/↓` 控制前进/后退，用 `←/A` 左转，用 `→/D` 右转；可以开始记录、停止记录并导出手动路线 JSON。
 - `相机视图`：触发 `/home/ubuntu22/VLN/scripts/view_front_image.sh`，弹出 rqt 图像窗口。
 - `雷达点云`：触发 `/home/ubuntu22/VLN/scripts/view_vln_vehicle_rviz.sh`，弹出 RViz 点云窗口。
 
@@ -215,6 +216,14 @@ http://127.0.0.1:8765/
 ```
 
 成功标志：`VLN_CONTROL_PANEL_SMOKE_TEST_PASS`。
+
+手动路线导出后，可用下面命令回放：
+
+```bash
+/home/ubuntu22/VLN/scripts/replay_manual_drive_recording.sh --file /home/ubuntu22/VLN/VLN_RECORDINGS/manual_drives/manual_drive_YYYYMMDD_HHMMSS.json
+```
+
+成功标志：`VLN_MANUAL_DRIVE_REPLAY_OK`。
 
 另开终端：
 

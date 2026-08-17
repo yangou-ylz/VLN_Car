@@ -19,6 +19,8 @@ ODOM_LOG="$LOG_DIR/ros2_odom_once.log"
 TOPIC_LOG="$LOG_DIR/ros2_topic_list.log"
 RESULT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_candidate_result.txt"
 SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_candidate_screenshot.png"
+BRIDGE_SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_bridge_screenshot.png"
+SHORT_RAMP_SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_short_ramp_screenshot.png"
 CONTROL_RESULT_FILE="$UNITY_PROJECT/Logs/vln_vehicle_control_result.txt"
 CONTROLLER_RESULT_FILE="$UNITY_PROJECT/Logs/vln_scout_wheel_ground_controller_result.txt"
 FOLLOW_RESULT_FILE="$UNITY_PROJECT/Logs/vln_follow_transform_pose_result.txt"
@@ -57,7 +59,7 @@ cleanup()
 
 trap cleanup EXIT
 
-for old_file in "$RESULT_FILE" "$SCREENSHOT_FILE" "$CONTROL_RESULT_FILE" "$CONTROLLER_RESULT_FILE" "$FOLLOW_RESULT_FILE" "$ODOM_RESULT_FILE"; do
+for old_file in "$RESULT_FILE" "$SCREENSHOT_FILE" "$BRIDGE_SCREENSHOT_FILE" "$SHORT_RAMP_SCREENSHOT_FILE" "$CONTROL_RESULT_FILE" "$CONTROLLER_RESULT_FILE" "$FOLLOW_RESULT_FILE" "$ODOM_RESULT_FILE"; do
   if [ -f "$old_file" ]; then
     mv "$old_file" "$LOG_DIR/previous_$(basename "$old_file")"
   fi
@@ -129,8 +131,37 @@ set -e
 if [ -f "$SCREENSHOT_FILE" ]; then
   cp "$SCREENSHOT_FILE" "$LOG_DIR/vln_offroad_scout_wheel_ground_candidate_screenshot.png"
 fi
+if [ -f "$BRIDGE_SCREENSHOT_FILE" ]; then
+  cp "$BRIDGE_SCREENSHOT_FILE" "$LOG_DIR/vln_offroad_scout_wheel_ground_bridge_screenshot.png"
+fi
+if [ -f "$SHORT_RAMP_SCREENSHOT_FILE" ]; then
+  cp "$SHORT_RAMP_SCREENSHOT_FILE" "$LOG_DIR/vln_offroad_scout_wheel_ground_short_ramp_screenshot.png"
+fi
+
+for current_file in "$RESULT_FILE" "$CONTROL_RESULT_FILE" "$CONTROLLER_RESULT_FILE" "$FOLLOW_RESULT_FILE" "$ODOM_RESULT_FILE"; do
+  if [ -f "$current_file" ]; then
+    cp "$current_file" "$LOG_DIR/$(basename "$current_file")"
+  fi
+done
 
 wheel_collider_count=$(grep -E '^wheel_collider_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+broad_physical_trail_count=$(grep -E '^broad_physical_trail_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+road_physical_slab_count=$(grep -E '^road_physical_slab_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+road_seam_transition_count=$(grep -E '^road_seam_transition_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+bridge_physics_count=$(grep -E '^bridge_physics_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+short_ramp_physics_count=$(grep -E '^short_ramp_physics_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+bridge_visual_detail_count=$(grep -E '^bridge_visual_detail_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+short_ramp_visual_detail_count=$(grep -E '^short_ramp_visual_detail_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+decorative_trail_collider_count=$(grep -E '^decorative_trail_collider_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+decorative_bridge_renderer_count=$(grep -E '^decorative_bridge_renderer_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+bridge_deck_has_renderer=$(grep -E '^bridge_deck_has_renderer=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+bridge_deck_has_collider=$(grep -E '^bridge_deck_has_collider=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+bridge_deck_renderer_collider_top_delta=$(grep -E '^bridge_deck_renderer_collider_top_delta_m=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+road_physical_max_width=$(grep -E '^road_physical_max_width_m=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+bridge_physical_max_width=$(grep -E '^bridge_physical_max_width_m=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+bridge_physical_height_span=$(grep -E '^bridge_physical_height_span_m=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+short_ramp_physical_max_width=$(grep -E '^short_ramp_physical_max_width_m=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+short_ramp_physical_height_span=$(grep -E '^short_ramp_physical_height_span_m=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 visual_renderer_count=$(grep -E '^visual_renderer_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 visual_collider_count=$(grep -E '^visual_collider_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 visual_articulation_body_count=$(grep -E '^visual_articulation_body_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
@@ -139,6 +170,8 @@ cmd_vel_count=$(grep -E '^cmd_vel_count=' "$CONTROL_RESULT_FILE" 2>/dev/null | t
 controller_cmd_count=$(grep -E '^cmd_vel_count=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 physics_step_count=$(grep -E '^physics_step_count=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 motor_command_count=$(grep -E '^motor_command_count=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+wheel_visual_total_abs_roll_deg=$(grep -E '^wheel_visual_total_abs_roll_deg=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+wheel_visual_direction_reversal_count=$(grep -E '^wheel_visual_direction_reversal_count=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 follow_update_count=$(grep -E '^follow_update_count=' "$FOLLOW_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 odom_publish_count=$(grep -E '^odom_publish_count=' "$ODOM_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 
@@ -154,11 +187,30 @@ odom_publish_count=$(grep -E '^odom_publish_count=' "$ODOM_RESULT_FILE" 2>/dev/n
   echo "log_dir=$LOG_DIR"
   echo "result_file=$RESULT_FILE"
   echo "screenshot_file=$SCREENSHOT_FILE"
+  echo "bridge_screenshot_file=$BRIDGE_SCREENSHOT_FILE"
+  echo "short_ramp_screenshot_file=$SHORT_RAMP_SCREENSHOT_FILE"
   echo "control_result_file=$CONTROL_RESULT_FILE"
   echo "controller_result_file=$CONTROLLER_RESULT_FILE"
   echo "follow_result_file=$FOLLOW_RESULT_FILE"
   echo "odom_result_file=$ODOM_RESULT_FILE"
   echo "wheel_collider_count=${wheel_collider_count:-0}"
+  echo "broad_physical_trail_count=${broad_physical_trail_count:-missing}"
+  echo "road_physical_slab_count=${road_physical_slab_count:-missing}"
+  echo "road_seam_transition_count=${road_seam_transition_count:-missing}"
+  echo "bridge_physics_count=${bridge_physics_count:-missing}"
+  echo "short_ramp_physics_count=${short_ramp_physics_count:-missing}"
+  echo "bridge_visual_detail_count=${bridge_visual_detail_count:-missing}"
+  echo "short_ramp_visual_detail_count=${short_ramp_visual_detail_count:-missing}"
+  echo "decorative_trail_collider_count=${decorative_trail_collider_count:-missing}"
+  echo "decorative_bridge_renderer_count=${decorative_bridge_renderer_count:-missing}"
+  echo "bridge_deck_has_renderer=${bridge_deck_has_renderer:-missing}"
+  echo "bridge_deck_has_collider=${bridge_deck_has_collider:-missing}"
+  echo "bridge_deck_renderer_collider_top_delta_m=${bridge_deck_renderer_collider_top_delta:-missing}"
+  echo "road_physical_max_width_m=${road_physical_max_width:-missing}"
+  echo "bridge_physical_max_width_m=${bridge_physical_max_width:-missing}"
+  echo "bridge_physical_height_span_m=${bridge_physical_height_span:-missing}"
+  echo "short_ramp_physical_max_width_m=${short_ramp_physical_max_width:-missing}"
+  echo "short_ramp_physical_height_span_m=${short_ramp_physical_height_span:-missing}"
   echo "visual_renderer_count=${visual_renderer_count:-0}"
   echo "visual_collider_count=${visual_collider_count:-missing}"
   echo "visual_articulation_body_count=${visual_articulation_body_count:-missing}"
@@ -167,6 +219,8 @@ odom_publish_count=$(grep -E '^odom_publish_count=' "$ODOM_RESULT_FILE" 2>/dev/n
   echo "controller_cmd_count=${controller_cmd_count:-0}"
   echo "physics_step_count=${physics_step_count:-0}"
   echo "motor_command_count=${motor_command_count:-0}"
+  echo "wheel_visual_total_abs_roll_deg=${wheel_visual_total_abs_roll_deg:-0}"
+  echo "wheel_visual_direction_reversal_count=${wheel_visual_direction_reversal_count:-0}"
   echo "follow_update_count=${follow_update_count:-0}"
   echo "odom_publish_count=${odom_publish_count:-0}"
 } | tee -a "$LOG_DIR/run_summary.txt"
@@ -291,6 +345,81 @@ if [ "${wheel_collider_count:-0}" -lt 4 ]; then
   exit 1
 fi
 
+if [ "${broad_physical_trail_count:-999}" -ne 0 ]; then
+  echo "broad_physical_trail_must_not_exist"
+  exit 1
+fi
+
+if [ "${road_physical_slab_count:-0}" -lt 7 ]; then
+  echo "localized_road_physical_slabs_too_few"
+  exit 1
+fi
+if [ "${road_seam_transition_count:-0}" -lt 5 ]; then
+  echo "localized_road_seam_transitions_too_few"
+  exit 1
+fi
+if [ "${bridge_physics_count:-0}" -lt 3 ]; then
+  echo "bridge_physics_missing"
+  exit 1
+fi
+
+if [ "${short_ramp_physics_count:-0}" -lt 1 ]; then
+  echo "short_ramp_physics_missing"
+  exit 1
+fi
+
+if [ "${decorative_trail_collider_count:-999}" -ne 0 ]; then
+  echo "decorative_trail_colliders_should_be_replaced"
+  exit 1
+fi
+if [ "${decorative_bridge_renderer_count:-999}" -ne 0 ]; then
+  echo "decorative_bridge_visual_must_not_shadow_physical_bridge"
+  exit 1
+fi
+if [ "${bridge_deck_has_renderer:-0}" -ne 1 ]; then
+  echo "physical_bridge_deck_must_be_visible"
+  exit 1
+fi
+if [ "${bridge_deck_has_collider:-0}" -ne 1 ]; then
+  echo "physical_bridge_deck_must_have_collider"
+  exit 1
+fi
+if ! awk "BEGIN { exit !(${bridge_deck_renderer_collider_top_delta:-999} <= 0.01) }"; then
+  echo "bridge_deck_renderer_collider_misaligned"
+  exit 1
+fi
+if [ "${bridge_visual_detail_count:-0}" -lt 40 ]; then
+  echo "bridge_visual_detail_too_simple"
+  exit 1
+fi
+if ! awk "BEGIN { exit !(${bridge_physical_height_span:-0} >= 0.20) }"; then
+  echo "bridge_too_flat"
+  exit 1
+fi
+
+if ! awk "BEGIN { exit !(${road_physical_max_width:-999} <= 7.1) }"; then
+  echo "road_physical_width_too_broad"
+  exit 1
+fi
+
+if ! awk "BEGIN { exit !(${bridge_physical_max_width:-999} <= 2.6) }"; then
+  echo "bridge_physical_width_too_broad_or_bypass_like"
+  exit 1
+fi
+
+if ! awk "BEGIN { exit !(${short_ramp_physical_max_width:-0} >= 4.5 && ${short_ramp_physical_max_width:-999} <= 5.4) }"; then
+  echo "short_ramp_physical_width_not_matching_original_ramp"
+  exit 1
+fi
+if [ "${short_ramp_visual_detail_count:-0}" -lt 5 ]; then
+  echo "short_ramp_visual_detail_missing"
+  exit 1
+fi
+if ! awk "BEGIN { exit !(${short_ramp_physical_height_span:-0} >= 0.62) }"; then
+  echo "short_ramp_too_flat"
+  exit 1
+fi
+
 if [ "${visual_renderer_count:-0}" -lt 5 ]; then
   echo "scout_wheel_ground_visual_renderers_missing"
   exit 1
@@ -323,6 +452,15 @@ fi
 
 if [ "${motor_command_count:-0}" -lt 20 ]; then
   echo "scout_wheel_ground_motor_command_count_too_low"
+  exit 1
+fi
+
+if ! awk "BEGIN { exit !(${wheel_visual_total_abs_roll_deg:-0} >= 300.0) }"; then
+  echo "wheel_visual_roll_not_accumulating"
+  exit 1
+fi
+if [ "${wheel_visual_direction_reversal_count:-999}" -gt 2 ]; then
+  echo "wheel_visual_direction_flapping"
   exit 1
 fi
 

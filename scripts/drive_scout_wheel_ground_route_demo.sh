@@ -21,17 +21,29 @@ fi
 source "$WORKSPACE/install/setup.bash"
 
 exec python3 "$VLN_ROOT/scripts/ros2_drive_scout_physics_route.py" \
+  --centerline-corridor \
+  --centerline-forward-max 22.8 \
   --progress-only-gates \
-  --skip-stalled-waypoints \
   --skip-angular-calibration \
-  --angular-sign -1 \
-  --max-angular 0.42 \
-  --angular-gain 0.62 \
-  --max-linear 1.35 \
-  --linear-gain 0.75 \
-  --linear-accel 0.95 \
-  --angular-accel 0.28 \
-  --min-linear-while-turning 0.65 \
-  --stall-skip-seconds 7.0 \
+  --angular-sign 1 \
+  --lookahead-distance 5.00 \
+  --corridor-lateral-gain 0.28 \
+  --corridor-max-heading-correction 0.32 \
+  --max-angular 0.55 \
+  --angular-gain 0.70 \
+  --max-linear 1.05 \
+  --linear-gain 0.62 \
+  --linear-accel 0.70 \
+  --angular-accel 0.30 \
+  --min-linear-while-turning 0.38 \
+  --goal-tolerance 1.60 \
+  --gate-tolerance 0.95 \
+  --max-lateral-offset 1.15 \
+  --max-final-lateral-offset 0.80 \
+  --max-bridge-lateral-offset 0.85 \
+  --bridge-forward-min 9.5 \
+  --bridge-forward-max 22.8 \
+  --min-reached 13 \
+  --stall-skip-seconds 12.0 \
   --stall-skip-forward-margin 4.0 \
   "$@"

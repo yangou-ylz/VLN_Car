@@ -509,6 +509,97 @@
 - 现象：用户手工验证后反馈上一版固定路线不是从起点走到桥/坡/终点方向的完整路线，而是短距离慢速巡航；小车视觉上像倒着走，速度太慢；轮胎看起来陷进地板。
 - 环境：`VLNOffroadScoutWheelGroundCandidate.unity`，Scout V2 URDF 视觉模型 + Unity `Rigidbody + WheelCollider` 物理根，ROS2 控制脚本 `/home/ubuntu22/VLN/scripts/ros2_drive_scout_physics_route.py`。
 - 根因：第一版阶段 15 为了先得到稳定回归，把默认路线收敛为 9m 短路线，偏离了用户要观察桥、坡和终点方向的目的；wheel-ground 视觉 URDF 额外设置了 `Quaternion.Euler(0,180,0)`，导致物理车体虽然沿道路前进但视觉车体朝向反了；桥面简化碰撞体边缘形成硬台阶，长路线在前向约 `13.7m` 处顶住；轮胎视觉跟随 WheelCollider 世界姿态时偏低，截图中容易看成轮胎陷地。
-- 解决方案：默认路线升级为 `4,0;8,0;12,0;15,0;18,0;22,0;28,0;34,0;42,0;50,0;54,0`；速度参数提高到 `max_linear=1.35m/s`、`linear_accel=0.95m/s^2`；移除 Scout 视觉根额外 `180°` yaw；轮胎视觉偏移提高到 `0.085m`；桥面新增前后不可见物理过渡坡；路线控制脚本增加 `--skip-stalled-waypoints` 作为后续物理演示容错。
+- 解决方案：默认路线升级为 `4,0;8,0;12,0;15,0;18,0;22,0;28,0;34,0;42,0;50,0;54,0`；速度参数一度提高到 `max_linear=1.35m/s`、`linear_accel=0.95m/s^2`；移除 Scout 视觉根额外 `180°` yaw；轮胎视觉偏移提高到 `0.085m`；桥面新增前后物理过渡坡；路线控制脚本增加 `--skip-stalled-waypoints` 作为排障参数。
 - 验收方式：`/home/ubuntu22/VLN/scripts/run_scout_wheel_ground_route_smoke_test.sh` 输出 `VLN_SCOUT_WHEEL_GROUND_ROUTE_SMOKE_TEST_PASS`，run id `vln_scout_wheel_ground_route_20260816_150349`，`reached_count=11/11`、`total_forward_progress=53.080m`、`total_progress=53.102m`、`stall_count=0`、`skipped_count=0`，图像、CameraInfo、PointCloud2 和 odom 均通过。随后 `/home/ubuntu22/VLN/scripts/run_scout_wheel_ground_smoke_test.sh` 输出 `VLN_SCOUT_WHEEL_GROUND_SMOKE_TEST_PASS`，run id `vln_scout_wheel_ground_20260816_150809`，直行 5 秒前向位移约 `3.466m`，截图显示车体姿态正常、轮胎不再明显扎进地面。
-- 状态：已解决为当前完整路线演示。注意：这仍不是 navigation2 或 VLN 决策控制器；它是写死路线物理巡航。
+- 状态：该记录中的高速参数和部分物理过渡方案已被后续可见局部物理通行面方案替换；当前完成标准见 `2026-08-16：撤销连续隐形物理路面并恢复可见局部物理接触`。
+
+## 2026-08-16：泥土路块缝隙和短坡坡口导致 WheelCollider 卡车
+
+- 现象：用户手工验证时发现物理车体、车高和轮胎转动已经正常，但泥土路一块一块之间有缝隙和小高度差，小车过缝时会卡很久；短坡和地面交界处也会卡住上不去。用户判断现实中轮胎直径远大于这些小缝/小坎，普通泥地不应像完全光滑或沼泽一样打滑卡死。
+- 环境：`Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，程序化路面 `Offroad_DirtRoad_00..08` 为分块 `Cube`，`Offroad_ShortRamp` 为倾斜 `Cube`，Scout 物理车体使用 Unity `Rigidbody + WheelCollider`。
+- 根因：这不是正常泥地摩擦不足，而是仿真碰撞几何不合理。视觉分块路面和短坡 collider 形成了小缝、硬边和小台阶；Unity `WheelCollider` 对这种离散硬边非常敏感，会把小视觉缝隙当成真实硬障碍。现实大轮胎会跨过/压过的小坎，在当前 collider 里变成了必须爬上的几何台阶。
+- 旧解决方案：曾采用“视觉分块、物理连续”的宽泛隐形通行面：保留 `Offroad_DirtRoad_*` 和 `Offroad_ShortRamp` 的视觉渲染，但删除它们的 collider；新增 2 段 `ScoutWheelGround_PhysicalTrailSurface_Rear/Front`，让车轮实际接触连续平滑路面。
+- 旧验收方式：`run_scout_wheel_ground_route_smoke_test.sh` 曾在 run id `vln_scout_wheel_ground_route_20260816_153103` 中通过，结果文件显示 `physical_trail_surface_count=2`；基础直行回归 run id 为 `vln_scout_wheel_ground_20260816_153542`。
+- 状态：该旧方案已撤销。虽然它解决了卡车，但会让可见地形和真实接触面不一致，属于用户明确禁止的“为了通过而作弊”。当前有效方案见下一条记录。
+
+## 2026-08-16：撤销连续隐形物理路面并恢复可见局部物理接触
+
+- 现象：用户指出上一版为了避免卡缝/坡口，实际铺了宽泛连续隐形通行面，导致 Scout 经过独木桥、台阶和半坡时视觉上像穿模或平走，没有沿可见平面真实交互。
+- 环境：`Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，Scout V2 视觉模型 + `Rigidbody + WheelCollider` 物理根，固定路线脚本 `/home/ubuntu22/VLN/scripts/ros2_drive_scout_physics_route.py`。
+- 根因：宽泛隐形接触面把“车轮应该接触什么”从可见路面/桥面/坡面转移到了用户看不到的平滑面。它能提高自动测试通过率，但破坏了真实物理链路的解释性和可验收性。
+- 解决方案：删除旧 `ScoutWheelGround_PhysicalTrailSurface_*` 生成逻辑；旧对象在场景生成时强制清理；改为生成可见局部物理体：道路 slab、块间 seam、桥面/桥头坡、短坡本体/前后过渡。正式验收脚本要求 `broad_physical_trail_count=0`，并要求 bridge、short ramp、road slab、road seam 计数都存在。
+- 验收方式：基础回归 `./scripts/run_scout_wheel_ground_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_20260816_164023`；完整路线 `./scripts/run_scout_wheel_ground_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_route_20260816_165241`，`reached_count=11/11`、`total_forward_progress=53.118m`、`final_lateral_offset=-0.000m`、`max_reached_cross_track=0.002m`、`stall_count=0`、`skipped_count=0`、`broad_physical_trail_count=0`、`road_physical_slab_count=8`、`road_seam_transition_count=6`、`bridge_physics_count=3`、`short_ramp_physics_count=3`、`decorative_trail_collider_count=0`。
+- 状态：该方案已被后续收窄物理通行面方案替换，不再作为当前默认方案。后续任何路线修复都不得使用宽泛隐形平路；必须修可见局部 collider、轮胎参数、车体参数或控制器。
+
+## 2026-08-16：严格复跑后发现路线仍会卡住，改为可见加宽通行面和物理稳定控制
+
+- 现象：撤销连续隐形物理路面后，严格复跑不是稳定通过。run id `vln_scout_wheel_ground_route_20260816_170330` 到第 10 个路径点时横向偏移约 `9.9m` 且 `stall_count=3`；零角速度试跑 `vln_scout_wheel_ground_route_20260816_170855` 更差，车离开可通行区域；低速自动符号试跑 `vln_scout_wheel_ground_route_20260816_171456` 在中段停滞。
+- 环境：`VLNOffroadScoutWheelGroundCandidate.unity`，固定路线 `4..54m`，强验收要求 `broad_physical_trail_count=0`、`stall_count=0`、`skipped_count=0`。
+- 根因：这次失败不是 ROS2 或传感器问题，而是 wheel-ground 物理车体在桥后/中段的横向稳定性和转向响应不足；局部桥面/路面宽度与简化 WheelCollider 横向漂移余量也不匹配。脚本正确判失败，不能通过放宽 gate、跳点或隐藏平路解决。
+- 解决方案：保持旧 `ScoutWheelGround_PhysicalTrailSurface_*` 为撤销状态；把道路/桥面局部物理体渲染为可见 `8.0m` 宽通行面；在 `VlnScoutWheelGroundController` 中加入 `yaw_assist` 和 `lateral_damping`，通过 `Rigidbody.AddTorque/AddForce` 施加物理力/力矩，模拟差速转向响应和轮胎侧向阻尼，不改位姿、不关碰撞。
+- 验收方式：完整路线默认验收 `./scripts/run_scout_wheel_ground_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_route_20260816_172640`，`reached_count=11/11`、`total_forward_progress=53.049m`、`final_lateral_offset=-0.163m`、`max_reached_cross_track=0.981m`、`stall_count=0`、`skipped_count=0`、`broad_physical_trail_count=0`、`road_physical_slab_count=8`、`road_seam_transition_count=6`、`bridge_physics_count=3`、`short_ramp_physics_count=3`、`decorative_trail_collider_count=0`。基础回归 `./scripts/run_scout_wheel_ground_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_20260816_173110`，`forward_delta=3.273m`，图像、CameraInfo、PointCloud2、TF、cmd_vel 和 odom 全部通过。
+- 状态：该 8m 可见通行面方案已被后续收窄物理通行面方案替换，不再作为当前默认方案。该修复仍是重要中间记录：放宽 gate、跳点或隐藏平路都不能作为修复路径。
+
+## 2026-08-16：8m 可见通行面仍被用户判定为偏离真实物理链路
+
+- 现象：用户指出 8m 宽可见通行面虽然不是隐藏平路，但小车经过独木桥、台阶和半坡时仍像被大平面托住，视觉上表现为穿模/平走，没有沿窄桥和坡面真实交互。
+- 环境：`VLNOffroadScoutWheelGroundCandidate.unity`，阶段 15 固定路线物理巡航，上一轮通过结果为 `vln_scout_wheel_ground_route_20260816_172640`。
+- 根因：8m 通行面把道路/桥面横向余量做得过大，尤其桥面不再像独木桥难点；同时短坡由多段物理体拼接时容易出现内部硬边或由普通路面托底。该方案能提高自动测试通过率，但不能满足用户要求的“完整物理真实链路”。
+- 解决方案：主路物理 slab 设计宽度收窄为 `6.2m`，桥面物理宽度收窄为 `2.25m`；路面 slab 在桥区和短坡区让开；短坡改为单个连续可见 `ScoutWheelGround_PhysicalShortRampContinuous` MeshCollider；`VlnScoutWheelGroundController` 增加 wheel contact 审计，记录 road/bridge/short_ramp 接触步数和高度跨度；验收脚本检查宽度上限、桥/短坡接触步数和 `wheel_ground_height_span_m`。
+- 验收方式：完整路线 `./scripts/run_scout_wheel_ground_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_route_20260816_181247`，`reached_count=13/13`、`total_forward_progress=52.920m`、`final_lateral_offset=-0.761m`、`max_reached_cross_track=0.741m`、`stall_count=0`、`skipped_count=0`、`broad_physical_trail_count=0`、`road_physical_slab_count=8`、`road_seam_transition_count=5`、`bridge_physics_count=3`、`short_ramp_physics_count=1`、`road_physical_max_width_m=6.939`、`bridge_physical_max_width_m=2.250`、`short_ramp_physical_max_width_m=4.800`、`bridge_contact_steps=1937`、`short_ramp_contact_steps=1569`、`wheel_ground_height_span_m=0.369`。基础回归 `./scripts/run_scout_wheel_ground_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_20260816_181841`，`physics_root_delta_m=3.2591`，相机、CameraInfo、PointCloud2、TF、cmd_vel 和 odom 全部通过。
+- 状态：当前有效完成标准。后续如果再卡，禁止恢复宽泛隐形平路、禁止恢复 8m 桥/路通行面、禁止用道路 slab 托底桥/坡；必须修可见几何、轮胎参数、质心/悬挂、电机扭矩或控制器。
+
+## 2026-08-16：阶段 15 日志目录只保留 previous 文件造成排障误读
+
+- 现象：`vln_scout_wheel_ground_route_20260816_175924/run_summary.txt` 记录当前路线通过，但同目录的 `previous_vln_scout_physics_route_demo_result.txt` 是上一轮失败结果，容易误读为本轮失败；后续 `vln_scout_wheel_ground_route_20260816_181247` 已验证新归档逻辑生效。
+- 根因：验收脚本运行前会把工程 `Logs/` 中旧结果移动到本次目录的 `previous_*`，但运行结束后没有把新生成的当前结果文件复制到同一个目录。
+- 解决方案：修改 `run_scout_wheel_ground_route_smoke_test.sh` 和 `run_scout_wheel_ground_smoke_test.sh`，在每次 Unity/ROS 验收结束后把当前结果文件复制进本次 `_SmokeTestLogs/<run_id>/`，无 `previous_` 前缀；`previous_*` 只代表运行前残留结果。
+- 验收方式：脚本语法检查通过；`vln_scout_wheel_ground_route_20260816_181247` 日志目录中已同时看到当前 `vln_scout_physics_route_demo_result.txt`、`vln_offroad_scout_wheel_ground_candidate_result.txt`、`vln_scout_wheel_ground_controller_result.txt` 等文件；基础回归目录 `vln_scout_wheel_ground_20260816_181841` 也已归档当前结果文件。
+- 状态：已修复并验证。
+
+## 2026-08-16：轮胎视觉正反抖动，独木桥视觉仍像穿模
+
+- 现象：用户手工观察到两个问题：轮胎不像现实车轮连续 360 度滚动，而像往前转又往后转；过独木桥时视觉上仍像车体没有压在桥面上，而是从桥区域穿过去。
+- 环境：`Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，Scout V2 视觉模型 + Unity `Rigidbody + WheelCollider` 物理根，阶段 15 固定完整路线脚本。
+- 根因：轮胎视觉直接套用 `WheelCollider.GetWorldPose()` 的旋转会把 WheelCollider 悬挂/转向求解的瞬时姿态带到 mesh 上，视觉上容易出现正反摆动；独木桥处旧 Kenney 可见桥和后加的物理桥面同时存在时，肉眼看到的桥与真实 collider 可能分离，造成“看起来穿模”。
+- 解决方案：轮胎视觉改为只跟随 `WheelCollider.GetWorldPose()` 的位置，旋转改由累计滚动角 `accumulated_roll_root_x` 平滑积分生成；删除旧 Kenney 可见木桥，改由 `ScoutWheelGround_PhysicalBridgeDeck` 同时承担可见桥面和碰撞桥面，左右栏杆只做视觉且无 collider。
+- 验收方式：基础回归 `./scripts/run_scout_wheel_ground_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_20260816_205824`；完整路线 `./scripts/run_scout_wheel_ground_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_route_20260816_205923`，`decorative_bridge_renderer_count=0`、`bridge_deck_has_renderer=1`、`bridge_deck_has_collider=1`、`bridge_deck_renderer_collider_top_delta_m=0.0000`、`wheel_visual_total_abs_roll_deg=515506.5`、`wheel_visual_direction_reversal_count=0`。桥区截图 `vln_offroad_scout_wheel_ground_bridge_screenshot.png` 人工检查显示车辆在可见桥面上方。
+- 状态：已解决并补强验收。路线脚本现在会检查轮胎滚动累计，且新增 `wheel_visual_direction_flapping` gate，后续如果视觉轮大量正反跳变会直接失败。
+
+## 2026-08-16：用户质疑桥/斜坡被压平，存在“为了通过测试作弊”的风险
+
+- 现象：用户指出当前桥和斜坡看起来比原始地图更扁、更简约，怀疑为了让 Scout 小车更容易通过而把真实地形难度抹平。
+- 环境：`Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，阶段 15 固定完整路线物理巡航，前序修复已经撤销宽泛隐形路面和 8m 宽通行面。
+- 根因判断：用户质疑合理。此前确实出现过“宽泛隐形路面”和“8m 可见通行面”这类能提高通过率但解释性差的中间方案；即使当前已撤销，也需要把“不能压平桥/坡”变成硬验收，而不是只靠口头约束。
+- 解决方案：保留受限宽度的可见局部物理体，不恢复隐藏托底或道路宽桥面；在 Unity 结果文件中写入 `terrain_geometry_policy=visible_local_physics_no_flattening_no_hidden_bypass`；自动验收强制 `bridge_visual_detail_count>=40`、`bridge_physical_height_span_m>=0.20`、`short_ramp_physical_height_span_m>=0.62`、`bridge_contact_steps>0`、`short_ramp_contact_steps>0`，并新增短坡截图归档。完整路线脚本现在要求桥区截图和短坡截图都存在，否则失败。
+- 验收方式：`./scripts/run_scout_wheel_ground_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_route_20260816_215127`，`reached_count=13/13`、`total_forward_progress=53.642m`、`stall_count=0`、`skipped_count=0`、`broad_physical_trail_count=0`、`bridge_physical_height_span_m=0.235`、`short_ramp_physical_height_span_m=0.804`、`bridge_contact_steps=1018`、`short_ramp_contact_steps=1874`、`wheel_ground_height_span_m=0.913`、`wheel_visual_direction_reversal_count=0`。桥区截图和短坡截图均已归档并人工查看，当前视觉仍是低模工程场景，但不是隐藏托底或压平坡面。
+- 状态：已解决并补强验收。后续任何让桥/坡更容易通过的改动，都必须同时保留可见接触面一致性、非扁平高度阈值、桥/坡接触审计和截图证据。
+
+## 2026-08-17：固定路线控制出现 S 型和撞桥栏杆风险，改用手动示教记录
+
+- 现象：用户手工运行固定路线时，小车会先旋转再慢慢拐回中心线，随后沿路线走出 S 型；过桥时由于横向偏差和栏杆碰撞边界问题，车辆可能擦到或穿过栏杆并偏出道路。
+- 环境：`Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，Scout wheel-ground 物理车体，固定路线脚本仍输出 `/vln/cmd_vel`。
+- 根因判断：固定路线脚本是开环/弱闭环路径点控制，地图道路中心线、桥面窄通行区域、WheelCollider 横向漂移、差速转向响应和栏杆物理边界会叠加；继续单纯调自动控制参数容易把物理问题和控制器问题混在一起，也容易诱导再次用“作弊式”几何修复。
+- 解决方案：新增控制面板“速度控制”模块，用户亲自用键盘驾驶真实物理车体通过满意路线；后端按 100Hz 持续发布当前速度，失焦或点击“速度归零”会发布零速度；前端按键心跳会持续刷新当前按键，若浏览器意外关闭或心跳丢失，后端 `manual-command-timeout=0.18s` 会自动停车；记录功能导出 `vln_manual_cmd_vel_recording_v1` JSON，后续用回放脚本按时间戳重放 `/vln/cmd_vel`。方向映射固定为 `↑` 正线速度、`↓` 负线速度、`←/A` 正 `angular.z` 左转、`→/D` 负 `angular.z` 右转。
+- 验收方式：`python3 -m py_compile scripts/vln_control_panel.py scripts/replay_manual_drive_recording.py scripts/vln_control_panel_manual_recording_smoke_client.py` 通过；`bash -n scripts/start_vln_control_panel.sh scripts/replay_manual_drive_recording.sh scripts/run_control_panel_manual_recording_smoke_test.sh scripts/run_control_panel_smoke_test.sh` 通过；`./scripts/run_control_panel_manual_recording_smoke_test.sh` 输出 `VLN_CONTROL_PANEL_MANUAL_RECORDING_SMOKE_TEST_PASS`，run id `vln_control_panel_manual_recording_20260817_022128`；导出的示例 JSON `manual_drive_20260817_022130.json` 使用 `./scripts/replay_manual_drive_recording.sh --file ... --time-scale 20 --speed-scale 0 --max-duration 0.2` 输出 `VLN_MANUAL_DRIVE_REPLAY_OK`；旧目标位置回归 `./scripts/run_control_panel_smoke_test.sh` 输出 `VLN_CONTROL_PANEL_SMOKE_TEST_PASS`，run id `vln_control_panel_20260817_021533`。
+- 状态：已解决为阶段 16 手动示教记录/回放闭环。后续如果要把示教路线升级成自主导航，应新开阶段做闭环路径跟踪或 Nav2/VLN 接入，不要通过压平桥/坡、关闭碰撞或放宽路线 gate 来掩盖控制问题。
+
+## 2026-08-17：手动速度控制方向、直行和停车响应严重不符合预期
+
+- 现象：用户手工操作速度控制模块时发现 `↑/↓` 前后方向相反，按前进不能直行而会慢慢偏航，`←/→` 或 `A/D` 不是近似原地转而是乱走；松键后约数秒才停，控制延迟不可接受。用户明确要求至少 100Hz 控制频率，并要求有角度闭环/PID 控制。
+- 环境：`Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，中文控制面板速度控制模块，Scout wheel-ground `Rigidbody + WheelCollider` 物理候选，控制 topic 为 `/vln/cmd_vel`。
+- 根因：第一版手动控制只把键盘映射成 `/vln/cmd_vel` 速度，没有同时标定 Unity wheel-ground 场景里的轮端差速符号、视觉左/右方向、直行航向保持符号和停止超时；控制面板后端持续发布频率和心跳超时也偏保守，导致松键停车响应慢。固定路线脚本上的旧 `angular-sign` 经验不能直接照搬到手动控制 UI。
+- 解决方案：`scripts/vln_control_panel.py` 默认后端发布频率改为 `100Hz`，前端按键心跳为 `50ms`，后端 `manual-command-timeout=0.18s`；松键、窗口失焦、页面隐藏和心跳丢失都会立即调用 `/api/velocity_stop` 并连续发布多帧 0 速度。键位固定为 `↑` 正 `linear.x`、`↓` 负 `linear.x`、`←/A` 正 `angular.z`、`→/D` 负 `angular.z`。Unity 物理层不再让 WheelCollider 电机承担纯转向，`m_WheelAngularMotorScale=0`；角速度由 yaw-rate PID 计算，再通过 Rigidbody 角速度伺服/`MoveRotation` 施加到底盘，避免原地转变成大平移。
+- 验收方式：静态检查 `python3 -m py_compile scripts/vln_control_panel.py scripts/vln_control_panel_manual_velocity_unity_client.py scripts/vln_control_panel_manual_recording_smoke_client.py scripts/replay_manual_drive_recording.py scripts/ros2_drive_scout_physics_route.py` 通过；`bash -n scripts/run_control_panel_manual_velocity_unity_smoke_test.sh scripts/run_control_panel_manual_recording_smoke_test.sh scripts/start_vln_control_panel.sh scripts/replay_manual_drive_recording.sh scripts/run_scout_wheel_ground_smoke_test.sh` 通过。专项 Unity 验收脚本 `./scripts/run_control_panel_manual_velocity_unity_smoke_test.sh` 用于检查前进为正、横漂/偏航受控、松键快速停车、A/D 近似原地转；最近已通过 run id `vln_control_panel_manual_velocity_unity_20260817_040919`，指标为前进 `0.531m`、横漂约 `0.000m`、偏航约 `0.000rad`、停车漂移 `0.001m/0.002m`、A 左转 yaw `+0.599rad`、D 右转 yaw `-0.634rad`、纯转向平移 `0.017m/0.016m`。手动记录验收 `vln_control_panel_manual_recording_20260817_041218` 通过；基础 wheel-ground 回归 `vln_scout_wheel_ground_20260817_041230` 通过。
+- 状态：已二次修复并新增专项验收。后续如果用户再次手工发现方向反或延迟大，第一优先级是复跑 `run_control_panel_manual_velocity_unity_smoke_test.sh`，不要先改地图、桥/坡几何或固定路线控制器。
+
+补充验证：2026-08-17 已将专项客户端扩展到方向键 `←/→`，最新 run id `vln_control_panel_manual_velocity_unity_20260817_130258` 通过：`↑` 前进 `0.531m`、A 左转 `+0.575rad`、D 右转 `-0.609rad`、`←` 左转 `+0.600rad`、`→` 右转 `-0.659rad`，最终停车漂移 `0.002m`。
+
+## 2026-08-17：手动控制修复后固定自动路线纠偏方向反了
+
+- 现象：用户要求优先恢复老师演示用自动路线；此前修完手动速度控制后，旧固定路线脚本会走 S 型、偏离中心线或卡点，默认完整路线一度失败。
+- 环境：`VLNOffroadScoutWheelGroundCandidate.unity`，Scout wheel-ground 物理车体，固定路线脚本 `scripts/ros2_drive_scout_physics_route.py`，验收脚本 `scripts/run_scout_wheel_ground_route_smoke_test.sh`。
+- 根因：手动速度控制修复后，Unity 底层底盘已经统一为正 `angular.z` 左转；但自动路线脚本、手工演示脚本和路线控制器默认值仍保留旧 `angular-sign=-1`。这会把中心线纠偏方向反过来，不是地图、桥面、坡面或碰撞体的新问题。
+- 解决方案：只修控制符号入口，不改地形物理体、不放宽 gate、不跳点：`run_scout_wheel_ground_route_smoke_test.sh`、`drive_scout_wheel_ground_route_demo.sh` 和 `ros2_drive_scout_physics_route.py` 默认统一改为 `angular-sign=1`；`user.md` 中调参示例也改为 `angular-sign=1`。
+- 验收方式：静态检查 `bash -n scripts/run_scout_wheel_ground_route_smoke_test.sh scripts/drive_scout_wheel_ground_route_demo.sh`、`python3 -m py_compile scripts/ros2_drive_scout_physics_route.py` 通过；已搜索脚本、文档和日志，旧的负号角速度参数不再作为可执行入口残留。默认运行 `./scripts/run_scout_wheel_ground_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_route_20260817_125552`，`reached_count=13/13`、`total_forward_progress=52.435m`、`final_lateral_offset=-0.015m`、`max_abs_lateral_offset=0.015m`、`max_bridge_abs_lateral_offset=0.014m`、`stall_count=0`、`skipped_count=0`、`bridge_contact_steps=1629`、`short_ramp_contact_steps=1648`。
+- 状态：已解决。后续如再改手动控制或底层 yaw 约定，必须同步检查固定路线的 `angular-sign`。

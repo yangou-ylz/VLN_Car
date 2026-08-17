@@ -20,19 +20,47 @@ namespace VLN.ROS2
         [SerializeField] Transform m_RearRightVisual;
         [SerializeField] float m_WheelRadiusMeters = 0.16459f;
         [SerializeField] float m_TrackMeters = 0.58306f;
-        [SerializeField] float m_WheelMotorDirection = -1f;
+        [SerializeField] float m_WheelMotorDirection = 1f;
+        [SerializeField] float m_WheelYawDirection = 1f;
+        [SerializeField] float m_WheelLinearMotorScale = 0f;
+        [SerializeField] float m_WheelAngularMotorScale = 0f;
         [SerializeField] float m_WheelVisualVerticalOffset = 0.085f;
+        [SerializeField] float m_WheelVisualForwardRollDirection = 1f;
+        [SerializeField] float m_WheelVisualAngularSmoothing = 14f;
         [SerializeField] float m_MaxLinearSpeedMetersPerSecond = 2.0f;
         [SerializeField] float m_MaxAngularSpeedRadPerSecond = 1.0f;
-        [SerializeField] float m_MaxMotorTorque = 140f;
+        [SerializeField] float m_MaxMotorTorque = 160f;
         [SerializeField] float m_MaxBrakeTorque = 220f;
-        [SerializeField] float m_RpmVelocityGain = 1.35f;
-        [SerializeField] float m_LongitudinalAssistGain = 1.50f;
-        [SerializeField] float m_MaxLongitudinalAssistAcceleration = 1.20f;
+        [SerializeField] float m_RpmVelocityGain = 0.90f;
+        [SerializeField] float m_LongitudinalAssistGain = 3.00f;
+        [SerializeField] float m_MaxLongitudinalAssistAcceleration = 4.00f;
+        [SerializeField] float m_LongitudinalVelocityKp = 3.20f;
+        [SerializeField] float m_LongitudinalVelocityKi = 0.12f;
+        [SerializeField] float m_LongitudinalVelocityKd = 0.45f;
+        [SerializeField] float m_LongitudinalIntegralLimit = 1.20f;
+        [SerializeField] float m_YawAssistGain = 3.0f;
+        [SerializeField] float m_MaxYawAssistAngularAcceleration = 5.0f;
+        [SerializeField] float m_YawRateKp = 8.50f;
+        [SerializeField] float m_YawRateKi = 0.08f;
+        [SerializeField] float m_YawRateKd = 0.55f;
+        [SerializeField] float m_YawRateIntegralLimit = 0.70f;
+        [SerializeField] bool m_EnableStraightHeadingHold = true;
+        [SerializeField] float m_StraightHeadingHoldKp = 4.2f;
+        [SerializeField] float m_StraightHeadingHoldKd = 1.8f;
+        [SerializeField] float m_MaxStraightHeadingHoldAngularAcceleration = 3.5f;
+        [SerializeField] float m_LateralDampingGain = 9.0f;
+        [SerializeField] float m_MaxLateralDampingAcceleration = 8.0f;
+        [SerializeField] float m_StopVelocityDampingGain = 7.0f;
+        [SerializeField] float m_MaxStopDampingAcceleration = 6.0f;
+        [SerializeField] float m_StopYawDampingGain = 36.0f;
+        [SerializeField] float m_DirectStopVelocityDampingGain = 10.0f;
+        [SerializeField] float m_DirectStopYawDampingGain = 60.0f;
+        [SerializeField] float m_PureTurnTranslationDampingGain = 14.0f;
+        [SerializeField] float m_MaxPureTurnDampingAcceleration = 9.0f;
         [SerializeField] float m_LongitudinalOverspeedMargin = 0.35f;
         [SerializeField] float m_OverspeedBrakeTorqueRatio = 0.25f;
         [SerializeField] float m_RollingBrakeSpeedThreshold = 0.08f;
-        [SerializeField] float m_CommandTimeoutSeconds = 0.75f;
+        [SerializeField] float m_CommandTimeoutSeconds = 0.18f;
 
         Rigidbody m_Body;
         float m_CommandedLinearX;
@@ -41,6 +69,29 @@ namespace VLN.ROS2
         int m_CommandCount;
         int m_PhysicsStepCount;
         int m_MotorCommandCount;
+        int m_RoadContactSteps;
+        int m_BridgeContactSteps;
+        int m_ShortRampContactSteps;
+        int m_TerrainContactSteps;
+        int m_OtherContactSteps;
+        int m_NoWheelContactSteps;
+        int m_WheelVisualDirectionReversalCount;
+        float m_WheelVisualTotalAbsRollDegrees;
+        float m_MinBodyHeight = float.PositiveInfinity;
+        float m_MaxBodyHeight = float.NegativeInfinity;
+        float m_MinWheelGroundHeight = float.PositiveInfinity;
+        float m_MaxWheelGroundHeight = float.NegativeInfinity;
+        Transform[] m_VisualWheelTransforms;
+        Quaternion[] m_VisualRestRootRotations;
+        float[] m_VisualRollDegrees;
+        float[] m_VisualAngularSpeeds;
+        float m_LongitudinalSpeedIntegral;
+        float m_PreviousLongitudinalSpeedError;
+        float m_YawRateIntegral;
+        float m_PreviousYawRateError;
+        float m_YawServoRate;
+        bool m_StraightHeadingHoldActive;
+        float m_StraightHeadingHoldYawDegrees;
         string m_ResultPath;
         bool m_FinalSnapshotWritten;
 
@@ -51,6 +102,7 @@ namespace VLN.ROS2
 
         void Start()
         {
+            InitializeWheelVisualState();
             m_ResultPath = Path.Combine(Application.dataPath, "../Logs/vln_scout_wheel_ground_controller_result.txt");
             Directory.CreateDirectory(Path.GetDirectoryName(m_ResultPath));
             File.WriteAllText(m_ResultPath,
@@ -60,7 +112,13 @@ namespace VLN.ROS2
                 $"wheel_radius_m={m_WheelRadiusMeters:F5}\n" +
                 $"track_m={m_TrackMeters:F5}\n" +
                 $"wheel_motor_direction={m_WheelMotorDirection:F0}\n" +
+                $"wheel_yaw_direction={m_WheelYawDirection:F0}\n" +
+                $"wheel_linear_motor_scale={m_WheelLinearMotorScale:F2}\n" +
+                $"wheel_angular_motor_scale={m_WheelAngularMotorScale:F2}\n" +
                 $"wheel_visual_vertical_offset_m={m_WheelVisualVerticalOffset:F3}\n" +
+                "wheel_visual_rotation_mode=accumulated_roll_root_x\n" +
+                $"wheel_visual_forward_roll_direction={m_WheelVisualForwardRollDirection:F0}\n" +
+                $"wheel_visual_angular_smoothing={m_WheelVisualAngularSmoothing:F2}\n" +
                 $"max_linear_speed_mps={m_MaxLinearSpeedMetersPerSecond:F2}\n" +
                 $"max_angular_speed_radps={m_MaxAngularSpeedRadPerSecond:F2}\n" +
                 $"max_motor_torque_nm={m_MaxMotorTorque:F2}\n" +
@@ -68,9 +126,24 @@ namespace VLN.ROS2
                 $"rpm_velocity_gain={m_RpmVelocityGain:F2}\n" +
                 $"longitudinal_assist_gain={m_LongitudinalAssistGain:F2}\n" +
                 $"max_longitudinal_assist_accel_mps2={m_MaxLongitudinalAssistAcceleration:F2}\n" +
+                $"longitudinal_velocity_pid={m_LongitudinalVelocityKp:F2},{m_LongitudinalVelocityKi:F2},{m_LongitudinalVelocityKd:F2}\n" +
+                $"yaw_assist_gain={m_YawAssistGain:F2}\n" +
+                $"max_yaw_assist_angular_accel={m_MaxYawAssistAngularAcceleration:F2}\n" +
+                $"yaw_rate_pid={m_YawRateKp:F2},{m_YawRateKi:F2},{m_YawRateKd:F2}\n" +
+                $"straight_heading_hold_enabled={(m_EnableStraightHeadingHold ? 1 : 0)}\n" +
+                $"straight_heading_hold_pd={m_StraightHeadingHoldKp:F2},{m_StraightHeadingHoldKd:F2}\n" +
+                $"max_straight_heading_hold_angular_accel={m_MaxStraightHeadingHoldAngularAcceleration:F2}\n" +
+                $"lateral_damping_gain={m_LateralDampingGain:F2}\n" +
+                $"max_lateral_damping_accel_mps2={m_MaxLateralDampingAcceleration:F2}\n" +
+                $"stop_velocity_damping_gain={m_StopVelocityDampingGain:F2}\n" +
+                $"max_stop_damping_accel_mps2={m_MaxStopDampingAcceleration:F2}\n" +
+                $"direct_stop_velocity_damping_gain={m_DirectStopVelocityDampingGain:F2}\n" +
+                $"direct_stop_yaw_damping_gain={m_DirectStopYawDampingGain:F2}\n" +
+                $"pure_turn_translation_damping_gain={m_PureTurnTranslationDampingGain:F2}\n" +
                 $"longitudinal_overspeed_margin_mps={m_LongitudinalOverspeedMargin:F2}\n" +
                 $"overspeed_brake_torque_ratio={m_OverspeedBrakeTorqueRatio:F2}\n" +
                 $"rolling_brake_speed_threshold_mps={m_RollingBrakeSpeedThreshold:F2}\n" +
+                $"command_timeout_seconds={m_CommandTimeoutSeconds:F2}\n" +
                 $"wheel_collider_count={CountWheelColliders()}\n" +
                 $"rigidbody_mass_kg={m_Body.mass:F2}\n");
 
@@ -88,15 +161,19 @@ namespace VLN.ROS2
             else
             {
                 ApplyBrake();
+                ApplyStopDamping();
+                ResetPidState();
             }
+
+            SampleWheelContacts();
         }
 
         void LateUpdate()
         {
-            UpdateWheelVisual(m_FrontLeftWheel, m_FrontLeftVisual);
-            UpdateWheelVisual(m_FrontRightWheel, m_FrontRightVisual);
-            UpdateWheelVisual(m_RearLeftWheel, m_RearLeftVisual);
-            UpdateWheelVisual(m_RearRightWheel, m_RearRightVisual);
+            UpdateWheelVisual(0, m_FrontLeftWheel, m_FrontLeftVisual);
+            UpdateWheelVisual(1, m_FrontRightWheel, m_FrontRightVisual);
+            UpdateWheelVisual(2, m_RearLeftWheel, m_RearLeftVisual);
+            UpdateWheelVisual(3, m_RearRightWheel, m_RearRightVisual);
         }
 
         void OnCmdVel(TwistMsg msg)
@@ -126,19 +203,31 @@ namespace VLN.ROS2
 
         bool HasRecentCommand()
         {
-            return m_CommandCount > 0 && Time.realtimeSinceStartup - m_LastCommandRealtime <= Mathf.Max(0.1f, m_CommandTimeoutSeconds);
+            return m_CommandCount > 0 && Time.realtimeSinceStartup - m_LastCommandRealtime <= Mathf.Max(0.05f, m_CommandTimeoutSeconds);
         }
 
         void ApplyWheelTargets(float linearX, float angularZ)
         {
+            if (Mathf.Abs(linearX) < 0.02f && Mathf.Abs(angularZ) < 0.02f)
+            {
+                ApplyBrake();
+                ApplyStopDamping();
+                ResetPidState();
+                m_MotorCommandCount++;
+                return;
+            }
+
             float radius = Mathf.Max(0.01f, m_WheelRadiusMeters);
             float halfTrack = Mathf.Max(0.01f, m_TrackMeters) * 0.5f;
-            float leftRadPerSecond = (linearX - angularZ * halfTrack) / radius;
-            float rightRadPerSecond = (linearX + angularZ * halfTrack) / radius;
+            float motorLinearX = linearX * Mathf.Max(0f, m_WheelLinearMotorScale);
+            float wheelAngularZ = angularZ * Mathf.Max(0f, m_WheelAngularMotorScale) * (m_WheelYawDirection >= 0f ? 1f : -1f);
+            float leftRadPerSecond = (motorLinearX - wheelAngularZ * halfTrack) / radius;
+            float rightRadPerSecond = (motorLinearX + wheelAngularZ * halfTrack) / radius;
             float motorDirection = m_WheelMotorDirection >= 0f ? 1f : -1f;
             float leftRpm = motorDirection * leftRadPerSecond * 60f / (2f * Mathf.PI);
             float rightRpm = motorDirection * rightRadPerSecond * 60f / (2f * Mathf.PI);
-            float bodyForwardSpeed = Vector3.Dot(m_Body.velocity, transform.forward);
+            Vector3 driveForward = PlanarForward();
+            float bodyForwardSpeed = Vector3.Dot(Vector3.ProjectOnPlane(m_Body.velocity, Vector3.up), driveForward);
             bool overspeeding =
                 linearX > 0.05f && bodyForwardSpeed > linearX + Mathf.Max(0.02f, m_LongitudinalOverspeedMargin) ||
                 linearX < -0.05f && bodyForwardSpeed < linearX - Mathf.Max(0.02f, m_LongitudinalOverspeedMargin);
@@ -147,23 +236,199 @@ namespace VLN.ROS2
             ApplyWheelMotor(m_RearLeftWheel, leftRpm, overspeeding);
             ApplyWheelMotor(m_FrontRightWheel, rightRpm, overspeeding);
             ApplyWheelMotor(m_RearRightWheel, rightRpm, overspeeding);
-            ApplyLongitudinalAssist(linearX, bodyForwardSpeed, overspeeding);
+            ApplyLongitudinalVelocityPid(linearX, bodyForwardSpeed, overspeeding, driveForward);
+            ApplyYawRatePid(angularZ);
+            if (Mathf.Abs(linearX) > 0.03f && Mathf.Abs(angularZ) < 0.01f)
+            {
+                ApplyStraightHeadingHold();
+            }
+            else
+            {
+                ResetStraightHeadingHold();
+            }
+            ApplyLateralDamping();
+            if (Mathf.Abs(linearX) < 0.03f && Mathf.Abs(angularZ) > 0.01f)
+            {
+                ApplyPureTurnTranslationDamping();
+            }
             m_MotorCommandCount++;
         }
 
-        void ApplyLongitudinalAssist(float linearX, float bodyForwardSpeed, bool overspeeding)
+        void ApplyLongitudinalVelocityPid(float linearX, float bodyForwardSpeed, bool overspeeding, Vector3 driveForward)
         {
             if (overspeeding || Mathf.Abs(linearX) < 0.03f || m_MaxLongitudinalAssistAcceleration <= 0f)
+            {
+                m_LongitudinalSpeedIntegral = 0f;
+                m_PreviousLongitudinalSpeedError = 0f;
+                return;
+            }
+
+            float dt = Mathf.Max(0.001f, Time.fixedDeltaTime);
+            float speedError = linearX - bodyForwardSpeed;
+            m_LongitudinalSpeedIntegral = Mathf.Clamp(
+                m_LongitudinalSpeedIntegral + speedError * dt,
+                -Mathf.Abs(m_LongitudinalIntegralLimit),
+                Mathf.Abs(m_LongitudinalIntegralLimit));
+            float derivative = (speedError - m_PreviousLongitudinalSpeedError) / dt;
+            m_PreviousLongitudinalSpeedError = speedError;
+            float assistAcceleration = Mathf.Clamp(
+                speedError * Mathf.Max(0f, m_LongitudinalVelocityKp) +
+                m_LongitudinalSpeedIntegral * Mathf.Max(0f, m_LongitudinalVelocityKi) +
+                derivative * Mathf.Max(0f, m_LongitudinalVelocityKd),
+                -m_MaxLongitudinalAssistAcceleration,
+                m_MaxLongitudinalAssistAcceleration);
+            m_Body.AddForce(driveForward * assistAcceleration, ForceMode.Acceleration);
+        }
+
+        void ApplyYawRatePid(float angularZ)
+        {
+            if (m_MaxYawAssistAngularAcceleration <= 0f)
+            {
+                m_YawRateIntegral = 0f;
+                m_PreviousYawRateError = 0f;
+                m_YawServoRate = 0f;
+                return;
+            }
+
+            float dt = Mathf.Max(0.001f, Time.fixedDeltaTime);
+            float desiredUnityYawRate = -angularZ;
+            float currentYawRate = Vector3.Dot(m_Body.angularVelocity, Vector3.up);
+            if (Mathf.Abs(angularZ) < 0.01f && Mathf.Abs(currentYawRate) < 0.01f && Mathf.Abs(m_YawServoRate) < 0.01f)
+            {
+                m_YawRateIntegral = 0f;
+                m_PreviousYawRateError = 0f;
+                m_YawServoRate = 0f;
+                return;
+            }
+
+            float yawRateError = desiredUnityYawRate - currentYawRate;
+            m_YawRateIntegral = Mathf.Clamp(
+                m_YawRateIntegral + yawRateError * dt,
+                -Mathf.Abs(m_YawRateIntegralLimit),
+                Mathf.Abs(m_YawRateIntegralLimit));
+            float derivative = (yawRateError - m_PreviousYawRateError) / dt;
+            m_PreviousYawRateError = yawRateError;
+            float yawAcceleration = Mathf.Clamp(
+                yawRateError * Mathf.Max(0f, m_YawRateKp) +
+                m_YawRateIntegral * Mathf.Max(0f, m_YawRateKi) +
+                derivative * Mathf.Max(0f, m_YawRateKd),
+                -m_MaxYawAssistAngularAcceleration,
+                m_MaxYawAssistAngularAcceleration);
+
+            m_YawServoRate = Mathf.Clamp(
+                Mathf.MoveTowards(m_YawServoRate, desiredUnityYawRate, Mathf.Abs(yawAcceleration) * dt),
+                -m_MaxAngularSpeedRadPerSecond,
+                m_MaxAngularSpeedRadPerSecond);
+            Vector3 nonYawAngularVelocity = m_Body.angularVelocity - Vector3.up * currentYawRate;
+            m_Body.angularVelocity = nonYawAngularVelocity + Vector3.up * m_YawServoRate;
+            m_Body.MoveRotation(Quaternion.AngleAxis(m_YawServoRate * Mathf.Rad2Deg * dt, Vector3.up) * m_Body.rotation);
+            m_Body.AddTorque(Vector3.up * yawAcceleration, ForceMode.Acceleration);
+        }
+
+        void ApplyStraightHeadingHold()
+        {
+            if (!m_EnableStraightHeadingHold || m_MaxStraightHeadingHoldAngularAcceleration <= 0f)
+            {
+                ResetStraightHeadingHold();
+                return;
+            }
+
+            if (!m_StraightHeadingHoldActive)
+            {
+                m_StraightHeadingHoldYawDegrees = transform.eulerAngles.y;
+                m_StraightHeadingHoldActive = true;
+            }
+
+            float yawErrorDegrees = Mathf.DeltaAngle(transform.eulerAngles.y, m_StraightHeadingHoldYawDegrees);
+            float yawErrorRadians = yawErrorDegrees * Mathf.Deg2Rad;
+            float currentYawRate = Vector3.Dot(m_Body.angularVelocity, Vector3.up);
+            float yawAcceleration = Mathf.Clamp(
+                yawErrorRadians * Mathf.Max(0f, m_StraightHeadingHoldKp) -
+                currentYawRate * Mathf.Max(0f, m_StraightHeadingHoldKd),
+                -m_MaxStraightHeadingHoldAngularAcceleration,
+                m_MaxStraightHeadingHoldAngularAcceleration);
+            m_Body.AddTorque(Vector3.up * yawAcceleration, ForceMode.Acceleration);
+        }
+
+        void ApplyLateralDamping()
+        {
+            if (m_MaxLateralDampingAcceleration <= 0f)
             {
                 return;
             }
 
-            float speedError = linearX - bodyForwardSpeed;
-            float assistAcceleration = Mathf.Clamp(
-                speedError * Mathf.Max(0f, m_LongitudinalAssistGain),
-                -m_MaxLongitudinalAssistAcceleration,
-                m_MaxLongitudinalAssistAcceleration);
-            m_Body.AddForce(transform.forward * assistAcceleration, ForceMode.Acceleration);
+            Vector3 driveRight = PlanarRight();
+            float lateralSpeed = Vector3.Dot(Vector3.ProjectOnPlane(m_Body.velocity, Vector3.up), driveRight);
+            float lateralAcceleration = Mathf.Clamp(
+                -lateralSpeed * Mathf.Max(0f, m_LateralDampingGain),
+                -m_MaxLateralDampingAcceleration,
+                m_MaxLateralDampingAcceleration);
+            m_Body.AddForce(driveRight * lateralAcceleration, ForceMode.Acceleration);
+        }
+
+        void ApplyPureTurnTranslationDamping()
+        {
+            if (m_MaxPureTurnDampingAcceleration <= 0f)
+            {
+                return;
+            }
+
+            Vector3 localVelocity = transform.InverseTransformDirection(m_Body.velocity);
+            Vector3 localDamping = new Vector3(-localVelocity.x, 0f, -localVelocity.z) * Mathf.Max(0f, m_PureTurnTranslationDampingGain);
+            localDamping = Vector3.ClampMagnitude(localDamping, m_MaxPureTurnDampingAcceleration);
+            m_Body.AddForce(transform.TransformDirection(localDamping), ForceMode.Acceleration);
+        }
+
+        void ApplyStopDamping()
+        {
+            if (m_MaxStopDampingAcceleration > 0f)
+            {
+                Vector3 localVelocity = transform.InverseTransformDirection(m_Body.velocity);
+                Vector3 localDamping = new Vector3(-localVelocity.x, 0f, -localVelocity.z) * Mathf.Max(0f, m_StopVelocityDampingGain);
+                localDamping = Vector3.ClampMagnitude(localDamping, m_MaxStopDampingAcceleration);
+                m_Body.AddForce(transform.TransformDirection(localDamping), ForceMode.Acceleration);
+            }
+
+            if (m_StopYawDampingGain > 0f)
+            {
+                float currentYawRate = Vector3.Dot(m_Body.angularVelocity, Vector3.up);
+                m_Body.AddTorque(Vector3.up * (-currentYawRate * m_StopYawDampingGain), ForceMode.Acceleration);
+            }
+
+            ApplyDirectStopDamping();
+        }
+
+        void ApplyDirectStopDamping()
+        {
+            float dt = Mathf.Max(0.001f, Time.fixedDeltaTime);
+            if (m_DirectStopVelocityDampingGain > 0f)
+            {
+                Vector3 verticalVelocity = Vector3.Project(m_Body.velocity, Vector3.up);
+                float velocityBlend = 1f - Mathf.Exp(-m_DirectStopVelocityDampingGain * dt);
+                m_Body.velocity = Vector3.Lerp(m_Body.velocity, verticalVelocity, velocityBlend);
+            }
+
+            if (m_DirectStopYawDampingGain > 0f)
+            {
+                Vector3 yawAngularVelocity = Vector3.up * Vector3.Dot(m_Body.angularVelocity, Vector3.up);
+                float yawBlend = 1f - Mathf.Exp(-m_DirectStopYawDampingGain * dt);
+                m_Body.angularVelocity -= yawAngularVelocity * yawBlend;
+            }
+        }
+
+        void ResetPidState()
+        {
+            m_LongitudinalSpeedIntegral = 0f;
+            m_PreviousLongitudinalSpeedError = 0f;
+            m_YawRateIntegral = 0f;
+            m_PreviousYawRateError = 0f;
+            m_YawServoRate = 0f;
+            ResetStraightHeadingHold();
+        }
+
+        void ResetStraightHeadingHold()
+        {
+            m_StraightHeadingHoldActive = false;
         }
 
         void ApplyWheelMotor(WheelCollider wheel, float targetRpm, bool overspeeding)
@@ -180,8 +445,15 @@ namespace VLN.ROS2
                 return;
             }
 
+            if (Mathf.Abs(targetRpm) < 0.5f)
+            {
+                wheel.motorTorque = 0f;
+                wheel.brakeTorque = 0f;
+                return;
+            }
+
             float torque = Mathf.Clamp((targetRpm - wheel.rpm) * m_RpmVelocityGain, -m_MaxMotorTorque, m_MaxMotorTorque);
-            wheel.brakeTorque = Mathf.Abs(targetRpm) < 0.5f && Mathf.Abs(wheel.rpm) < Mathf.Max(0.5f, m_RollingBrakeSpeedThreshold * 60f) ? m_MaxBrakeTorque * 0.20f : 0f;
+            wheel.brakeTorque = 0f;
             wheel.motorTorque = torque;
         }
 
@@ -204,7 +476,98 @@ namespace VLN.ROS2
             wheel.brakeTorque = m_MaxBrakeTorque;
         }
 
-        void UpdateWheelVisual(WheelCollider wheel, Transform visual)
+        void SampleWheelContacts()
+        {
+            m_MinBodyHeight = Mathf.Min(m_MinBodyHeight, transform.position.y);
+            m_MaxBodyHeight = Mathf.Max(m_MaxBodyHeight, transform.position.y);
+
+            bool any = false;
+            bool road = false;
+            bool bridge = false;
+            bool shortRamp = false;
+            bool terrain = false;
+            bool other = false;
+
+            SampleWheelContact(m_FrontLeftWheel, ref any, ref road, ref bridge, ref shortRamp, ref terrain, ref other);
+            SampleWheelContact(m_FrontRightWheel, ref any, ref road, ref bridge, ref shortRamp, ref terrain, ref other);
+            SampleWheelContact(m_RearLeftWheel, ref any, ref road, ref bridge, ref shortRamp, ref terrain, ref other);
+            SampleWheelContact(m_RearRightWheel, ref any, ref road, ref bridge, ref shortRamp, ref terrain, ref other);
+
+            if (!any)
+            {
+                m_NoWheelContactSteps++;
+            }
+            if (road)
+            {
+                m_RoadContactSteps++;
+            }
+            if (bridge)
+            {
+                m_BridgeContactSteps++;
+            }
+            if (shortRamp)
+            {
+                m_ShortRampContactSteps++;
+            }
+            if (terrain)
+            {
+                m_TerrainContactSteps++;
+            }
+            if (other)
+            {
+                m_OtherContactSteps++;
+            }
+        }
+
+        void SampleWheelContact(WheelCollider wheel, ref bool any, ref bool road, ref bool bridge, ref bool shortRamp, ref bool terrain, ref bool other)
+        {
+            if (wheel == null || !wheel.GetGroundHit(out WheelHit hit))
+            {
+                return;
+            }
+
+            any = true;
+            m_MinWheelGroundHeight = Mathf.Min(m_MinWheelGroundHeight, hit.point.y);
+            m_MaxWheelGroundHeight = Mathf.Max(m_MaxWheelGroundHeight, hit.point.y);
+
+            string name = hit.collider != null ? hit.collider.gameObject.name : string.Empty;
+            if (name.StartsWith("ScoutWheelGround_PhysicalBridge", StringComparison.Ordinal))
+            {
+                bridge = true;
+            }
+            else if (name.StartsWith("ScoutWheelGround_PhysicalShortRamp", StringComparison.Ordinal))
+            {
+                shortRamp = true;
+            }
+            else if (name.StartsWith("ScoutWheelGround_PhysicalRoad", StringComparison.Ordinal))
+            {
+                road = true;
+            }
+            else if (name.StartsWith("OffroadTerrain_", StringComparison.Ordinal))
+            {
+                terrain = true;
+            }
+            else
+            {
+                other = true;
+            }
+        }
+
+        void InitializeWheelVisualState()
+        {
+            m_VisualWheelTransforms = new[] { m_FrontLeftVisual, m_FrontRightVisual, m_RearLeftVisual, m_RearRightVisual };
+            m_VisualRestRootRotations = new Quaternion[m_VisualWheelTransforms.Length];
+            m_VisualRollDegrees = new float[m_VisualWheelTransforms.Length];
+            m_VisualAngularSpeeds = new float[m_VisualWheelTransforms.Length];
+
+            for (int i = 0; i < m_VisualWheelTransforms.Length; i++)
+            {
+                Transform visual = m_VisualWheelTransforms[i];
+                m_VisualRestRootRotations[i] = visual != null ? Quaternion.Inverse(transform.rotation) * visual.rotation : Quaternion.identity;
+            }
+        }
+
+        void UpdateWheelVisual(int index, WheelCollider wheel, Transform visual)
         {
             if (wheel == null || visual == null)
             {
@@ -213,7 +576,54 @@ namespace VLN.ROS2
 
             wheel.GetWorldPose(out Vector3 position, out Quaternion rotation);
             position += transform.up * m_WheelVisualVerticalOffset;
-            visual.SetPositionAndRotation(position, rotation);
+            visual.position = position;
+
+            if (m_VisualRestRootRotations == null || index < 0 || index >= m_VisualRestRootRotations.Length)
+            {
+                visual.rotation = rotation;
+                return;
+            }
+
+            float targetAngularSpeed = EstimateVisualWheelAngularSpeed(wheel);
+            float previousAngularSpeed = m_VisualAngularSpeeds[index];
+            float smoothing = 1f - Mathf.Exp(-Mathf.Max(0.1f, m_WheelVisualAngularSmoothing) * Time.deltaTime);
+            float angularSpeed = Mathf.Lerp(previousAngularSpeed, targetAngularSpeed, smoothing);
+            if (Mathf.Abs(previousAngularSpeed) > 20f && Mathf.Abs(angularSpeed) > 20f && Mathf.Sign(previousAngularSpeed) != Mathf.Sign(angularSpeed))
+            {
+                m_WheelVisualDirectionReversalCount++;
+            }
+
+            float deltaDegrees = angularSpeed * Time.deltaTime;
+            m_VisualAngularSpeeds[index] = angularSpeed;
+            m_VisualRollDegrees[index] = Mathf.Repeat(m_VisualRollDegrees[index] + deltaDegrees, 360f);
+            m_WheelVisualTotalAbsRollDegrees += Mathf.Abs(deltaDegrees);
+
+            Quaternion rootRelativeRotation = Quaternion.AngleAxis(m_VisualRollDegrees[index], Vector3.right) * m_VisualRestRootRotations[index];
+            visual.rotation = transform.rotation * rootRelativeRotation;
+        }
+
+        float EstimateVisualWheelAngularSpeed(WheelCollider wheel)
+        {
+            float commandedWheelSpeed = 0f;
+            if (HasRecentCommand())
+            {
+                float wheelAngularZ = m_CommandedAngularZ * (m_WheelYawDirection >= 0f ? 1f : -1f);
+                commandedWheelSpeed = m_CommandedLinearX + wheelAngularZ * wheel.transform.localPosition.x;
+            }
+
+            float observedWheelSpeed = Vector3.Dot(Vector3.ProjectOnPlane(m_Body.velocity, Vector3.up), PlanarForward()) -
+                                       Vector3.Dot(m_Body.angularVelocity, Vector3.up) * wheel.transform.localPosition.x;
+            float signSource = Mathf.Abs(commandedWheelSpeed) > 0.03f ? commandedWheelSpeed : observedWheelSpeed;
+            float direction = Mathf.Abs(signSource) > 0.02f ? Mathf.Sign(signSource) : Mathf.Sign(wheel.rpm);
+            if (Mathf.Abs(direction) < 0.5f)
+            {
+                direction = 0f;
+            }
+
+            float rpmAngularSpeed = Mathf.Abs(wheel.rpm) * 6f;
+            float bodyAngularSpeed = Mathf.Abs(observedWheelSpeed) / Mathf.Max(0.01f, m_WheelRadiusMeters) * Mathf.Rad2Deg;
+            float targetMagnitude = Mathf.Max(rpmAngularSpeed, bodyAngularSpeed);
+            return direction * targetMagnitude * (m_WheelVisualForwardRollDirection >= 0f ? 1f : -1f);
         }
 
         int CountWheelColliders()
@@ -242,6 +652,17 @@ namespace VLN.ROS2
                 $"final_position={transform.position.x:F3},{transform.position.y:F3},{transform.position.z:F3}\n" +
                 $"final_yaw_deg={transform.eulerAngles.y:F3}\n" +
                 $"final_speed_mps={m_Body.velocity.magnitude:F3}\n" +
+                $"road_contact_steps={m_RoadContactSteps}\n" +
+                $"bridge_contact_steps={m_BridgeContactSteps}\n" +
+                $"short_ramp_contact_steps={m_ShortRampContactSteps}\n" +
+                $"terrain_contact_steps={m_TerrainContactSteps}\n" +
+                $"other_contact_steps={m_OtherContactSteps}\n" +
+                $"no_wheel_contact_steps={m_NoWheelContactSteps}\n" +
+                $"body_height_span_m={SafeSpan(m_MinBodyHeight, m_MaxBodyHeight):F3}\n" +
+                $"wheel_ground_height_span_m={SafeSpan(m_MinWheelGroundHeight, m_MaxWheelGroundHeight):F3}\n" +
+                $"wheel_visual_total_abs_roll_deg={m_WheelVisualTotalAbsRollDegrees:F1}\n" +
+                $"wheel_visual_direction_reversal_count={m_WheelVisualDirectionReversalCount}\n" +
+                $"straight_heading_hold_active={(m_StraightHeadingHoldActive ? 1 : 0)}\n" +
                 $"front_left_rpm={WheelRpm(m_FrontLeftWheel):F3}\n" +
                 $"front_right_rpm={WheelRpm(m_FrontRightWheel):F3}\n" +
                 $"rear_left_rpm={WheelRpm(m_RearLeftWheel):F3}\n" +
@@ -251,6 +672,28 @@ namespace VLN.ROS2
         static float WheelRpm(WheelCollider wheel)
         {
             return wheel != null ? wheel.rpm : 0f;
+        }
+
+        static float SafeSpan(float minValue, float maxValue)
+        {
+            if (float.IsInfinity(minValue) || float.IsInfinity(maxValue))
+            {
+                return 0f;
+            }
+
+            return Mathf.Max(0f, maxValue - minValue);
+        }
+
+        Vector3 PlanarForward()
+        {
+            Vector3 forward = Vector3.ProjectOnPlane(transform.forward, Vector3.up);
+            return forward.sqrMagnitude > 1e-6f ? forward.normalized : Vector3.forward;
+        }
+
+        Vector3 PlanarRight()
+        {
+            Vector3 right = Vector3.ProjectOnPlane(transform.right, Vector3.up);
+            return right.sqrMagnitude > 1e-6f ? right.normalized : Vector3.right;
         }
     }
 }

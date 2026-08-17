@@ -281,3 +281,94 @@
 - 备选项：继续保留 9m 短路线作为默认验收、直接接 navigation2、继续手工控制、或者只提高速度不改桥面碰撞体。
 - 理由：用户明确要观察完整路线、桥、坡和真实物理交互；短路线虽然稳定，但偏离学长项目目的。长路线原先卡在前向约 `13.7m`，不是单纯导航问题，而是桥面简化碰撞体硬边阻挡 WheelCollider；因此必须修桥面物理过渡，而不是继续压低速度或缩短路线。
 - 影响：阶段 15 当前完成定义变为完整路线自动验收通过：`vln_scout_wheel_ground_route_20260816_150349`，`reached_count=11/11`、`total_forward_progress=53.080m`、`stall_count=0`、`skipped_count=0`。控制器速度上限和助推参数已提高，Scout 视觉朝向与轮胎视觉偏移已修正。该阶段仍只代表写死路线物理巡航，不代表自主导航或 VLN 策略已经接入。
+
+## 2026-08-16：已撤销方案：宽泛连续隐形物理路面
+
+- 决策：该方案已撤销，不再作为当前路线。旧做法是在 Scout wheel-ground 候选场景中让 `Offroad_DirtRoad_*` 和 `Offroad_ShortRamp` 只保留视觉渲染，并新增宽泛连续隐形物理路面 `ScoutWheelGround_PhysicalTrailSurface_*` 作为车辆真实接触面。
+- 备选项：继续使用每块视觉路面自带 BoxCollider、仅提高电机扭矩/速度、把所有路面做成完全平板、或者直接等待更真实地图资产。
+- 理由：当时该方案能绕过小缝和坡口卡车问题，但用户指出它会让车在视觉上的独木桥、台阶、半坡处像穿过去一样平走，车轮真实接触面与肉眼可见地形不一致。这会偏离“真实物理链路”的主线，不能作为正式修复。
+- 影响：`vln_scout_wheel_ground_route_20260816_153103` 和 `vln_scout_wheel_ground_20260816_153542` 只作为错误中间方案记录，不作为当前完成标准；后续任何正式验收必须要求 `broad_physical_trail_count=0`。
+
+## 2026-08-16：阶段 15 改为可见局部物理通行面
+
+- 决策：撤销 `ScoutWheelGround_PhysicalTrailSurface_*` 宽泛连续隐形路面，改为在可见道路、块间过渡、桥面/桥头坡、短坡处生成局部可见物理体：`ScoutWheelGround_PhysicalRoadSlab_*`、`ScoutWheelGround_PhysicalRoadSeam_*`、`ScoutWheelGround_PhysicalBridge*` 和 `ScoutWheelGround_PhysicalShortRamp*`。
+- 备选项：回退到原始碎块 collider、继续使用宽泛隐形路面、只靠加大电机扭矩、或者等待更真实地图资产后再处理。
+- 理由：真实越野仿真可以简化碰撞几何，但不能让接触面与用户看到的桥、坡、路面脱节。局部可见物理体能去掉 Unity `WheelCollider` 对小缝硬边的非现实敏感性，同时让小车确实压在可见路面、桥面和坡面上。
+- 影响：完整路线默认验收更新为 `vln_scout_wheel_ground_route_20260816_165241`：`reached_count=11/11`、`total_forward_progress=53.118m`、`final_lateral_offset=-0.000m`、`max_reached_cross_track=0.002m`、`stall_count=0`、`skipped_count=0`、`broad_physical_trail_count=0`。基础 wheel-ground 回归更新为 `vln_scout_wheel_ground_20260816_164023`。后续若再修卡点，必须优先修真实/可见局部 collider、轮胎参数和控制器，禁止再用宽泛隐形平路掩盖问题。
+
+## 2026-08-16：阶段 15 中间方案：可见加宽路肩和物理稳定控制
+
+- 决策：道路/桥面局部物理体曾统一渲染为可见 `8.0m` 宽通行面；`VlnScoutWheelGroundController` 在 wheel torque 基础上加入 yaw assist 与 lateral damping，通过 `Rigidbody.AddTorque/AddForce` 施加物理力/力矩。
+- 备选项：放宽 route gate、启用跳点、恢复宽泛隐形平路、继续只调路径控制器、直接等待师兄完整车辆参数。
+- 理由：严格复跑证明撤销隐形路面后，车辆仍会在桥后/中段因为横向漂移和转向响应不足卡住。放宽 gate 或跳点会掩盖失败；恢复隐形平路偏离主线。当前缺少真实轮胎/悬挂/电机参数，物理力/力矩稳定项是对简化 WheelCollider 轮胎侧向阻尼和差速转向响应的透明近似。
+- 影响：该中间方案曾通过 `vln_scout_wheel_ground_route_20260816_172640`：`reached_count=11/11`、`total_forward_progress=53.049m`、`stall_count=0`、`skipped_count=0`、`broad_physical_trail_count=0`。但它已经被后续 `2026-08-16：阶段 15 收窄物理通行面并增加接触审计` 替换，不再作为当前完成标准。
+
+## 2026-08-16：阶段 15 收窄物理通行面并增加接触审计
+
+- 决策：`8.0m` 宽桥/路可见通行面不再作为当前完成标准。当前主路物理 slab 设计宽度为 `6.2m`，桥面物理宽度为 `2.25m`，短坡改为连续可见 `ScoutWheelGround_PhysicalShortRampContinuous` MeshCollider，路面 slab 在桥区和短坡区让开。
+- 备选项：继续使用 8m 可见通行面、回退宽泛隐形平路、只靠提高电机扭矩、或等待师兄完整车辆参数。
+- 理由：用户指出 8m 方案虽然不是隐藏面，但仍像把独木桥、台阶和半坡的难点抹平，视觉上会让车像穿模/平走；这和当前“完整物理真实链路”的主线冲突。收窄桥面和移除桥/坡托底后，必须用接触审计证明车轮实际压过桥和短坡。
+- 影响：当前完成标准更新为 `vln_scout_wheel_ground_route_20260816_181247`：`reached_count=13/13`、`total_forward_progress=52.920m`、`final_lateral_offset=-0.761m`、`max_reached_cross_track=0.741m`、`stall_count=0`、`skipped_count=0`、`road_physical_max_width_m=6.939`、`bridge_physical_max_width_m=2.250`、`short_ramp_physical_max_width_m=4.800`、`bridge_contact_steps=1937`、`short_ramp_contact_steps=1569`、`wheel_ground_height_span_m=0.369`。基础回归更新为 `vln_scout_wheel_ground_20260816_181841`。
+
+## 2026-08-16：验收日志必须归档当前结果文件
+
+- 决策：`run_scout_wheel_ground_route_smoke_test.sh` 和 `run_scout_wheel_ground_smoke_test.sh` 在每次运行结束后，除移动旧结果到 `previous_*` 外，还必须把当前 Unity/ROS 结果文件复制进本次 `_SmokeTestLogs/<run_id>/`。
+- 备选项：继续只在 `run_summary.txt` 中记录当前指标，或继续只保留 `previous_*` 旧结果文件。
+- 理由：只保留 `previous_*` 会让排障时误读旧失败文件，和 `run_summary.txt` 的当前通过结果冲突，影响后续复盘。
+- 影响：后续看某次验收时，优先读该目录下无 `previous_` 前缀的当前结果文件；`previous_*` 只表示运行前从工程 `Logs/` 中移出的残留结果。
+
+## 2026-08-16：轮胎视觉旋转采用累计滚动角
+
+- 决策：`VlnScoutWheelGroundController` 中视觉轮 mesh 的旋转不再直接使用 `WheelCollider.GetWorldPose()` 返回的 rotation，而是用 wheel rpm / 车体速度估算角速度，再沿本地 X 轴累计滚动角显示。
+- 备选项：继续使用 `GetWorldPose` 全量姿态；只隐藏轮胎旋转；或直接用固定动画速度硬转。
+- 理由：`GetWorldPose` 的 rotation 更适合 WheelCollider 调试，不适合 Scout 低多边形轮胎 mesh 的直观滚动展示；它会把接触求解和局部姿态扰动反映成前后摆。累计滚动角能保持连续 360 度滚动，同时仍由真实 wheel rpm / 车体速度驱动，不是纯装饰假动画。
+- 影响：自动验收新增 `wheel_visual_total_abs_roll_deg` 和 `wheel_visual_direction_reversal_count`，并在脚本中限制反转次数。后续如果改轮胎半径、轮向或 mesh 坐标轴，必须同时检查这个视觉滚动逻辑。
+
+## 2026-08-16：独木桥只保留一个可见且有碰撞的桥面
+
+- 决策：删除旧 Kenney 可见木桥对象，不再让旧视觉桥和新物理桥面同时存在；`ScoutWheelGround_PhysicalBridgeDeck` 同时承担 renderer 和 collider，左右栏杆仅用于视觉边界，不参与托底。
+- 备选项：保留 Kenney 原桥但删 collider；保留原桥并在下方放物理桥；或用隐藏 collider 托住车辆。
+- 理由：视觉桥和物理桥分离会让用户看到“车穿过桥”的效果，即使真实 collider 上有接触也无法解释。一个对象同时可见和可碰撞，且 renderer/collider 顶面对齐，是当前阶段最可验收的物理真实链路。
+- 影响：验收脚本强制 `decorative_bridge_renderer_count=0`、`bridge_deck_has_renderer=1`、`bridge_deck_has_collider=1`、`bridge_deck_renderer_collider_top_delta_m<=0.01`。后续导入更真实地图资产时，也应遵循“可见接触面和物理接触面一致”的原则。
+
+## 2026-08-16：阶段 15 增加非扁平地形审计和桥/坡截图证据
+
+- 决策：完整路线验收不仅要求小车通过，还必须证明桥和短坡没有被压平或隐藏托底。Unity 结果文件写入 `terrain_geometry_policy=visible_local_physics_no_flattening_no_hidden_bypass`，路线脚本强制归档桥区截图和短坡截图。
+- 备选项：只保留通过路线的数值指标；或继续依赖人工打开 Unity 肉眼检查；或降低桥/坡高度来提高通过率。
+- 理由：用户已经明确指出“桥/斜坡越来越扁平”是偏离真实物理链路的风险。单纯 `reached_count=13/13` 不能证明没有作弊；必须同时检查地形宽度、高度跨度、接触对象和视觉证据。
+- 影响：当前完成标准新增 `bridge_physical_height_span_m>=0.20`、`short_ramp_physical_height_span_m>=0.62`、`bridge_visual_detail_count>=40`、桥/坡截图文件存在。最新正式验收 run id 为 `vln_scout_wheel_ground_route_20260816_215127`，桥区和短坡截图均归档在对应 `_SmokeTestLogs` 目录。后续调参时不能用压平桥面、压平短坡、恢复隐藏托底或恢复道路宽桥面来换取通过。
+
+## 2026-08-17：阶段 16 采用手动示教记录与回放
+
+- 决策：在中文控制面板中新增“速度控制”模块，让用户用键盘手动驾驶 Scout wheel-ground 物理车体，满意后导出 `/vln/cmd_vel` 速度序列 JSON，再由回放脚本复现。
+- 备选项：继续硬调固定路线控制器、直接接 navigation2、或继续手工但不保存速度数据。
+- 理由：当前场景和车体已经具备真实轮地接触、桥/坡接触审计和传感器链路；继续把自动路线控制调到“看起来不 S 弯”会混合控制器问题与物理问题。人工示教能先得到用户认可的真实通过路线，并保留为可复现的速度数据，后续再逐步升级成闭环导航或 VLN 控制。
+- 影响：控制面板顶部变为“目标位置 / 速度控制 / 相机视图 / 雷达点云”。键位固定为 `↑` 正线速度、`↓` 负线速度、`←/A` 正 `angular.z` 左转、`→/D` 负 `angular.z` 右转。导出记录写入 `/home/ubuntu22/VLN/VLN_RECORDINGS/manual_drives`，该目录不提交 git；回放入口为 `scripts/replay_manual_drive_recording.sh --file <json>`。
+
+## 2026-08-17：手动速度控制以 Unity 实测方向和闭环响应为准
+
+- 决策：阶段 16 的手动速度控制不再沿用旧固定路线脚本的角速度经验，而是以当前 `VLNOffroadScoutWheelGroundCandidate.unity` 中 Scout wheel-ground 场景实测行为为准：`↑` 发布正 `linear.x` 前进，`↓` 发布负 `linear.x` 后退，`←/A` 发布正 `angular.z` 且视觉左转，`→/D` 发布负 `angular.z` 且视觉右转。
+- 备选项：继续用 WheelCollider 差速电机承担纯转向、只靠开环键盘速度、或为了直行/转向效果去改地图几何和碰撞体。
+- 理由：纯转向使用轮端差速电机会在当前 WheelCollider/简化轮胎约束下产生大平移；只用 AddTorque 又会被轮地约束抵消。用户操作看的是 Unity 里车是否前进、直行、左转和右转，因此低层控制器必须把 `/cmd_vel` 解释成底盘速度伺服，同时保留碰撞、轮地接触、传感器跟随和桥/坡物理审计。
+- 影响：`scripts/vln_control_panel.py` 默认 `publish-rate=100Hz`、`manual-command-timeout=0.18s`、`manual-left-angular-sign=+1`；`VlnScoutWheelGroundController` 使用 `m_WheelAngularMotorScale=0`，并保留 yaw-rate PID + Rigidbody 角速度伺服。阶段 16 的完成标准新增 `run_control_panel_manual_velocity_unity_smoke_test.sh`，它必须验证前进方向、直行横漂/偏航、松键停车漂移和 A/D 左右转方向。
+
+## 2026-08-17：旧固定路线控制器暂不作为阶段 16 完成标准
+
+- 决策：手动控制修复后，旧 `run_scout_wheel_ground_route_smoke_test.sh` 固定路线控制器不再作为当前阶段 16 的完成标准；后续若需要自动路线，应单独开启“低速闭环路线跟踪 / 示教回放升级”阶段。
+- 备选项：继续硬调旧固定路线参数直到通过；放宽 gate、跳点、恢复宽物理通行面；或者先把手动示教数据回放稳定再做自动闭环。
+- 理由：旧固定路线脚本已经暴露 S 型、桥区横漂和栏杆碰撞边界问题。继续硬调容易再次诱导压平桥/坡、隐藏托底或放宽验收，偏离用户要求的真实物理链路。阶段 16 当前真正要解决的是“人能用键盘稳定操控真实物理车体，并导出可回放速度序列”。
+- 影响：固定路线失败必须如实记录，不包装成通过；下一阶段应优先做示教 JSON 回放稳定复现，再考虑基于 `/tf`、`/vln/odom` 和路点的低速闭环路线跟踪。
+
+## 2026-08-17：阶段 15 自动路线恢复为演示主线
+
+- 决策：在用户要求老师演示视频前，优先恢复阶段 15 固定完整路线自动巡航；路线控制器统一使用 `angular-sign=1`，与当前手动速度控制和 Unity wheel-ground 底层“正 `angular.z` 左转”的约定一致。
+- 备选项：继续把固定路线标为阶段 16 外的失败旧分支、用示教回放代替自动路线、或者通过放宽路线 gate/跳点/改桥坡几何让路线通过。
+- 理由：复现显示失败根因是控制符号不同步，不是桥/坡物理几何必须再改；只改 `angular-sign` 能在不作弊、不降验收、不改地形的情况下恢复 13/13 完整路线。
+- 影响：`run_scout_wheel_ground_route_smoke_test.sh`、`drive_scout_wheel_ground_route_demo.sh`、`ros2_drive_scout_physics_route.py` 默认都必须保持 `angular-sign=1`。最新通过 run id `vln_scout_wheel_ground_route_20260817_125552` 可作为老师演示前的自动路线基线。
+
+## 2026-08-17：速度控制验收覆盖方向键和 A/D 两套输入
+
+- 决策：`run_control_panel_manual_velocity_unity_smoke_test.sh` 的客户端不仅检查 A/D 左右转，还必须检查方向键 `←/→` 左右转；两套按键都要满足左转正 `angular.z`、右转负 `angular.z`、纯转向平移很小、停车漂移很小。
+- 备选项：只测 A/D、只做后端 HTTP 静态检查、或只靠人工手感判断。
+- 理由：用户明确反馈“往左/往右乱走”，实际使用时很可能按的是方向键；只测 A/D 会留下验收盲区。
+- 影响：最新速度控制 Unity 联动 run id `vln_control_panel_manual_velocity_unity_20260817_130258` 已通过，后续若改控制面板键位、默认速度、底层 yaw PID 或发布频率，都必须复跑该脚本。

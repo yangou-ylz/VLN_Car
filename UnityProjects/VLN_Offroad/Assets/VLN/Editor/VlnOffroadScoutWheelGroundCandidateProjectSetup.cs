@@ -18,6 +18,10 @@ namespace VLN.Editor
         public const string PhysicsRootName = "ScoutWheelGround_PhysicsRoot";
         public const string VisualRootName = "ScoutWheelGround_VisualUrdf";
         const string FrictionMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_HighFriction.physicMaterial";
+        const string RoadSurfaceMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_VisibleRoadPhysics.mat";
+        const string BridgeSurfaceMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_VisibleBridgePhysics.mat";
+        const string BridgeDetailMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_VisibleBridgeDetail.mat";
+        const string RampDetailMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_VisibleRampDetail.mat";
 
         const float TerrainSize = 80f;
         const float TerrainHeight = 7f;
@@ -25,6 +29,12 @@ namespace VLN.Editor
         const float WheelBase = 0.498f;
         const float Track = 0.58306f;
         const float InitialGroundClearance = 0f;
+        const float PhysicalRoadWidth = 6.2f;
+        const float PhysicalBridgeWidth = 2.25f;
+        const float BridgeZoneZMin = -13.0f;
+        const float BridgeZoneZMax = -1.7f;
+        const float ShortRampExclusionZMin = -0.8f;
+        const float ShortRampExclusionZMax = 7.2f;
 
         [MenuItem("VLN/Build Offroad Scout Wheel-Ground Candidate Scene")]
         public static void BuildScoutWheelGroundCandidateScene()
@@ -54,9 +64,13 @@ namespace VLN.Editor
             DestroyChildIfExists(rig.transform, VlnOffroadScoutUrdfCandidateProjectSetup.ScoutRootName);
 
             var frictionMaterial = EnsureHighFrictionMaterial();
-            RemoveDecorativeRoadColliders();
-            RemoveDecorativeBridgeColliders();
-            CreateSimplifiedPhysicalBridge(frictionMaterial);
+            var roadSurfaceMaterial = EnsureSurfaceMaterial(RoadSurfaceMaterialPath, new Color(0.45f, 0.32f, 0.18f));
+            var bridgeSurfaceMaterial = EnsureSurfaceMaterial(BridgeSurfaceMaterialPath, new Color(0.36f, 0.25f, 0.15f));
+            var bridgeDetailMaterial = EnsureSurfaceMaterial(BridgeDetailMaterialPath, new Color(0.18f, 0.11f, 0.06f));
+            var rampDetailMaterial = EnsureSurfaceMaterial(RampDetailMaterialPath, new Color(0.26f, 0.18f, 0.10f));
+            ReplaceDecorativeTrailCollidersWithLocalizedPhysics(frictionMaterial, roadSurfaceMaterial, rampDetailMaterial);
+            RemoveDecorativeBridgeObjects();
+            CreateDetailedPhysicalBridge(frictionMaterial, bridgeSurfaceMaterial, bridgeDetailMaterial);
             AssignSceneFrictionMaterial(frictionMaterial);
             var physicsRoot = CreatePhysicalScoutRoot(rig.transform.position, frictionMaterial);
             var visualRoot = ImportScoutVisualOnly(physicsRoot.transform);
@@ -102,15 +116,15 @@ namespace VLN.Editor
 
             var body = root.AddComponent<Rigidbody>();
             body.mass = 52f;
-            body.centerOfMass = new Vector3(0f, 0.29f, 0.02f);
+            body.centerOfMass = new Vector3(0f, 0.24f, 0.02f);
             body.drag = 0.12f;
             body.angularDrag = 0.55f;
             body.interpolation = RigidbodyInterpolation.Interpolate;
             body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 
             var chassis = root.AddComponent<BoxCollider>();
-            chassis.center = new Vector3(0f, 0.37f, 0f);
-            chassis.size = new Vector3(0.68f, 0.24f, 0.92f);
+            chassis.center = new Vector3(0f, 0.45f, 0f);
+            chassis.size = new Vector3(0.66f, 0.18f, 0.82f);
             chassis.material = material;
 
             CreateWheelCollider(root.transform, "front_left_wheel_collider", -Track * 0.5f, WheelBase * 0.5f);
@@ -125,37 +139,37 @@ namespace VLN.Editor
         {
             var wheelObject = new GameObject(name);
             wheelObject.transform.SetParent(parent, false);
-            wheelObject.transform.localPosition = new Vector3(localX, WheelRadius + 0.045f, localZ);
+            wheelObject.transform.localPosition = new Vector3(localX, WheelRadius + 0.060f, localZ);
             wheelObject.transform.localRotation = Quaternion.identity;
             wheelObject.layer = 0;
 
             var wheel = wheelObject.AddComponent<WheelCollider>();
             wheel.radius = WheelRadius;
             wheel.mass = 3f;
-            wheel.wheelDampingRate = 0.38f;
-            wheel.suspensionDistance = 0.14f;
+            wheel.wheelDampingRate = 0.55f;
+            wheel.suspensionDistance = 0.18f;
             wheel.forceAppPointDistance = 0.02f;
 
             JointSpring spring = wheel.suspensionSpring;
-            spring.spring = 18000f;
-            spring.damper = 3400f;
-            spring.targetPosition = 0.55f;
+            spring.spring = 26000f;
+            spring.damper = 4600f;
+            spring.targetPosition = 0.58f;
             wheel.suspensionSpring = spring;
 
             WheelFrictionCurve forward = wheel.forwardFriction;
-            forward.extremumSlip = 0.35f;
-            forward.extremumValue = 1.6f;
-            forward.asymptoteSlip = 0.80f;
-            forward.asymptoteValue = 1.05f;
-            forward.stiffness = 2.25f;
+            forward.extremumSlip = 0.45f;
+            forward.extremumValue = 2.8f;
+            forward.asymptoteSlip = 1.20f;
+            forward.asymptoteValue = 2.0f;
+            forward.stiffness = 8.50f;
             wheel.forwardFriction = forward;
 
             WheelFrictionCurve sideways = wheel.sidewaysFriction;
             sideways.extremumSlip = 0.28f;
-            sideways.extremumValue = 1.05f;
+            sideways.extremumValue = 1.40f;
             sideways.asymptoteSlip = 0.70f;
-            sideways.asymptoteValue = 0.72f;
-            sideways.stiffness = 1.25f;
+            sideways.asymptoteValue = 1.00f;
+            sideways.stiffness = 2.10f;
             wheel.sidewaysFriction = sideways;
 
             wheel.ConfigureVehicleSubsteps(5f, 12, 15);
@@ -278,19 +292,47 @@ namespace VLN.Editor
             serializedController.FindProperty("m_RearRightVisual").objectReferenceValue = FindDeepChild(visualRoot.transform, "rear_right_wheel_link");
             serializedController.FindProperty("m_WheelRadiusMeters").floatValue = WheelRadius;
             serializedController.FindProperty("m_TrackMeters").floatValue = Track;
-            serializedController.FindProperty("m_WheelMotorDirection").floatValue = -1f;
+            serializedController.FindProperty("m_WheelMotorDirection").floatValue = 1f;
+            serializedController.FindProperty("m_WheelYawDirection").floatValue = 1f;
+            serializedController.FindProperty("m_WheelLinearMotorScale").floatValue = 0f;
+            serializedController.FindProperty("m_WheelAngularMotorScale").floatValue = 0f;
             serializedController.FindProperty("m_WheelVisualVerticalOffset").floatValue = 0.085f;
+            serializedController.FindProperty("m_WheelVisualForwardRollDirection").floatValue = 1f;
+            serializedController.FindProperty("m_WheelVisualAngularSmoothing").floatValue = 14f;
             serializedController.FindProperty("m_MaxLinearSpeedMetersPerSecond").floatValue = 2.0f;
             serializedController.FindProperty("m_MaxAngularSpeedRadPerSecond").floatValue = 1.0f;
-            serializedController.FindProperty("m_MaxMotorTorque").floatValue = 140f;
+            serializedController.FindProperty("m_MaxMotorTorque").floatValue = 160f;
             serializedController.FindProperty("m_MaxBrakeTorque").floatValue = 220f;
-            serializedController.FindProperty("m_RpmVelocityGain").floatValue = 1.35f;
-            serializedController.FindProperty("m_LongitudinalAssistGain").floatValue = 1.50f;
-            serializedController.FindProperty("m_MaxLongitudinalAssistAcceleration").floatValue = 1.20f;
+            serializedController.FindProperty("m_RpmVelocityGain").floatValue = 0.90f;
+            serializedController.FindProperty("m_LongitudinalAssistGain").floatValue = 3.00f;
+            serializedController.FindProperty("m_MaxLongitudinalAssistAcceleration").floatValue = 4.00f;
+            serializedController.FindProperty("m_LongitudinalVelocityKp").floatValue = 3.20f;
+            serializedController.FindProperty("m_LongitudinalVelocityKi").floatValue = 0.12f;
+            serializedController.FindProperty("m_LongitudinalVelocityKd").floatValue = 0.45f;
+            serializedController.FindProperty("m_LongitudinalIntegralLimit").floatValue = 1.20f;
+            serializedController.FindProperty("m_YawAssistGain").floatValue = 3.0f;
+            serializedController.FindProperty("m_MaxYawAssistAngularAcceleration").floatValue = 5.0f;
+            serializedController.FindProperty("m_YawRateKp").floatValue = 8.50f;
+            serializedController.FindProperty("m_YawRateKi").floatValue = 0.08f;
+            serializedController.FindProperty("m_YawRateKd").floatValue = 0.55f;
+            serializedController.FindProperty("m_YawRateIntegralLimit").floatValue = 0.70f;
+            serializedController.FindProperty("m_EnableStraightHeadingHold").boolValue = true;
+            serializedController.FindProperty("m_StraightHeadingHoldKp").floatValue = 4.20f;
+            serializedController.FindProperty("m_StraightHeadingHoldKd").floatValue = 1.80f;
+            serializedController.FindProperty("m_MaxStraightHeadingHoldAngularAcceleration").floatValue = 3.50f;
+            serializedController.FindProperty("m_LateralDampingGain").floatValue = 9.0f;
+            serializedController.FindProperty("m_MaxLateralDampingAcceleration").floatValue = 8.0f;
+            serializedController.FindProperty("m_StopVelocityDampingGain").floatValue = 7.0f;
+            serializedController.FindProperty("m_MaxStopDampingAcceleration").floatValue = 6.0f;
+            serializedController.FindProperty("m_StopYawDampingGain").floatValue = 36.0f;
+            serializedController.FindProperty("m_DirectStopVelocityDampingGain").floatValue = 10.0f;
+            serializedController.FindProperty("m_DirectStopYawDampingGain").floatValue = 60.0f;
+            serializedController.FindProperty("m_PureTurnTranslationDampingGain").floatValue = 14.0f;
+            serializedController.FindProperty("m_MaxPureTurnDampingAcceleration").floatValue = 9.0f;
             serializedController.FindProperty("m_LongitudinalOverspeedMargin").floatValue = 0.35f;
             serializedController.FindProperty("m_OverspeedBrakeTorqueRatio").floatValue = 0.25f;
             serializedController.FindProperty("m_RollingBrakeSpeedThreshold").floatValue = 0.08f;
-            serializedController.FindProperty("m_CommandTimeoutSeconds").floatValue = 0.75f;
+            serializedController.FindProperty("m_CommandTimeoutSeconds").floatValue = 0.18f;
             serializedController.ApplyModifiedPropertiesWithoutUndo();
         }
 
@@ -368,6 +410,21 @@ namespace VLN.Editor
             return material;
         }
 
+        static Material EnsureSurfaceMaterial(string assetPath, Color color)
+        {
+            var material = AssetDatabase.LoadAssetAtPath<Material>(assetPath);
+            if (material == null)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(assetPath));
+                material = new Material(Shader.Find("Standard"));
+                AssetDatabase.CreateAsset(material, assetPath);
+            }
+
+            material.color = color;
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
         static void AssignSceneFrictionMaterial(PhysicMaterial material)
         {
             foreach (var collider in UnityEngine.Object.FindObjectsOfType<Collider>())
@@ -386,8 +443,24 @@ namespace VLN.Editor
             }
         }
 
-        static void RemoveDecorativeRoadColliders()
+        static void ReplaceDecorativeTrailCollidersWithLocalizedPhysics(PhysicMaterial material, Material roadSurfaceMaterial, Material rampDetailMaterial)
         {
+            RemoveIfExists("ScoutWheelGround_PhysicalTrailSurface_Front");
+            RemoveIfExists("ScoutWheelGround_PhysicalTrailSurface_Rear");
+            RemoveGeneratedObjectsByPrefix("ScoutWheelGround_PhysicalRoadSlab_");
+            RemoveGeneratedObjectsByPrefix("ScoutWheelGround_PhysicalRoadSeam_");
+            RemoveGeneratedObjectsByPrefix("ScoutWheelGround_PhysicalShortRamp");
+
+            RemoveDecorativeTrailSurfaceCollidersAndMismatchedRamp();
+            CreatePhysicalRoadSlabs(material, roadSurfaceMaterial);
+            CreatePhysicalRoadSeams(material, roadSurfaceMaterial);
+            CreatePhysicalShortRamp(material, roadSurfaceMaterial, rampDetailMaterial);
+        }
+
+        static void RemoveDecorativeTrailSurfaceCollidersAndMismatchedRamp()
+        {
+            int removedCount = 0;
+            int removedRampCount = 0;
             foreach (var collider in UnityEngine.Object.FindObjectsOfType<Collider>())
             {
                 if (collider == null || collider.gameObject == null)
@@ -398,82 +471,517 @@ namespace VLN.Editor
                 if (collider.gameObject.name.StartsWith("Offroad_DirtRoad_", StringComparison.Ordinal))
                 {
                     UnityEngine.Object.DestroyImmediate(collider);
-                }
-            }
-        }
-
-        static void RemoveDecorativeBridgeColliders()
-        {
-            int removedCount = 0;
-            foreach (var collider in UnityEngine.Object.FindObjectsOfType<Collider>())
-            {
-                if (collider == null || collider.gameObject == null)
-                {
-                    continue;
-                }
-
-                if (IsDecorativeBridgeTransform(collider.transform))
-                {
-                    UnityEngine.Object.DestroyImmediate(collider);
                     removedCount++;
                 }
             }
 
-            Debug.Log($"VLN_SCOUT_WHEEL_GROUND_BRIDGE_COLLIDERS_REMOVED count={removedCount}");
+            var oldShortRamp = GameObject.Find("Offroad_ShortRamp");
+            if (oldShortRamp != null)
+            {
+                UnityEngine.Object.DestroyImmediate(oldShortRamp);
+                removedRampCount++;
+            }
+
+            Debug.Log($"VLN_SCOUT_WHEEL_GROUND_DECORATIVE_TRAIL_COLLIDERS_REMOVED count={removedCount} mismatched_short_ramp_removed={removedRampCount}");
         }
 
-        static void CreateSimplifiedPhysicalBridge(PhysicMaterial material)
+        static void CreatePhysicalRoadSlabs(PhysicMaterial material, Material roadSurfaceMaterial)
+        {
+            int createdCount = 0;
+            for (int i = 0; i < 9; i++)
+            {
+                float centerZ = RoadBlockCenterZ(i);
+                float centerX = RoadBlockCenterX(i);
+                float zMin = centerZ - 4.25f;
+                float zMax = centerZ + 4.25f;
+
+                createdCount += CreatePhysicalRoadSlabSegments($"ScoutWheelGround_PhysicalRoadSlab_{i:00}", centerX, zMin, zMax, material, roadSurfaceMaterial);
+            }
+
+            Debug.Log($"VLN_SCOUT_WHEEL_GROUND_LOCAL_ROAD_SLABS_READY count={createdCount} bridge_zone_excluded=true");
+        }
+
+        static int CreatePhysicalRoadSlabSegments(string baseName, float centerX, float zMin, float zMax, PhysicMaterial material, Material roadSurfaceMaterial)
+        {
+            int created = 0;
+            float current = zMin;
+            created += CreateRoadSegmentBeforeExclusion(baseName, centerX, ref current, zMax, BridgeZoneZMin, BridgeZoneZMax, material, roadSurfaceMaterial);
+            created += CreateRoadSegmentBeforeExclusion(baseName, centerX, ref current, zMax, ShortRampExclusionZMin, ShortRampExclusionZMax, material, roadSurfaceMaterial);
+
+            if (current < zMax - 0.05f)
+            {
+                CreatePhysicalRoadSlab(MakeRoadSegmentName(baseName, created), centerX, current, zMax, material, roadSurfaceMaterial);
+                created++;
+            }
+
+            return created;
+        }
+
+        static int CreateRoadSegmentBeforeExclusion(string baseName, float centerX, ref float current, float zMax, float exclusionMin, float exclusionMax, PhysicMaterial material, Material roadSurfaceMaterial)
+        {
+            if (zMax <= exclusionMin || current >= exclusionMax)
+            {
+                return 0;
+            }
+
+            int created = 0;
+            if (current < exclusionMin - 0.05f)
+            {
+                CreatePhysicalRoadSlab(MakeRoadSegmentName(baseName, created), centerX, current, Mathf.Min(zMax, exclusionMin), material, roadSurfaceMaterial);
+                created++;
+            }
+
+            current = Mathf.Max(current, exclusionMax);
+            return created;
+        }
+
+        static string MakeRoadSegmentName(string baseName, int segmentIndex)
+        {
+            return segmentIndex == 0 ? baseName : $"{baseName}_Part{segmentIndex:00}";
+        }
+
+        static void CreatePhysicalRoadSlab(string name, float centerX, float zMin, float zMax, PhysicMaterial material, Material roadSurfaceMaterial)
+        {
+            if (zMax <= zMin + 0.05f)
+            {
+                return;
+            }
+
+            const float roadThickness = 0.06f;
+            float centerZ = (zMin + zMax) * 0.5f;
+            float topY = TerrainWorldY(centerX, centerZ) + 0.062f;
+            var slab = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            slab.name = name;
+            slab.transform.position = new Vector3(centerX, topY - roadThickness * 0.5f, centerZ);
+            slab.transform.rotation = Quaternion.identity;
+            slab.transform.localScale = new Vector3(PhysicalRoadWidth, roadThickness, zMax - zMin);
+            slab.layer = 0;
+            slab.isStatic = true;
+            slab.GetComponent<Renderer>().sharedMaterial = roadSurfaceMaterial;
+
+            var collider = slab.GetComponent<BoxCollider>();
+            collider.material = material;
+        }
+
+        static void CreatePhysicalRoadSeams(PhysicMaterial material, Material roadSurfaceMaterial)
+        {
+            int createdCount = 0;
+            for (int i = 0; i < 8; i++)
+            {
+                float prevZ = RoadBlockCenterZ(i);
+                float nextZ = RoadBlockCenterZ(i + 1);
+                float seamStartZ = prevZ + 3.95f;
+                float seamEndZ = nextZ - 3.95f;
+
+                if (seamEndZ <= seamStartZ + 0.05f || OverlapsRoadExclusion(seamStartZ, seamEndZ))
+                {
+                    continue;
+                }
+
+                float prevX = RoadBlockCenterX(i);
+                float nextX = RoadBlockCenterX(i + 1);
+                float yStart = TerrainWorldY(prevX, prevZ) + 0.062f;
+                float yEnd = TerrainWorldY(nextX, nextZ) + 0.062f;
+                CreatePhysicalRampAtCenterline(
+                    $"ScoutWheelGround_PhysicalRoadSeam_{i:00}_{i + 1:00}",
+                    prevX,
+                    nextX,
+                    seamStartZ,
+                    seamEndZ,
+                    yStart,
+                    yEnd,
+                    PhysicalRoadWidth,
+                    0.06f,
+                    material,
+                    roadSurfaceMaterial);
+                createdCount++;
+            }
+
+            Debug.Log($"VLN_SCOUT_WHEEL_GROUND_LOCAL_ROAD_SEAMS_READY count={createdCount} bridge_zone_excluded=true");
+        }
+
+        static bool OverlapsRoadExclusion(float zMin, float zMax)
+        {
+            return zMax > BridgeZoneZMin && zMin < BridgeZoneZMax ||
+                   zMax > ShortRampExclusionZMin && zMin < ShortRampExclusionZMax;
+        }
+
+        static void CreatePhysicalShortRamp(PhysicMaterial material, Material roadSurfaceMaterial, Material rampDetailMaterial)
+        {
+            // One continuous visible MeshCollider avoids internal vertical edges between a
+            // separate ramp body and transition pieces. This remains a real visible ramp:
+            // the road slab is removed from this zone, so the wheels must climb this mesh.
+            // The profile deliberately keeps a clear hump; do not flatten it just to make
+            // the route easier.
+            const float centerX = 0f;
+            const float width = 4.8f;
+            const float thickness = 0.07f;
+            float[] z = { -0.8f, 0.6f, 2.0f, 3.3f, 4.8f, 6.1f, 7.2f };
+            float[] y =
+            {
+                TerrainWorldY(centerX, z[0]) + 0.062f,
+                TerrainWorldY(centerX, z[1]) + 0.160f,
+                TerrainWorldY(centerX, z[2]) + 0.500f,
+                TerrainWorldY(centerX, z[3]) + 0.760f,
+                TerrainWorldY(centerX, z[4]) + 0.620f,
+                TerrainWorldY(centerX, z[5]) + 0.320f,
+                TerrainWorldY(centerX, z[6]) + 0.062f,
+            };
+
+            CreateProfiledPhysicalSurface(
+                "ScoutWheelGround_PhysicalShortRampContinuous",
+                centerX,
+                width,
+                z,
+                y,
+                thickness,
+                material,
+                roadSurfaceMaterial);
+            CreateShortRampVisualDetails(centerX, width, z, y, rampDetailMaterial);
+
+            Debug.Log($"VLN_SCOUT_WHEEL_GROUND_SHORT_RAMP_PHYSICS_READY continuous=1 centerline=true x={centerX:F2} width={width:F2} z={z[0]:F2}..{z[z.Length - 1]:F2} height_delta={(MaxValue(y) - MinValue(y)):F3}");
+        }
+
+        static void CreateShortRampVisualDetails(float centerX, float width, float[] zValues, float[] yValues, Material material)
+        {
+            RemoveGeneratedObjectsByPrefix("ScoutWheelGround_VisibleShortRampDetail_");
+            if (material == null)
+            {
+                return;
+            }
+
+            const int markerCount = 11;
+            float zMin = zValues[0];
+            float zMax = zValues[zValues.Length - 1];
+            for (int i = 0; i < markerCount; i++)
+            {
+                float t = markerCount == 1 ? 0f : i / (float)(markerCount - 1);
+                float z = Mathf.Lerp(zMin, zMax, t);
+                float y = EvaluateProfileY(zValues, yValues, z) + 0.004f;
+                var marker = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                marker.name = $"ScoutWheelGround_VisibleShortRampDetail_CrossBand_{i:00}";
+                marker.transform.position = new Vector3(centerX, y, z);
+                marker.transform.rotation = Quaternion.identity;
+                marker.transform.localScale = new Vector3(width, 0.006f, 0.045f);
+                marker.layer = 0;
+                marker.isStatic = true;
+                marker.GetComponent<Renderer>().sharedMaterial = material;
+                UnityEngine.Object.DestroyImmediate(marker.GetComponent<BoxCollider>());
+            }
+        }
+
+        static void CreateProfiledPhysicalSurface(string name, float centerX, float width, float[] zValues, float[] yValues, float thickness, PhysicMaterial material, Material renderMaterial)
+        {
+            if (zValues == null || yValues == null || zValues.Length != yValues.Length || zValues.Length < 2)
+            {
+                throw new ArgumentException("Profiled physical surface requires matching z/y arrays with at least two points.");
+            }
+
+            var surface = new GameObject(name);
+            surface.transform.position = Vector3.zero;
+            surface.transform.rotation = Quaternion.identity;
+            surface.layer = 0;
+            surface.isStatic = true;
+
+            int profileCount = zValues.Length;
+            float halfWidth = width * 0.5f;
+            var vertices = new Vector3[profileCount * 4];
+            for (int i = 0; i < profileCount; i++)
+            {
+                vertices[i * 2] = new Vector3(centerX - halfWidth, yValues[i], zValues[i]);
+                vertices[i * 2 + 1] = new Vector3(centerX + halfWidth, yValues[i], zValues[i]);
+                vertices[profileCount * 2 + i * 2] = new Vector3(centerX - halfWidth, yValues[i] - thickness, zValues[i]);
+                vertices[profileCount * 2 + i * 2 + 1] = new Vector3(centerX + halfWidth, yValues[i] - thickness, zValues[i]);
+            }
+
+            var triangles = new List<int>();
+            for (int i = 0; i < profileCount - 1; i++)
+            {
+                int topLeft0 = i * 2;
+                int topRight0 = i * 2 + 1;
+                int topLeft1 = (i + 1) * 2;
+                int topRight1 = (i + 1) * 2 + 1;
+                int bottomLeft0 = profileCount * 2 + i * 2;
+                int bottomRight0 = profileCount * 2 + i * 2 + 1;
+                int bottomLeft1 = profileCount * 2 + (i + 1) * 2;
+                int bottomRight1 = profileCount * 2 + (i + 1) * 2 + 1;
+
+                AddQuad(triangles, topLeft0, topLeft1, topRight0, topRight0, topLeft1, topRight1);
+                AddQuad(triangles, bottomLeft0, bottomRight0, bottomLeft1, bottomRight0, bottomRight1, bottomLeft1);
+                AddQuad(triangles, topLeft0, bottomLeft0, topLeft1, topLeft1, bottomLeft0, bottomLeft1);
+                AddQuad(triangles, topRight0, topRight1, bottomRight0, topRight1, bottomRight1, bottomRight0);
+            }
+
+            int last = profileCount - 1;
+            AddQuad(triangles, 0, 1, profileCount * 2, 1, profileCount * 2 + 1, profileCount * 2);
+            AddQuad(triangles, last * 2, profileCount * 2 + last * 2, last * 2 + 1, last * 2 + 1, profileCount * 2 + last * 2, profileCount * 2 + last * 2 + 1);
+
+            var mesh = new Mesh
+            {
+                name = name + "Mesh",
+                vertices = vertices,
+                triangles = triangles.ToArray()
+            };
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+
+            var meshFilter = surface.AddComponent<MeshFilter>();
+            meshFilter.sharedMesh = mesh;
+            var meshRenderer = surface.AddComponent<MeshRenderer>();
+            meshRenderer.sharedMaterial = renderMaterial;
+
+            var collider = surface.AddComponent<MeshCollider>();
+            collider.sharedMesh = mesh;
+            collider.material = material;
+        }
+
+        static float EvaluateProfileY(float[] zValues, float[] yValues, float z)
+        {
+            if (z <= zValues[0])
+            {
+                return yValues[0];
+            }
+
+            for (int i = 0; i < zValues.Length - 1; i++)
+            {
+                if (z <= zValues[i + 1])
+                {
+                    float t = Mathf.InverseLerp(zValues[i], zValues[i + 1], z);
+                    return Mathf.Lerp(yValues[i], yValues[i + 1], t);
+                }
+            }
+
+            return yValues[yValues.Length - 1];
+        }
+
+        static float MinValue(float[] values)
+        {
+            float minValue = float.PositiveInfinity;
+            foreach (float value in values)
+            {
+                minValue = Mathf.Min(minValue, value);
+            }
+
+            return minValue;
+        }
+
+        static float MaxValue(float[] values)
+        {
+            float maxValue = float.NegativeInfinity;
+            foreach (float value in values)
+            {
+                maxValue = Mathf.Max(maxValue, value);
+            }
+
+            return maxValue;
+        }
+
+        static void AddQuad(List<int> triangles, int a, int b, int c, int d, int e, int f)
+        {
+            triangles.Add(a);
+            triangles.Add(b);
+            triangles.Add(c);
+            triangles.Add(d);
+            triangles.Add(e);
+            triangles.Add(f);
+        }
+
+        static float RoadBlockCenterZ(int index)
+        {
+            return -34f + index * 8.5f;
+        }
+
+        static float RoadBlockCenterX(int index)
+        {
+            return 0.9f * Mathf.Sin(index * 0.85f);
+        }
+
+        static void RemoveDecorativeBridgeObjects()
+        {
+            var bridgeRoots = new HashSet<GameObject>();
+            foreach (var gameObject in UnityEngine.Object.FindObjectsOfType<GameObject>())
+            {
+                if (gameObject == null)
+                {
+                    continue;
+                }
+
+                Transform bridgeRoot = FindDecorativeBridgeRoot(gameObject.transform);
+                if (bridgeRoot != null)
+                {
+                    bridgeRoots.Add(bridgeRoot.gameObject);
+                }
+            }
+
+            foreach (var bridgeRoot in bridgeRoots)
+            {
+                UnityEngine.Object.DestroyImmediate(bridgeRoot);
+            }
+
+            Debug.Log($"VLN_SCOUT_WHEEL_GROUND_DECORATIVE_BRIDGE_OBJECTS_REMOVED count={bridgeRoots.Count}");
+        }
+
+        static void CreateDetailedPhysicalBridge(PhysicMaterial material, Material bridgeSurfaceMaterial, Material bridgeDetailMaterial)
         {
             RemoveIfExists("ScoutWheelGround_PhysicalBridgeDeck");
             RemoveIfExists("ScoutWheelGround_PhysicalBridgeFrontRamp");
             RemoveIfExists("ScoutWheelGround_PhysicalBridgeRearRamp");
+            RemoveIfExists("ScoutWheelGround_VisibleBridgeLeftRail");
+            RemoveIfExists("ScoutWheelGround_VisibleBridgeRightRail");
+            RemoveGeneratedObjectsByPrefix("ScoutWheelGround_VisibleBridgeDetail_");
 
-            const float bridgeWidth = 3.3f;
+            // A narrow visible physics bridge. It is intentionally not a road-width slab:
+            // the car must cross the bridge region instead of being carried by a broad flat
+            // bypass surface. Visual details are added on top, but this deck remains the
+            // visible load-bearing collider.
+            const float bridgeWidth = PhysicalBridgeWidth;
             const float bridgeTopZMin = -9.2f;
             const float bridgeTopZMax = -4.7f;
             const float bridgeThickness = 0.08f;
-            float bridgeTopY = Mathf.Max(TerrainWorldY(0f, bridgeTopZMin), TerrainWorldY(0f, bridgeTopZMax)) + 0.08f;
+            float bridgeEntryY = Mathf.Max(TerrainWorldY(0f, bridgeTopZMin), TerrainWorldY(0f, bridgeTopZMax)) + 0.08f;
             float bridgeCenterZ = (bridgeTopZMin + bridgeTopZMax) * 0.5f;
             float bridgeLength = bridgeTopZMax - bridgeTopZMin;
+            float[] bridgeZ = { bridgeTopZMin, -8.25f, -6.95f, -5.65f, bridgeTopZMax };
+            float[] bridgeY =
+            {
+                bridgeEntryY,
+                bridgeEntryY + 0.070f,
+                bridgeEntryY + 0.155f,
+                bridgeEntryY + 0.070f,
+                bridgeEntryY,
+            };
 
-            var bridge = new GameObject("ScoutWheelGround_PhysicalBridgeDeck");
-            bridge.transform.position = new Vector3(0f, bridgeTopY - bridgeThickness * 0.5f, bridgeCenterZ);
-            bridge.transform.rotation = Quaternion.identity;
-            bridge.layer = 0;
+            CreateProfiledPhysicalSurface(
+                "ScoutWheelGround_PhysicalBridgeDeck",
+                0f,
+                bridgeWidth,
+                bridgeZ,
+                bridgeY,
+                bridgeThickness,
+                material,
+                bridgeSurfaceMaterial);
 
-            var collider = bridge.AddComponent<BoxCollider>();
-            collider.center = Vector3.zero;
-            collider.size = new Vector3(bridgeWidth, bridgeThickness, bridgeLength);
-            collider.material = material;
+            CreateBridgeVisualDetails(bridgeWidth, bridgeCenterZ, bridgeLength, bridgeZ, bridgeY, bridgeDetailMaterial);
 
             CreatePhysicalRamp(
                 "ScoutWheelGround_PhysicalBridgeFrontRamp",
-                -12.2f,
+                -13.0f,
                 bridgeTopZMin,
-                TerrainWorldY(0f, -12.2f) + 0.04f,
-                bridgeTopY,
+                TerrainWorldY(0f, -13.0f) + 0.062f,
+                bridgeEntryY,
                 bridgeWidth,
                 bridgeThickness,
-                material);
+                material,
+                bridgeSurfaceMaterial);
             CreatePhysicalRamp(
                 "ScoutWheelGround_PhysicalBridgeRearRamp",
                 bridgeTopZMax,
-                -2.2f,
-                bridgeTopY,
-                TerrainWorldY(0f, -2.2f) + 0.04f,
+                -1.7f,
+                bridgeEntryY,
+                TerrainWorldY(0f, -1.7f) + 0.062f,
                 bridgeWidth,
                 bridgeThickness,
-                material);
+                material,
+                bridgeSurfaceMaterial);
 
-            Debug.Log($"VLN_SCOUT_WHEEL_GROUND_PHYSICAL_BRIDGE_READY deck_z={bridgeTopZMin:F1}..{bridgeTopZMax:F1} top_y={bridgeTopY:F3} ramps=true");
+            Debug.Log($"VLN_SCOUT_WHEEL_GROUND_PHYSICAL_BRIDGE_READY deck_z={bridgeTopZMin:F1}..{bridgeTopZMax:F1} entry_y={bridgeEntryY:F3} arch_height={(MaxValue(bridgeY) - MinValue(bridgeY)):F3} ramps=true decorative_bridge_removed=true visual_details=true");
         }
 
-        static void CreatePhysicalRamp(string name, float zStart, float zEnd, float yStart, float yEnd, float width, float thickness, PhysicMaterial material)
+        static void CreateBridgeVisualDetails(float bridgeWidth, float centerZ, float length, float[] zValues, float[] yValues, Material material)
+        {
+            if (material == null)
+            {
+                return;
+            }
+
+            float zMin = centerZ - length * 0.5f;
+            float zMax = centerZ + length * 0.5f;
+            for (int i = 1; i < 6; i++)
+            {
+                float x = -bridgeWidth * 0.5f + bridgeWidth * i / 6f;
+                CreateBridgeSegmentedDetail($"ScoutWheelGround_VisibleBridgeDetail_LongGroove_{i:00}", x, 0.020f, zValues, yValues, 0.022f, 0.006f, material);
+            }
+
+            const int crossBandCount = 13;
+            for (int i = 0; i < crossBandCount; i++)
+            {
+                float z = Mathf.Lerp(zMin + 0.20f, zMax - 0.20f, i / (float)(crossBandCount - 1));
+                float y = EvaluateProfileY(zValues, yValues, z);
+                CreateBridgeDetailCube($"ScoutWheelGround_VisibleBridgeDetail_CrossPlank_{i:00}", 0f, y + 0.006f, z, bridgeWidth, 0.012f, 0.055f, material);
+            }
+
+            CreateBridgeSegmentedDetail("ScoutWheelGround_VisibleBridgeDetail_LeftRail", -bridgeWidth * 0.5f, 0.112f, zValues, yValues, 0.080f, 0.120f, material, keepCollider: true);
+            CreateBridgeSegmentedDetail("ScoutWheelGround_VisibleBridgeDetail_RightRail", bridgeWidth * 0.5f, 0.112f, zValues, yValues, 0.080f, 0.120f, material, keepCollider: true);
+            CreateBridgeSegmentedDetail("ScoutWheelGround_VisibleBridgeDetail_LeftLowerRail", -bridgeWidth * 0.5f, 0.235f, zValues, yValues, 0.055f, 0.075f, material, keepCollider: true);
+            CreateBridgeSegmentedDetail("ScoutWheelGround_VisibleBridgeDetail_RightLowerRail", bridgeWidth * 0.5f, 0.235f, zValues, yValues, 0.055f, 0.075f, material, keepCollider: true);
+
+            const int postCount = 9;
+            for (int i = 0; i < postCount; i++)
+            {
+                float z = Mathf.Lerp(zMin + 0.15f, zMax - 0.15f, i / (float)(postCount - 1));
+                float y = EvaluateProfileY(zValues, yValues, z);
+                CreateBridgeDetailCube($"ScoutWheelGround_VisibleBridgeDetail_LeftPost_{i:00}", -bridgeWidth * 0.5f, y + 0.17f, z, 0.085f, 0.34f, 0.085f, material, keepCollider: true);
+                CreateBridgeDetailCube($"ScoutWheelGround_VisibleBridgeDetail_RightPost_{i:00}", bridgeWidth * 0.5f, y + 0.17f, z, 0.085f, 0.34f, 0.085f, material, keepCollider: true);
+            }
+        }
+
+        static void CreateBridgeSegmentedDetail(string baseName, float x, float yOffset, float[] zValues, float[] yValues, float width, float height, Material material, bool keepCollider = false)
+        {
+            for (int i = 0; i < zValues.Length - 1; i++)
+            {
+                float z0 = zValues[i];
+                float z1 = zValues[i + 1];
+                float y0 = yValues[i] + yOffset;
+                float y1 = yValues[i + 1] + yOffset;
+                float centerZ = (z0 + z1) * 0.5f;
+                float centerY = (y0 + y1) * 0.5f;
+                float length = z1 - z0;
+                float pitch = -Mathf.Atan2(y1 - y0, length) * Mathf.Rad2Deg;
+                var detail = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                detail.name = $"{baseName}_{i:00}";
+                detail.transform.position = new Vector3(x, centerY, centerZ);
+                detail.transform.rotation = Quaternion.Euler(pitch, 0f, 0f);
+                detail.transform.localScale = new Vector3(width, height, length);
+                detail.layer = 0;
+                detail.isStatic = true;
+                detail.GetComponent<Renderer>().sharedMaterial = material;
+                var collider = detail.GetComponent<BoxCollider>();
+                if (!keepCollider)
+                {
+                    UnityEngine.Object.DestroyImmediate(collider);
+                }
+            }
+        }
+
+        static void CreateBridgeDetailCube(string name, float x, float y, float z, float width, float height, float length, Material material, bool keepCollider = false)
+        {
+            var detail = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            detail.name = name;
+            detail.transform.position = new Vector3(x, y, z);
+            detail.transform.rotation = Quaternion.identity;
+            detail.transform.localScale = new Vector3(width, height, length);
+            detail.layer = 0;
+            detail.isStatic = true;
+            detail.GetComponent<Renderer>().sharedMaterial = material;
+            var collider = detail.GetComponent<BoxCollider>();
+            if (!keepCollider)
+            {
+                UnityEngine.Object.DestroyImmediate(collider);
+            }
+        }
+
+        static void CreatePhysicalRamp(string name, float zStart, float zEnd, float yStart, float yEnd, float width, float thickness, PhysicMaterial material, Material renderMaterial)
+        {
+            CreatePhysicalRampAtCenterline(name, 0f, 0f, zStart, zEnd, yStart, yEnd, width, thickness, material, renderMaterial);
+        }
+
+        static void CreatePhysicalRampAtCenterline(string name, float xStart, float xEnd, float zStart, float zEnd, float yStart, float yEnd, float width, float thickness, PhysicMaterial material, Material renderMaterial)
         {
             var ramp = new GameObject(name);
             ramp.transform.position = Vector3.zero;
             ramp.transform.rotation = Quaternion.identity;
             ramp.layer = 0;
+            ramp.isStatic = true;
 
             float halfWidth = width * 0.5f;
             float bottomStart = yStart - thickness;
@@ -483,14 +991,14 @@ namespace VLN.Editor
                 name = name + "Mesh",
                 vertices = new[]
                 {
-                    new Vector3(-halfWidth, yStart, zStart),
-                    new Vector3( halfWidth, yStart, zStart),
-                    new Vector3(-halfWidth, yEnd, zEnd),
-                    new Vector3( halfWidth, yEnd, zEnd),
-                    new Vector3(-halfWidth, bottomStart, zStart),
-                    new Vector3( halfWidth, bottomStart, zStart),
-                    new Vector3(-halfWidth, bottomEnd, zEnd),
-                    new Vector3( halfWidth, bottomEnd, zEnd),
+                    new Vector3(xStart - halfWidth, yStart, zStart),
+                    new Vector3(xStart + halfWidth, yStart, zStart),
+                    new Vector3(xEnd - halfWidth, yEnd, zEnd),
+                    new Vector3(xEnd + halfWidth, yEnd, zEnd),
+                    new Vector3(xStart - halfWidth, bottomStart, zStart),
+                    new Vector3(xStart + halfWidth, bottomStart, zStart),
+                    new Vector3(xEnd - halfWidth, bottomEnd, zEnd),
+                    new Vector3(xEnd + halfWidth, bottomEnd, zEnd),
                 },
                 triangles = new[]
                 {
@@ -504,6 +1012,14 @@ namespace VLN.Editor
             };
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
+
+            if (renderMaterial != null)
+            {
+                var meshFilter = ramp.AddComponent<MeshFilter>();
+                meshFilter.sharedMesh = mesh;
+                var meshRenderer = ramp.AddComponent<MeshRenderer>();
+                meshRenderer.sharedMaterial = renderMaterial;
+            }
 
             var collider = ramp.AddComponent<MeshCollider>();
             collider.sharedMesh = mesh;
@@ -525,6 +1041,22 @@ namespace VLN.Editor
             }
 
             return false;
+        }
+
+        static Transform FindDecorativeBridgeRoot(Transform transform)
+        {
+            if (!IsDecorativeBridgeTransform(transform))
+            {
+                return null;
+            }
+
+            Transform current = transform;
+            while (current.parent != null && IsDecorativeBridgeTransform(current.parent))
+            {
+                current = current.parent;
+            }
+
+            return current;
         }
 
         static WheelCollider FindWheelCollider(GameObject root, string name)
@@ -605,6 +1137,18 @@ namespace VLN.Editor
             if (existing != null)
             {
                 UnityEngine.Object.DestroyImmediate(existing);
+            }
+        }
+
+        static void RemoveGeneratedObjectsByPrefix(string prefix)
+        {
+            var objects = UnityEngine.Object.FindObjectsOfType<GameObject>();
+            foreach (var gameObject in objects)
+            {
+                if (gameObject != null && gameObject.name.StartsWith(prefix, StringComparison.Ordinal))
+                {
+                    UnityEngine.Object.DestroyImmediate(gameObject);
+                }
             }
         }
 

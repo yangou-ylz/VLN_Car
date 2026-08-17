@@ -20,7 +20,8 @@
 14. URDF/STL 物理车体闭环：导入真实底盘 URDF，验证 visual/collision/inertial/joint，并保持 ROS2 感知与控制接口稳定。
 15. Wheel-ground 真实动力学候选：新建独立候选场景，让轮地接触驱动车体，同时保持 ROS2 相机、LiDAR、TF、cmd_vel 和 odom 接口稳定。
 16. Scout wheel-ground 固定路线物理巡航：新增 ROS2 固定路线脚本，驱动物理车体从起点沿道路通过桥/坡区域并跑向终点方向，用于观察轮地接触、坡地/路面交互、传感器跟随和是否穿模。
-17. 进入 VLN 感知层数据集/训练/算法对接。
+17. 手动示教路线记录与回放：在中文控制面板中用键盘手动驾驶真实物理车体，记录 `/vln/cmd_vel` 速度序列，导出 JSON 后可复现回放。
+18. 进入 VLN 感知层数据集/训练/算法对接。
 
 ## 阶段 0：项目约束与记忆机制
 
@@ -370,9 +371,10 @@ odom_publish_count=378
 - ROS2 控制脚本：`/home/ubuntu22/VLN/scripts/ros2_drive_scout_physics_route.py`。
 - 手工演示入口：`/home/ubuntu22/VLN/scripts/drive_scout_wheel_ground_route_demo.sh`。
 - 自动验收入口：`/home/ubuntu22/VLN/scripts/run_scout_wheel_ground_route_smoke_test.sh`。
-- 默认路线：启动时以 `base_link` 为原点，沿前向依次到 `4,0;8,0;12,0;15,0;18,0;22,0;28,0;34,0;42,0;50,0;54,0` 米，用于从起点通过桥/坡区域并跑向终点方向。
-- 默认控制策略：固定路径点物理巡航，`max_linear=1.35m/s`、`linear_accel=0.95m/s^2`、`max_angular=0.42rad/s`、`angular_gain=0.62`、`angular-sign=-1`，用小角度回正抵消地形导致的横向漂移。
-- 物理场景修复：Scout wheel-ground 视觉 URDF 不再额外 yaw `180°`，避免肉眼看成倒着开；轮胎视觉偏移为 `0.085m`，避免轮胎显示扎进地面；桥面新增不可见物理过渡坡，避免 WheelCollider 顶住桥面硬边。
+- 默认路线：启动时以 `base_link` 为原点，沿前向依次到 `4,0;8,0;12,0;15,0;18,0;22,0;26,0;28,0;30,0;34,0;42,0;50,0;54,0` 米，用于从起点通过桥/坡区域并跑向终点方向。
+- 默认控制策略：固定路径点物理巡航，`max_linear=1.05m/s`、`linear_accel=0.70m/s^2`、`max_angular=0.55rad/s`、`angular_gain=0.70`、`angular-sign=1`，不启用跳点，停滞即失败。`angular-sign=1` 必须与当前手动速度控制和 Unity wheel-ground 底层“正 angular.z 左转”的约定保持一致。
+- 物理场景修复：Scout wheel-ground 视觉 URDF 不再额外 yaw `180°`，避免肉眼看成倒着开；轮胎视觉偏移为 `0.085m`，避免轮胎显示扎进地面；轮胎视觉旋转采用累计滚动角 `accumulated_roll_root_x`，不再把 `WheelCollider.GetWorldPose()` 的瞬时旋转直接套给视觉轮。旧的 `ScoutWheelGround_PhysicalTrailSurface_*` 连续隐形路面已撤销，旧的 `8.0m` 宽桥/路可见通行面也不再作为当前标准。当前使用受限宽度的可见局部物理体：主路物理 slab 设计宽度 `6.2m`、桥面物理宽度 `2.25m`、短坡连续可见 MeshCollider 宽度 `4.8m`；道路 slab 在桥区和短坡区让开，车轮必须接触桥/坡物理体。独木桥处旧 Kenney 可见桥已删除，`ScoutWheelGround_PhysicalBridgeDeck` 必须同时是可见桥面和碰撞桥面。
+- 控制器稳定项：`VlnScoutWheelGroundController` 使用 wheel torque 驱动，并加入 yaw assist 与 lateral damping 物理力/力矩项，用于模拟差速转向响应和轮胎侧向阻尼；禁止通过改位姿、关碰撞或宽泛隐形路面通过验收。
 
 阶段 15 固定验收命令：
 
@@ -389,15 +391,96 @@ VLN_SCOUT_WHEEL_GROUND_ROUTE_SMOKE_TEST_PASS
 最近通过：
 
 ```text
-run id: vln_scout_wheel_ground_route_20260816_150349
-reached_count=11/11
-total_forward_progress=53.080m
-total_progress=53.102m
+run id: vln_scout_wheel_ground_route_20260817_125552
+reached_count=13/13
+total_forward_progress=52.435m
+total_progress=52.435m
+final_lateral_offset=-0.015m
+max_reached_cross_track=0.015m
+max_abs_lateral_offset=0.015m
+max_bridge_abs_lateral_offset=0.014m
 stall_count=0
 skipped_count=0
+broad_physical_trail_count=0
+road_physical_slab_count=8
+road_seam_transition_count=5
+bridge_physics_count=3
+short_ramp_physics_count=1
+decorative_trail_collider_count=0
+decorative_bridge_renderer_count=0
+bridge_deck_has_renderer=1
+bridge_deck_has_collider=1
+bridge_deck_renderer_collider_top_delta_m=0.0000
+road_physical_max_width_m=6.939
+bridge_physical_max_width_m=2.250
+bridge_physical_height_span_m=0.235
+short_ramp_physical_max_width_m=4.800
+short_ramp_physical_height_span_m=0.804
+bridge_contact_steps=1629
+short_ramp_contact_steps=1648
+wheel_ground_height_span_m=0.821
+wheel_visual_total_abs_roll_deg=73393.0
+wheel_visual_direction_reversal_count=0
+bridge_screenshot=vln_offroad_scout_wheel_ground_bridge_screenshot.png
+short_ramp_screenshot=vln_offroad_scout_wheel_ground_short_ramp_screenshot.png
 ```
 
-阶段 15 当前边界：它是“写死完整路线物理巡航演示”，不是完整 navigation2，也不是 VLN 决策控制器；路线沿道路前向通过桥/坡区域，但不做语义导航、自主绕障或目标重规划。后续若要绕障、上坡路径选择或接入 VLN 决策，应另开小步阶段，继续做稳定差速转向、横向摩擦、碰撞边界和低速转弯标定。
+补充记录：2026-08-17 手动速度控制修复后，自动路线一度失败，根因是路线脚本仍沿用旧 `angular-sign=-1`，与当前底层正 `angular.z` 左转的约定相反。已将 `run_scout_wheel_ground_route_smoke_test.sh`、`drive_scout_wheel_ground_route_demo.sh` 和 `ros2_drive_scout_physics_route.py` 默认值统一为 `angular-sign=1`，默认脚本复跑通过。
+
+阶段 15 当前边界：它是“写死完整路线物理巡航演示”，不是完整 navigation2，也不是 VLN 决策控制器；路线沿道路前向通过桥/坡区域，但不做语义导航、自主绕障或目标重规划。当前强约束是禁止使用连续隐形平路、禁止铺道路宽桥面绕开独木桥、禁止用普通路面 slab 托底桥/坡、禁止压平桥和斜坡来通过路线、禁止跳过卡点、禁止把横向偏离很大的前向进度误判为到达；同时禁止恢复旧 Kenney 可见桥遮挡真实物理桥面，禁止恢复轮胎视觉高频正反抖。自动验收还必须保留桥区截图和短坡截图，且 `bridge_physical_height_span_m`、`short_ramp_physical_height_span_m` 必须满足非扁平阈值。后续若要绕障、上坡路径选择或接入 VLN 决策，应另开小步阶段，继续做稳定差速转向、横向摩擦、碰撞边界和低速转弯标定。
+
+## 阶段 16：手动示教路线记录与回放
+
+- 目标：让用户亲自驾驶 Scout wheel-ground 物理车体通过满意路线，记录实际 `/vln/cmd_vel` 速度数据，后续用该记录复现同一路线，避免继续硬调不稳定的自动 S 型路线。
+- UI 入口：`/home/ubuntu22/VLN/scripts/start_vln_control_panel.sh`，浏览器打开 `http://127.0.0.1:8765/` 后进入“速度控制”模块。
+- 键盘映射：`↑` 前进，`↓` 后退，`←` 或 `A` 左转，`→` 或 `D` 右转；前进/后退可与左转/右转组合。当前 Scout 是差速轮式底盘，不发布横向平移速度。
+- 当前方向符号：`↑` 发布正 `linear.x`，`↓` 发布负 `linear.x`，`←/A` 发布正 `angular.z`，`→/D` 发布负 `angular.z`。该约定匹配当前 Unity wheel-ground 场景的视觉左/右方向。
+- 默认速度：线速度 `0.55m/s`，角速度 `0.42rad/s`；可在 UI 中调整，但不要一开始调太快，避免物理车体在桥/坡和窄路处横摆。
+- 安全保护：前端在按键保持时每 `50ms` 刷新速度心跳；后端 `manual-command-timeout=0.18s`，松键、浏览器失焦、页面隐藏或心跳丢失都会立即发布多帧 0 速度停车。
+- 当前专项修复：`VlnScoutWheelGroundController` 不再让 WheelCollider 电机承担纯转向，轮端转向电机比例为 `0`；角速度由 Unity 物理层 yaw-rate PID + Rigidbody 角速度伺服执行，键位按 `←/A` 左转、`→/D` 右转。
+- 记录格式：导出到 `/home/ubuntu22/VLN/VLN_RECORDINGS/manual_drives/manual_drive_YYYYMMDD_HHMMSS.json`，schema 为 `vln_manual_cmd_vel_recording_v1`，每条样本包含 `t`、`linear_x`、`angular_z`、按键状态和可选 `pose`。
+- 回放入口：`/home/ubuntu22/VLN/scripts/replay_manual_drive_recording.sh --file <manual_drive_*.json>`。
+- git 规则：`VLN_RECORDINGS/` 已加入 `.gitignore`，路线记录默认不提交，避免大量实验文件进入仓库。
+
+阶段 16 当前验收状态：`./scripts/run_control_panel_manual_velocity_unity_smoke_test.sh` 已通过，最新 run id `vln_control_panel_manual_velocity_unity_20260817_130258`，覆盖 `↑` 正向直行、A/D 原地左右转、方向键 `←/→` 原地左右转和停车漂移检查；`./scripts/run_control_panel_manual_recording_smoke_test.sh` 已通过，run id `vln_control_panel_manual_recording_20260817_041218`；基础 wheel-ground 回归 `vln_scout_wheel_ground_20260817_041230` 已通过。阶段 15 自动路线已恢复，最新通过 run id `vln_scout_wheel_ground_route_20260817_125552`；后续仍不能用隐藏托底、压平桥/坡、跳点或放宽 gate 修路线。
+
+阶段 16 固定验收命令：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_control_panel_manual_recording_smoke_test.sh
+```
+
+速度控制 Unity 联动验收命令：
+
+```bash
+/home/ubuntu22/VLN/scripts/run_control_panel_manual_velocity_unity_smoke_test.sh
+```
+
+成功标志：
+
+```text
+VLN_CONTROL_PANEL_MANUAL_VELOCITY_UNITY_SMOKE_TEST_PASS
+```
+
+成功标志：
+
+```text
+VLN_CONTROL_PANEL_MANUAL_RECORDING_SMOKE_TEST_PASS
+```
+
+回放文件最小验收示例：
+
+```bash
+/home/ubuntu22/VLN/scripts/replay_manual_drive_recording.sh --file /home/ubuntu22/VLN/VLN_RECORDINGS/manual_drives/manual_drive_YYYYMMDD_HHMMSS.json --time-scale 1.0
+```
+
+成功标志：
+
+```text
+VLN_MANUAL_DRIVE_REPLAY_OK
+```
+
+阶段 16 当前边界：记录/回放的是速度命令序列，不是闭环导航策略；如果仿真初始位置、场景物理参数、摩擦、碰撞体或车辆姿态改变，同一速度记录可能不会严格走出同一条空间轨迹。因此正式采集时应先固定起点、场景和车辆物理参数，再录制满意路线；后续若要变成鲁棒 VLN 或 Nav2，应另开阶段做定位、地图、路径规划和闭环纠偏。
 
 ## 工作流管理规则
 

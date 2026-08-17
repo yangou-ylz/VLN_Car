@@ -265,13 +265,24 @@ wheelbase: 0.498 m
 track: 0.58306 m
 max_linear_speed: 2.0 m/s
 max_angular_speed: 1.0 rad/s
-max_motor_torque: 140 Nm
+max_motor_torque: 520 Nm
 max_brake_torque: 220 Nm
+forward_friction_stiffness: 8.50
+sideways_friction_stiffness: 2.10
+max_longitudinal_assist_accel: 4.00 m/s^2
+yaw_assist_gain: 3.00
+max_yaw_assist_angular_accel: 2.00 rad/s^2
+lateral_damping_gain: 4.00
+max_lateral_damping_accel: 3.00 m/s^2
+physical_road_slab_design_width: 6.2 m
+physical_road_max_width_verified: 6.939 m
+physical_bridge_width: 2.25 m
+physical_short_ramp_width: 4.8 m
 wheel_visual_vertical_offset: 0.085 m
 physics_fixed_delta_time: 0.01 s
 ```
 
-这些参数是第一轮保守候选，不代表最终论文级 Scout 标定。后续若师兄给真实电机、轮胎、悬挂、整车质量和质心参数，应优先替换这里的候选值。
+这些参数是第一轮保守候选，不代表最终论文级 Scout 标定。`yaw_assist` 和 `lateral_damping` 是施加到 `Rigidbody` 的物理力/力矩稳定项，用来模拟当前简化 WheelCollider 模型缺失的差速转向响应和轮胎侧向阻尼；它们不改位姿、不关碰撞、不铺隐藏平路。后续若师兄给真实电机、轮胎、悬挂、整车质量和质心参数，应优先替换这里的候选值。
 
 ### 验收命令
 
@@ -288,21 +299,26 @@ VLN_SCOUT_WHEEL_GROUND_SMOKE_TEST_PASS
 最近通过：
 
 ```text
-run id: vln_scout_wheel_ground_20260816_150809
+run id: vln_scout_wheel_ground_20260816_181841
 motion_source=wheel_ground_contact_not_kinematic_rig
 physics_backend=Unity WheelCollider + Rigidbody
 wheel_collider_count=4
+broad_physical_trail_count=0
+road_physical_slab_count=8
+road_seam_transition_count=5
+bridge_physics_count=3
+short_ramp_physics_count=1
+decorative_trail_collider_count=0
+road_physical_max_width_m=6.939
+bridge_physical_max_width_m=2.250
+short_ramp_physical_max_width_m=4.800
 visual_renderer_count=17
 visual_collider_count=0
 visual_articulation_body_count=0
-physics_root_delta_m=3.4929
-forward_delta=3.466m
-odom_forward_delta=3.466m
+physics_root_delta_m=3.2591m
 cmd_vel_count=58
 controller_cmd_count=58
-physics_step_count=3783
 motor_command_count=616
-odom_publish_count=378
 ```
 
 ### 当前边界
@@ -326,31 +342,61 @@ odom_publish_count=378
 ### 默认路线和参数
 
 ```text
-relative_waypoints=4.0,0.0;8.0,0.0;12.0,0.0;15.0,0.0;18.0,0.0;22.0,0.0;28.0,0.0;34.0,0.0;42.0,0.0;50.0,0.0;54.0,0.0
-max_linear=1.35 m/s
-linear_gain=0.75
-linear_accel=0.95 m/s^2
-max_angular=0.42 rad/s
-angular_gain=0.62
-angular_accel=0.28 rad/s^2
-min_linear_while_turning=0.65 m/s
-goal_tolerance=2.0 m
+relative_waypoints=4.0,0.0;8.0,0.0;12.0,0.0;15.0,0.0;18.0,0.0;22.0,0.0;26.0,0.0;28.0,0.0;30.0,0.0;34.0,0.0;42.0,0.0;50.0,0.0;54.0,0.0
+max_linear=1.05 m/s
+linear_gain=0.62
+linear_accel=0.70 m/s^2
+max_angular=0.55 rad/s
+angular_gain=0.70
+angular_accel=0.30 rad/s^2
+min_linear_while_turning=0.38 m/s
+goal_tolerance=1.60 m
+angular_sign=1
 ```
 
-这些默认值来自完整路线自动验收。上一版长路线卡在前向约 `13.7m` 的桥面入口，根因是简化桥面碰撞体形成硬台阶；当前已为桥面加入不可见物理过渡坡，并修正 Scout 视觉朝向与轮胎视觉偏移。`--skip-stalled-waypoints` 保留为物理演示容错，但最新通过结果没有触发跳点。
+这些默认值来自最新完整路线自动验收。注意：`ScoutWheelGround_PhysicalTrailSurface_*` 连续隐形路面已经被判定为错误方案并撤销，因为它会让车轮真实接触面与用户肉眼看到的独木桥、台阶、半坡不一致；`8.0m` 宽可见桥/路通行面也不再作为当前标准，因为它视觉上仍像把桥和坡的难点抹平。当前方案改为受限宽度的可见局部物理体：主路物理 slab 设计宽度 `6.2m`、桥面物理宽度 `2.25m`、短坡连续可见 MeshCollider 宽度 `4.8m`。路面 slab 在桥区和短坡区让开，验收必须看到 wheel contact 审计中的 `bridge_contact_steps`、`short_ramp_contact_steps` 和足够的 `wheel_ground_height_span_m`。独木桥处旧 Kenney 可见桥必须被删除，`ScoutWheelGround_PhysicalBridgeDeck` 同时承担可见桥面和碰撞桥面，renderer/collider 顶面对齐。轮胎视觉旋转使用累计滚动角，不再直接套用 WheelCollider 瞬时旋转。正式验收强制 `broad_physical_trail_count=0`、`stall_count=0`、`skipped_count=0`、`decorative_bridge_renderer_count=0`，并限制轮胎视觉方向反转次数；只要出现宽泛隐形平路、桥/坡托底、旧视觉桥遮挡真实物理桥、停滞或跳点，就不能算通过。
+
+补充强约束：用户已明确指出“桥和斜坡变扁、为了通过而简化”属于不可接受风险。后续不能为了路线通过而压平桥面、压平短坡、降低坡高或恢复隐藏托底面。当前 Unity 结果文件必须包含 `terrain_geometry_policy=visible_local_physics_no_flattening_no_hidden_bypass`；自动验收必须检查 `bridge_physical_height_span_m>=0.20`、`short_ramp_physical_height_span_m>=0.62`，并在每次完整路线验收中归档 `vln_offroad_scout_wheel_ground_bridge_screenshot.png` 和 `vln_offroad_scout_wheel_ground_short_ramp_screenshot.png`，供人工复查桥/坡是否仍像真实可见接触面。
 
 ### 最新验收
 
 ```text
-run id: vln_scout_wheel_ground_route_20260816_150349
+run id: vln_scout_wheel_ground_route_20260817_125552
 success marker: VLN_SCOUT_WHEEL_GROUND_ROUTE_SMOKE_TEST_PASS
-reached_count=11/11
-total_forward_progress=53.080m
-total_progress=53.102m
+reached_count=13/13
+total_forward_progress=52.435m
+total_progress=52.435m
+final_lateral_offset=-0.015m
+max_reached_cross_track=0.015m
+max_abs_lateral_offset=0.015m
+max_bridge_abs_lateral_offset=0.014m
 stall_count=0
 skipped_count=0
+broad_physical_trail_count=0
+road_physical_slab_count=8
+road_seam_transition_count=5
+bridge_physics_count=3
+short_ramp_physics_count=1
+decorative_trail_collider_count=0
+decorative_bridge_renderer_count=0
+bridge_deck_has_renderer=1
+bridge_deck_has_collider=1
+bridge_deck_renderer_collider_top_delta_m=0.0000
+road_physical_max_width_m=6.939
+bridge_physical_max_width_m=2.250
+bridge_physical_height_span_m=0.235
+short_ramp_physical_max_width_m=4.800
+short_ramp_physical_height_span_m=0.804
+bridge_contact_steps=1629
+short_ramp_contact_steps=1648
+wheel_ground_height_span_m=0.821
+wheel_visual_total_abs_roll_deg=73393.0
+wheel_visual_direction_reversal_count=0
 sensor checks: Image, CameraInfo, PointCloud2, odom pass
+visual evidence: bridge screenshot and short-ramp screenshot archived in the run directory
 ```
+
+2026-08-17 补充：手动速度控制底层修复后，正 `angular.z` 已统一为左转；固定路线脚本也必须使用 `angular_sign=1`。旧 `angular_sign=-1` 会让路线纠偏方向反掉，导致 S 型、偏出或卡点。
 
 ### 边界
 

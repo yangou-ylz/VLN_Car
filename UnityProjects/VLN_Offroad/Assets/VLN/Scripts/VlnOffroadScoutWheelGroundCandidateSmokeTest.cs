@@ -25,6 +25,8 @@ namespace VLN.ROS2
         string m_ResultPath;
         Vector3 m_InitialPosition;
         bool m_ScreenshotRequested;
+        bool m_BridgeScreenshotRequested;
+        bool m_ShortRampScreenshotRequested;
         bool m_FinalSnapshotWritten;
 
         void Start()
@@ -66,6 +68,7 @@ namespace VLN.ROS2
                 "image_resolution=640x480\n" +
                 "lidar_scan_pattern=VLP-16\n" +
                 "lidar_points_per_scan=7200\n" +
+                "terrain_geometry_policy=visible_local_physics_no_flattening_no_hidden_bypass\n" +
                 BuildPhysicsSummary(physicsRoot));
 
             var ros = ROSConnection.GetOrCreateInstance();
@@ -93,6 +96,25 @@ namespace VLN.ROS2
                 SaveViewerCameraScreenshot(screenshotPath);
                 File.AppendAllText(m_ResultPath, $"screenshot={screenshotPath}\n");
                 Debug.Log($"VLN_OFFROAD_SCOUT_WHEEL_GROUND_CANDIDATE_SCREENSHOT {screenshotPath}");
+            }
+
+            var physicsRoot = GameObject.Find(PhysicsRootName);
+            if (!m_BridgeScreenshotRequested && physicsRoot != null && physicsRoot.transform.position.z >= -9.5f && physicsRoot.transform.position.z <= -4.2f)
+            {
+                m_BridgeScreenshotRequested = true;
+                string bridgeScreenshotPath = Path.Combine(Application.dataPath, "../Logs/vln_offroad_scout_wheel_ground_bridge_screenshot.png");
+                SaveViewerCameraScreenshot(bridgeScreenshotPath);
+                File.AppendAllText(m_ResultPath, $"bridge_screenshot={bridgeScreenshotPath}\n");
+                Debug.Log($"VLN_OFFROAD_SCOUT_WHEEL_GROUND_BRIDGE_SCREENSHOT {bridgeScreenshotPath}");
+            }
+
+            if (!m_ShortRampScreenshotRequested && physicsRoot != null && physicsRoot.transform.position.z >= 1.2f && physicsRoot.transform.position.z <= 5.8f)
+            {
+                m_ShortRampScreenshotRequested = true;
+                string shortRampScreenshotPath = Path.Combine(Application.dataPath, "../Logs/vln_offroad_scout_wheel_ground_short_ramp_screenshot.png");
+                SaveViewerCameraScreenshot(shortRampScreenshotPath);
+                File.AppendAllText(m_ResultPath, $"short_ramp_screenshot={shortRampScreenshotPath}\n");
+                Debug.Log($"VLN_OFFROAD_SCOUT_WHEEL_GROUND_SHORT_RAMP_SCREENSHOT {shortRampScreenshotPath}");
             }
 
             if (!Application.isBatchMode || elapsed < m_BatchModeAutoExitAfterSeconds)
@@ -150,10 +172,183 @@ namespace VLN.ROS2
                 $"rigidbody_count={physicsRoot.GetComponentsInChildren<Rigidbody>(true).Length}\n" +
                 $"wheel_collider_count={colliders.Length}\n" +
                 $"box_collider_count={physicsRoot.GetComponentsInChildren<BoxCollider>(true).Length}\n" +
+                $"broad_physical_trail_count={CountGameObjectsByPrefix("ScoutWheelGround_PhysicalTrailSurface_")}\n" +
+                $"road_physical_slab_count={CountGameObjectsByPrefix("ScoutWheelGround_PhysicalRoadSlab_")}\n" +
+                $"road_seam_transition_count={CountGameObjectsByPrefix("ScoutWheelGround_PhysicalRoadSeam_")}\n" +
+                $"bridge_physics_count={CountGameObjectsByPrefix("ScoutWheelGround_PhysicalBridge")}\n" +
+                $"short_ramp_physics_count={CountGameObjectsByPrefix("ScoutWheelGround_PhysicalShortRamp")}\n" +
+                $"bridge_visual_detail_count={CountGameObjectsByPrefix("ScoutWheelGround_VisibleBridgeDetail_")}\n" +
+                $"bridge_rail_collider_count={CountBridgeRailColliders()}\n" +
+                $"short_ramp_visual_detail_count={CountGameObjectsByPrefix("ScoutWheelGround_VisibleShortRampDetail_")}\n" +
+                $"road_physical_max_width_m={MaxBoundsWidthByPrefix("ScoutWheelGround_PhysicalRoad"):F3}\n" +
+                $"bridge_physical_max_width_m={MaxBoundsWidthByPrefix("ScoutWheelGround_PhysicalBridge"):F3}\n" +
+                $"bridge_physical_height_span_m={MaxBoundsHeightByPrefix("ScoutWheelGround_PhysicalBridge"):F3}\n" +
+                $"short_ramp_physical_max_width_m={MaxBoundsWidthByPrefix("ScoutWheelGround_PhysicalShortRamp"):F3}\n" +
+                $"short_ramp_physical_height_span_m={MaxBoundsHeightByPrefix("ScoutWheelGround_PhysicalShortRamp"):F3}\n" +
+                $"decorative_trail_collider_count={CountDecorativeTrailColliders()}\n" +
+                $"decorative_bridge_renderer_count={CountDecorativeBridgeRenderers()}\n" +
+                $"bridge_deck_has_renderer={HasComponentOnObject<Renderer>("ScoutWheelGround_PhysicalBridgeDeck")}\n" +
+                $"bridge_deck_has_collider={HasComponentOnObject<Collider>("ScoutWheelGround_PhysicalBridgeDeck")}\n" +
+                $"bridge_deck_renderer_collider_top_delta_m={BridgeDeckRendererColliderTopDelta():F4}\n" +
                 $"visual_renderer_count={(visualRoot != null ? visualRoot.GetComponentsInChildren<Renderer>(true).Length : 0)}\n" +
                 $"visual_collider_count={(visualRoot != null ? visualRoot.GetComponentsInChildren<Collider>(true).Length : 0)}\n" +
                 $"visual_articulation_body_count={(visualRoot != null ? visualRoot.GetComponentsInChildren<ArticulationBody>(true).Length : 0)}\n" +
                 $"rigidbody_mass_kg={(body != null ? body.mass.ToString("F2") : "missing")}\n";
+        }
+
+        static int CountGameObjectsByPrefix(string prefix)
+        {
+            int count = 0;
+            foreach (var gameObject in FindObjectsOfType<GameObject>())
+            {
+                if (gameObject.name.StartsWith(prefix, StringComparison.Ordinal))
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        static float MaxBoundsWidthByPrefix(string prefix)
+        {
+            float maxWidth = 0f;
+            foreach (var gameObject in FindObjectsOfType<GameObject>())
+            {
+                if (!gameObject.name.StartsWith(prefix, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var renderer = gameObject.GetComponent<Renderer>();
+                if (renderer != null)
+                {
+                    maxWidth = Mathf.Max(maxWidth, renderer.bounds.size.x);
+                    continue;
+                }
+
+                var collider = gameObject.GetComponent<Collider>();
+                if (collider != null)
+                {
+                    maxWidth = Mathf.Max(maxWidth, collider.bounds.size.x);
+                }
+            }
+
+            return maxWidth;
+        }
+
+        static float MaxBoundsHeightByPrefix(string prefix)
+        {
+            float maxHeight = 0f;
+            foreach (var gameObject in FindObjectsOfType<GameObject>())
+            {
+                if (!gameObject.name.StartsWith(prefix, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var renderer = gameObject.GetComponent<Renderer>();
+                if (renderer != null)
+                {
+                    maxHeight = Mathf.Max(maxHeight, renderer.bounds.size.y);
+                    continue;
+                }
+
+                var collider = gameObject.GetComponent<Collider>();
+                if (collider != null)
+                {
+                    maxHeight = Mathf.Max(maxHeight, collider.bounds.size.y);
+                }
+            }
+
+            return maxHeight;
+        }
+
+        static int CountDecorativeTrailColliders()
+        {
+            int count = 0;
+            foreach (var collider in FindObjectsOfType<Collider>())
+            {
+                string name = collider.gameObject.name;
+                if (name.StartsWith("Offroad_DirtRoad_", StringComparison.Ordinal) || name == "Offroad_ShortRamp")
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        static int CountBridgeRailColliders()
+        {
+            int count = 0;
+            foreach (var collider in FindObjectsOfType<BoxCollider>())
+            {
+                string name = collider.gameObject.name;
+                if (!name.StartsWith("ScoutWheelGround_VisibleBridgeDetail_", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (name.Contains("Rail", StringComparison.Ordinal) || name.Contains("Post", StringComparison.Ordinal))
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+        static int CountDecorativeBridgeRenderers()
+        {
+            int count = 0;
+            foreach (var renderer in FindObjectsOfType<Renderer>())
+            {
+                if (IsDecorativeBridgeTransform(renderer.transform))
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        static bool IsDecorativeBridgeTransform(Transform transform)
+        {
+            for (var current = transform; current != null; current = current.parent)
+            {
+                string name = current.name;
+                if (name.Contains("WoodBridge", StringComparison.Ordinal) ||
+                    name.Contains("Kenney_bridge", StringComparison.Ordinal) ||
+                    name.Contains("bridge_wood", StringComparison.Ordinal) ||
+                    name.Contains("bridge_center_wood", StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        static int HasComponentOnObject<T>(string objectName) where T : Component
+        {
+            var gameObject = GameObject.Find(objectName);
+            return gameObject != null && gameObject.GetComponent<T>() != null ? 1 : 0;
+        }
+
+        static float BridgeDeckRendererColliderTopDelta()
+        {
+            var gameObject = GameObject.Find("ScoutWheelGround_PhysicalBridgeDeck");
+            if (gameObject == null)
+            {
+                return 999f;
+            }
+
+            var renderer = gameObject.GetComponent<Renderer>();
+            var collider = gameObject.GetComponent<Collider>();
+            if (renderer == null || collider == null)
+            {
+                return 999f;
+            }
+
+            return Mathf.Abs(renderer.bounds.max.y - collider.bounds.max.y);
         }
 
         static void SaveViewerCameraScreenshot(string path)
