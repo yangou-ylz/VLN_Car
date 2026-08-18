@@ -61,6 +61,12 @@ namespace VLN.ROS2
         [SerializeField] float m_OverspeedBrakeTorqueRatio = 0.25f;
         [SerializeField] float m_RollingBrakeSpeedThreshold = 0.08f;
         [SerializeField] float m_CommandTimeoutSeconds = 0.18f;
+        [SerializeField] float m_GrassRollingResistanceAcceleration = 0.12f;
+        [SerializeField] float m_StoneRollingResistanceAcceleration = 0.03f;
+        [SerializeField] float m_SandRollingResistanceAcceleration = 0.32f;
+        [SerializeField] float m_GrassTractionAssistReduction = 0.05f;
+        [SerializeField] float m_SandTractionAssistReduction = 0.16f;
+        [SerializeField] float m_SandLateralDampingReduction = 0.20f;
 
         Rigidbody m_Body;
         float m_CommandedLinearX;
@@ -74,6 +80,20 @@ namespace VLN.ROS2
         int m_ShortRampContactSteps;
         int m_ChallengeSurfaceContactSteps;
         int m_ChallengeObstacleContactSteps;
+        int m_ChallengePhysicsProxyContactSteps;
+        int m_ChallengeMaterialResistanceSteps;
+        int m_GrassContactSteps;
+        int m_StoneContactSteps;
+        int m_SandContactSteps;
+        int m_GrassSurfaceContactSteps;
+        int m_StoneSurfaceContactSteps;
+        int m_SandSurfaceContactSteps;
+        int m_GrassPhysicsProxyContactSteps;
+        int m_StonePhysicsProxyContactSteps;
+        int m_SandPhysicsProxyContactSteps;
+        int m_GrassWheelHitCount;
+        int m_StoneWheelHitCount;
+        int m_SandWheelHitCount;
         int m_TerrainContactSteps;
         int m_OtherContactSteps;
         int m_NoWheelContactSteps;
@@ -83,6 +103,24 @@ namespace VLN.ROS2
         float m_MaxBodyHeight = float.NegativeInfinity;
         float m_MinWheelGroundHeight = float.PositiveInfinity;
         float m_MaxWheelGroundHeight = float.NegativeInfinity;
+        float m_MinGrassWheelGroundHeight = float.PositiveInfinity;
+        float m_MaxGrassWheelGroundHeight = float.NegativeInfinity;
+        float m_MinStoneWheelGroundHeight = float.PositiveInfinity;
+        float m_MaxStoneWheelGroundHeight = float.NegativeInfinity;
+        float m_MinSandWheelGroundHeight = float.PositiveInfinity;
+        float m_MaxSandWheelGroundHeight = float.NegativeInfinity;
+        float m_MinGrassBodyHeight = float.PositiveInfinity;
+        float m_MaxGrassBodyHeight = float.NegativeInfinity;
+        float m_MinStoneBodyHeight = float.PositiveInfinity;
+        float m_MaxStoneBodyHeight = float.NegativeInfinity;
+        float m_MinSandBodyHeight = float.PositiveInfinity;
+        float m_MaxSandBodyHeight = float.NegativeInfinity;
+        float m_GrassSpeedSum;
+        float m_StoneSpeedSum;
+        float m_SandSpeedSum;
+        float m_CurrentGrassContactFraction;
+        float m_CurrentStoneContactFraction;
+        float m_CurrentSandContactFraction;
         Transform[] m_VisualWheelTransforms;
         Quaternion[] m_VisualRestRootRotations;
         float[] m_VisualRollDegrees;
@@ -96,6 +134,31 @@ namespace VLN.ROS2
         float m_StraightHeadingHoldYawDegrees;
         string m_ResultPath;
         bool m_FinalSnapshotWritten;
+
+        struct ContactStepState
+        {
+            public bool Any;
+            public bool Road;
+            public bool Bridge;
+            public bool ShortRamp;
+            public bool ChallengeSurface;
+            public bool ChallengeObstacle;
+            public bool ChallengePhysicsProxy;
+            public bool Terrain;
+            public bool Other;
+            public bool Grass;
+            public bool Stone;
+            public bool Sand;
+            public bool GrassSurface;
+            public bool StoneSurface;
+            public bool SandSurface;
+            public bool GrassPhysicsProxy;
+            public bool StonePhysicsProxy;
+            public bool SandPhysicsProxy;
+            public int GrassWheelHits;
+            public int StoneWheelHits;
+            public int SandWheelHits;
+        }
 
         void Awake()
         {
@@ -146,6 +209,12 @@ namespace VLN.ROS2
                 $"overspeed_brake_torque_ratio={m_OverspeedBrakeTorqueRatio:F2}\n" +
                 $"rolling_brake_speed_threshold_mps={m_RollingBrakeSpeedThreshold:F2}\n" +
                 $"command_timeout_seconds={m_CommandTimeoutSeconds:F2}\n" +
+                $"grass_rolling_resistance_accel_mps2={m_GrassRollingResistanceAcceleration:F2}\n" +
+                $"stone_rolling_resistance_accel_mps2={m_StoneRollingResistanceAcceleration:F2}\n" +
+                $"sand_rolling_resistance_accel_mps2={m_SandRollingResistanceAcceleration:F2}\n" +
+                $"grass_traction_assist_reduction={m_GrassTractionAssistReduction:F2}\n" +
+                $"sand_traction_assist_reduction={m_SandTractionAssistReduction:F2}\n" +
+                $"sand_lateral_damping_reduction={m_SandLateralDampingReduction:F2}\n" +
                 $"wheel_collider_count={CountWheelColliders()}\n" +
                 $"rigidbody_mass_kg={m_Body.mass:F2}\n");
 
@@ -156,6 +225,7 @@ namespace VLN.ROS2
         void FixedUpdate()
         {
             m_PhysicsStepCount++;
+            SampleWheelContacts();
             if (HasRecentCommand())
             {
                 ApplyWheelTargets(m_CommandedLinearX, m_CommandedAngularZ);
@@ -167,7 +237,7 @@ namespace VLN.ROS2
                 ResetPidState();
             }
 
-            SampleWheelContacts();
+            ApplyChallengeMaterialForces();
         }
 
         void LateUpdate()
@@ -273,13 +343,22 @@ namespace VLN.ROS2
                 Mathf.Abs(m_LongitudinalIntegralLimit));
             float derivative = (speedError - m_PreviousLongitudinalSpeedError) / dt;
             m_PreviousLongitudinalSpeedError = speedError;
+            float assistLimit = m_MaxLongitudinalAssistAcceleration * ChallengeTractionAssistScale();
             float assistAcceleration = Mathf.Clamp(
                 speedError * Mathf.Max(0f, m_LongitudinalVelocityKp) +
                 m_LongitudinalSpeedIntegral * Mathf.Max(0f, m_LongitudinalVelocityKi) +
                 derivative * Mathf.Max(0f, m_LongitudinalVelocityKd),
-                -m_MaxLongitudinalAssistAcceleration,
-                m_MaxLongitudinalAssistAcceleration);
+                -assistLimit,
+                assistLimit);
             m_Body.AddForce(driveForward * assistAcceleration, ForceMode.Acceleration);
+        }
+
+        float ChallengeTractionAssistScale()
+        {
+            float reduction =
+                m_CurrentGrassContactFraction * Mathf.Clamp01(m_GrassTractionAssistReduction) +
+                m_CurrentSandContactFraction * Mathf.Clamp01(m_SandTractionAssistReduction);
+            return Mathf.Clamp(1f - reduction, 0.58f, 1f);
         }
 
         void ApplyYawRatePid(float angularZ)
@@ -361,11 +440,33 @@ namespace VLN.ROS2
 
             Vector3 driveRight = PlanarRight();
             float lateralSpeed = Vector3.Dot(Vector3.ProjectOnPlane(m_Body.velocity, Vector3.up), driveRight);
+            float materialScale = Mathf.Clamp(1f - m_CurrentSandContactFraction * Mathf.Clamp01(m_SandLateralDampingReduction), 0.65f, 1f);
             float lateralAcceleration = Mathf.Clamp(
-                -lateralSpeed * Mathf.Max(0f, m_LateralDampingGain),
+                -lateralSpeed * Mathf.Max(0f, m_LateralDampingGain) * materialScale,
                 -m_MaxLateralDampingAcceleration,
                 m_MaxLateralDampingAcceleration);
             m_Body.AddForce(driveRight * lateralAcceleration, ForceMode.Acceleration);
+        }
+
+        void ApplyChallengeMaterialForces()
+        {
+            float resistanceAcceleration =
+                m_CurrentGrassContactFraction * Mathf.Max(0f, m_GrassRollingResistanceAcceleration) +
+                m_CurrentStoneContactFraction * Mathf.Max(0f, m_StoneRollingResistanceAcceleration) +
+                m_CurrentSandContactFraction * Mathf.Max(0f, m_SandRollingResistanceAcceleration);
+            if (resistanceAcceleration <= 0.001f)
+            {
+                return;
+            }
+
+            Vector3 planarVelocity = Vector3.ProjectOnPlane(m_Body.velocity, Vector3.up);
+            if (planarVelocity.sqrMagnitude <= 0.0009f)
+            {
+                return;
+            }
+
+            m_Body.AddForce(-planarVelocity.normalized * resistanceAcceleration, ForceMode.Acceleration);
+            m_ChallengeMaterialResistanceSteps++;
         }
 
         void ApplyPureTurnTranslationDamping()
@@ -483,94 +584,221 @@ namespace VLN.ROS2
             m_MinBodyHeight = Mathf.Min(m_MinBodyHeight, transform.position.y);
             m_MaxBodyHeight = Mathf.Max(m_MaxBodyHeight, transform.position.y);
 
-            bool any = false;
-            bool road = false;
-            bool bridge = false;
-            bool shortRamp = false;
-            bool challengeSurface = false;
-            bool challengeObstacle = false;
-            bool terrain = false;
-            bool other = false;
+            var state = new ContactStepState();
+            SampleWheelContact(m_FrontLeftWheel, ref state);
+            SampleWheelContact(m_FrontRightWheel, ref state);
+            SampleWheelContact(m_RearLeftWheel, ref state);
+            SampleWheelContact(m_RearRightWheel, ref state);
 
-            SampleWheelContact(m_FrontLeftWheel, ref any, ref road, ref bridge, ref shortRamp, ref challengeSurface, ref challengeObstacle, ref terrain, ref other);
-            SampleWheelContact(m_FrontRightWheel, ref any, ref road, ref bridge, ref shortRamp, ref challengeSurface, ref challengeObstacle, ref terrain, ref other);
-            SampleWheelContact(m_RearLeftWheel, ref any, ref road, ref bridge, ref shortRamp, ref challengeSurface, ref challengeObstacle, ref terrain, ref other);
-            SampleWheelContact(m_RearRightWheel, ref any, ref road, ref bridge, ref shortRamp, ref challengeSurface, ref challengeObstacle, ref terrain, ref other);
+            m_CurrentGrassContactFraction = Mathf.Clamp01(state.GrassWheelHits / 4f);
+            m_CurrentStoneContactFraction = Mathf.Clamp01(state.StoneWheelHits / 4f);
+            m_CurrentSandContactFraction = Mathf.Clamp01(state.SandWheelHits / 4f);
 
-            if (!any)
+            if (!state.Any)
             {
                 m_NoWheelContactSteps++;
             }
-            if (road)
+            if (state.Road)
             {
                 m_RoadContactSteps++;
             }
-            if (bridge)
+            if (state.Bridge)
             {
                 m_BridgeContactSteps++;
             }
-            if (shortRamp)
+            if (state.ShortRamp)
             {
                 m_ShortRampContactSteps++;
             }
-            if (challengeSurface)
+            if (state.ChallengeSurface)
             {
                 m_ChallengeSurfaceContactSteps++;
             }
-            if (challengeObstacle)
+            if (state.ChallengeObstacle)
             {
                 m_ChallengeObstacleContactSteps++;
             }
-            if (terrain)
+            if (state.ChallengePhysicsProxy)
+            {
+                m_ChallengePhysicsProxyContactSteps++;
+            }
+            if (state.Grass)
+            {
+                RecordMaterialStep(ref m_GrassContactSteps, ref m_GrassSpeedSum, ref m_MinGrassBodyHeight, ref m_MaxGrassBodyHeight);
+            }
+            if (state.Stone)
+            {
+                RecordMaterialStep(ref m_StoneContactSteps, ref m_StoneSpeedSum, ref m_MinStoneBodyHeight, ref m_MaxStoneBodyHeight);
+            }
+            if (state.Sand)
+            {
+                RecordMaterialStep(ref m_SandContactSteps, ref m_SandSpeedSum, ref m_MinSandBodyHeight, ref m_MaxSandBodyHeight);
+            }
+            if (state.GrassSurface)
+            {
+                m_GrassSurfaceContactSteps++;
+            }
+            if (state.StoneSurface)
+            {
+                m_StoneSurfaceContactSteps++;
+            }
+            if (state.SandSurface)
+            {
+                m_SandSurfaceContactSteps++;
+            }
+            if (state.GrassPhysicsProxy)
+            {
+                m_GrassPhysicsProxyContactSteps++;
+            }
+            if (state.StonePhysicsProxy)
+            {
+                m_StonePhysicsProxyContactSteps++;
+            }
+            if (state.SandPhysicsProxy)
+            {
+                m_SandPhysicsProxyContactSteps++;
+            }
+
+            m_GrassWheelHitCount += state.GrassWheelHits;
+            m_StoneWheelHitCount += state.StoneWheelHits;
+            m_SandWheelHitCount += state.SandWheelHits;
+
+            if (state.Terrain)
             {
                 m_TerrainContactSteps++;
             }
-            if (other)
+            if (state.Other)
             {
                 m_OtherContactSteps++;
             }
         }
 
-        void SampleWheelContact(WheelCollider wheel, ref bool any, ref bool road, ref bool bridge, ref bool shortRamp, ref bool challengeSurface, ref bool challengeObstacle, ref bool terrain, ref bool other)
+        void SampleWheelContact(WheelCollider wheel, ref ContactStepState state)
         {
             if (wheel == null || !wheel.GetGroundHit(out WheelHit hit))
             {
                 return;
             }
 
-            any = true;
+            state.Any = true;
             m_MinWheelGroundHeight = Mathf.Min(m_MinWheelGroundHeight, hit.point.y);
             m_MaxWheelGroundHeight = Mathf.Max(m_MaxWheelGroundHeight, hit.point.y);
 
             string name = hit.collider != null ? hit.collider.gameObject.name : string.Empty;
             if (name.StartsWith("ScoutWheelGround_PhysicalBridge", StringComparison.Ordinal))
             {
-                bridge = true;
+                state.Bridge = true;
             }
             else if (name.StartsWith("ScoutWheelGround_PhysicalShortRamp", StringComparison.Ordinal))
             {
-                shortRamp = true;
+                state.ShortRamp = true;
             }
-            else if (name.StartsWith("ScoutWheelGround_ChallengeSurface_", StringComparison.Ordinal))
+            else if (ClassifyChallengeContact(name, hit.point.y, ref state))
             {
-                challengeSurface = true;
-            }
-            else if (name.StartsWith("ScoutWheelGround_ChallengeObstacle_", StringComparison.Ordinal))
-            {
-                challengeObstacle = true;
             }
             else if (name.StartsWith("ScoutWheelGround_PhysicalRoad", StringComparison.Ordinal))
             {
-                road = true;
+                state.Road = true;
             }
             else if (name.StartsWith("OffroadTerrain_", StringComparison.Ordinal))
             {
-                terrain = true;
+                state.Terrain = true;
             }
             else
             {
-                other = true;
+                state.Other = true;
             }
+        }
+
+        bool ClassifyChallengeContact(string name, float hitY, ref ContactStepState state)
+        {
+            if (name.StartsWith("ScoutWheelGround_ChallengeSurface_Grass", StringComparison.Ordinal))
+            {
+                state.ChallengeSurface = true;
+                state.GrassSurface = true;
+                MarkGrassContact(hitY, ref state);
+                return true;
+            }
+            if (name.StartsWith("ScoutWheelGround_ChallengeSurface_Stone", StringComparison.Ordinal))
+            {
+                state.ChallengeSurface = true;
+                state.StoneSurface = true;
+                MarkStoneContact(hitY, ref state);
+                return true;
+            }
+            if (name.StartsWith("ScoutWheelGround_ChallengeSurface_Sand", StringComparison.Ordinal))
+            {
+                state.ChallengeSurface = true;
+                state.SandSurface = true;
+                MarkSandContact(hitY, ref state);
+                return true;
+            }
+            if (name.StartsWith("ScoutWheelGround_ChallengePhysicsProxy_Grass", StringComparison.Ordinal) ||
+                name.StartsWith("ScoutWheelGround_ChallengeObstacle_Grass", StringComparison.Ordinal))
+            {
+                state.ChallengeObstacle = true;
+                state.ChallengePhysicsProxy = name.StartsWith("ScoutWheelGround_ChallengePhysicsProxy_", StringComparison.Ordinal) || state.ChallengePhysicsProxy;
+                state.GrassPhysicsProxy = true;
+                MarkGrassContact(hitY, ref state);
+                return true;
+            }
+            if (name.StartsWith("ScoutWheelGround_ChallengePhysicsProxy_Stone", StringComparison.Ordinal) ||
+                name.StartsWith("ScoutWheelGround_ChallengeObstacle_Stone", StringComparison.Ordinal))
+            {
+                state.ChallengeObstacle = true;
+                state.ChallengePhysicsProxy = name.StartsWith("ScoutWheelGround_ChallengePhysicsProxy_", StringComparison.Ordinal) || state.ChallengePhysicsProxy;
+                state.StonePhysicsProxy = true;
+                MarkStoneContact(hitY, ref state);
+                return true;
+            }
+            if (name.StartsWith("ScoutWheelGround_ChallengePhysicsProxy_Sand", StringComparison.Ordinal) ||
+                name.StartsWith("ScoutWheelGround_ChallengeObstacle_Sand", StringComparison.Ordinal))
+            {
+                state.ChallengeObstacle = true;
+                state.ChallengePhysicsProxy = name.StartsWith("ScoutWheelGround_ChallengePhysicsProxy_", StringComparison.Ordinal) || state.ChallengePhysicsProxy;
+                state.SandPhysicsProxy = true;
+                MarkSandContact(hitY, ref state);
+                return true;
+            }
+            if (name.StartsWith("ScoutWheelGround_ChallengeObstacle_", StringComparison.Ordinal))
+            {
+                state.ChallengeObstacle = true;
+                return true;
+            }
+
+            return false;
+        }
+
+        void MarkGrassContact(float hitY, ref ContactStepState state)
+        {
+            state.Grass = true;
+            state.GrassWheelHits++;
+            m_MinGrassWheelGroundHeight = Mathf.Min(m_MinGrassWheelGroundHeight, hitY);
+            m_MaxGrassWheelGroundHeight = Mathf.Max(m_MaxGrassWheelGroundHeight, hitY);
+        }
+
+        void MarkStoneContact(float hitY, ref ContactStepState state)
+        {
+            state.Stone = true;
+            state.StoneWheelHits++;
+            m_MinStoneWheelGroundHeight = Mathf.Min(m_MinStoneWheelGroundHeight, hitY);
+            m_MaxStoneWheelGroundHeight = Mathf.Max(m_MaxStoneWheelGroundHeight, hitY);
+        }
+
+        void MarkSandContact(float hitY, ref ContactStepState state)
+        {
+            state.Sand = true;
+            state.SandWheelHits++;
+            m_MinSandWheelGroundHeight = Mathf.Min(m_MinSandWheelGroundHeight, hitY);
+            m_MaxSandWheelGroundHeight = Mathf.Max(m_MaxSandWheelGroundHeight, hitY);
+        }
+
+        void RecordMaterialStep(ref int stepCount, ref float speedSum, ref float minBodyHeight, ref float maxBodyHeight)
+        {
+            stepCount++;
+            speedSum += Vector3.ProjectOnPlane(m_Body.velocity, Vector3.up).magnitude;
+            minBodyHeight = Mathf.Min(minBodyHeight, transform.position.y);
+            maxBodyHeight = Mathf.Max(maxBodyHeight, transform.position.y);
         }
 
         void InitializeWheelVisualState()
@@ -677,6 +905,29 @@ namespace VLN.ROS2
                 $"short_ramp_contact_steps={m_ShortRampContactSteps}\n" +
                 $"challenge_surface_contact_steps={m_ChallengeSurfaceContactSteps}\n" +
                 $"challenge_obstacle_contact_steps={m_ChallengeObstacleContactSteps}\n" +
+                $"challenge_physics_proxy_contact_steps={m_ChallengePhysicsProxyContactSteps}\n" +
+                $"challenge_material_resistance_steps={m_ChallengeMaterialResistanceSteps}\n" +
+                $"grass_contact_steps={m_GrassContactSteps}\n" +
+                $"stone_contact_steps={m_StoneContactSteps}\n" +
+                $"sand_contact_steps={m_SandContactSteps}\n" +
+                $"grass_surface_contact_steps={m_GrassSurfaceContactSteps}\n" +
+                $"stone_surface_contact_steps={m_StoneSurfaceContactSteps}\n" +
+                $"sand_surface_contact_steps={m_SandSurfaceContactSteps}\n" +
+                $"grass_physics_proxy_contact_steps={m_GrassPhysicsProxyContactSteps}\n" +
+                $"stone_physics_proxy_contact_steps={m_StonePhysicsProxyContactSteps}\n" +
+                $"sand_physics_proxy_contact_steps={m_SandPhysicsProxyContactSteps}\n" +
+                $"grass_wheel_hit_count={m_GrassWheelHitCount}\n" +
+                $"stone_wheel_hit_count={m_StoneWheelHitCount}\n" +
+                $"sand_wheel_hit_count={m_SandWheelHitCount}\n" +
+                $"grass_avg_speed_mps={AverageSpeed(m_GrassSpeedSum, m_GrassContactSteps):F3}\n" +
+                $"stone_avg_speed_mps={AverageSpeed(m_StoneSpeedSum, m_StoneContactSteps):F3}\n" +
+                $"sand_avg_speed_mps={AverageSpeed(m_SandSpeedSum, m_SandContactSteps):F3}\n" +
+                $"grass_wheel_ground_height_span_m={SafeSpan(m_MinGrassWheelGroundHeight, m_MaxGrassWheelGroundHeight):F3}\n" +
+                $"stone_wheel_ground_height_span_m={SafeSpan(m_MinStoneWheelGroundHeight, m_MaxStoneWheelGroundHeight):F3}\n" +
+                $"sand_wheel_ground_height_span_m={SafeSpan(m_MinSandWheelGroundHeight, m_MaxSandWheelGroundHeight):F3}\n" +
+                $"grass_body_height_span_m={SafeSpan(m_MinGrassBodyHeight, m_MaxGrassBodyHeight):F3}\n" +
+                $"stone_body_height_span_m={SafeSpan(m_MinStoneBodyHeight, m_MaxStoneBodyHeight):F3}\n" +
+                $"sand_body_height_span_m={SafeSpan(m_MinSandBodyHeight, m_MaxSandBodyHeight):F3}\n" +
                 $"terrain_contact_steps={m_TerrainContactSteps}\n" +
                 $"other_contact_steps={m_OtherContactSteps}\n" +
                 $"no_wheel_contact_steps={m_NoWheelContactSteps}\n" +
@@ -704,6 +955,11 @@ namespace VLN.ROS2
             }
 
             return Mathf.Max(0f, maxValue - minValue);
+        }
+
+        static float AverageSpeed(float speedSum, int stepCount)
+        {
+            return stepCount > 0 ? speedSum / stepCount : 0f;
         }
 
         Vector3 PlanarForward()

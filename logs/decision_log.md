@@ -364,7 +364,7 @@
 - 决策：在用户要求老师演示视频前，优先恢复阶段 15 固定完整路线自动巡航；路线控制器统一使用 `angular-sign=1`，与当前手动速度控制和 Unity wheel-ground 底层“正 `angular.z` 左转”的约定一致。
 - 备选项：继续把固定路线标为阶段 16 外的失败旧分支、用示教回放代替自动路线、或者通过放宽路线 gate/跳点/改桥坡几何让路线通过。
 - 理由：复现显示失败根因是控制符号不同步，不是桥/坡物理几何必须再改；只改 `angular-sign` 能在不作弊、不降验收、不改地形的情况下恢复 13/13 完整路线。
-- 影响：`run_scout_wheel_ground_route_smoke_test.sh`、`drive_scout_wheel_ground_route_demo.sh`、`ros2_drive_scout_physics_route.py` 默认都必须保持 `angular-sign=1`。该决策首次恢复通过 run id 为 `vln_scout_wheel_ground_route_20260817_125552`；当前最新 13 点金标准回归为 `vln_scout_wheel_ground_route_20260817_145357`。
+- 影响：`run_scout_wheel_ground_route_smoke_test.sh`、`drive_scout_wheel_ground_route_demo.sh`、`ros2_drive_scout_physics_route.py` 默认都必须保持 `angular-sign=1`。该决策首次恢复通过 run id 为 `vln_scout_wheel_ground_route_20260817_125552`；PBR 材质升级后的当前最新 13 点金标准回归为 `vln_scout_wheel_ground_route_20260817_183540`。
 
 ## 2026-08-17：速度控制验收覆盖方向键和 A/D 两套输入
 
@@ -385,14 +385,14 @@
 - 决策：新增草地、青石路、沙地和低矮可越障碍时，不直接替换旧 13 点自动路线完成标准，而是新增 `run_scout_wheel_ground_challenge_route_smoke_test.sh` 做 16 点扩展路线验收；旧 `run_scout_wheel_ground_route_smoke_test.sh` 默认仍作为老师演示金标准回归。
 - 备选项：直接把旧路线延长并替换金标准、只做场景视觉新增不做自动路线验收、用手动示教回放代替自主路线。
 - 理由：用户明确要求不要把之前验收好的独木桥、斜坡和自动路线改坏，同时演示仍要自主运行。独立扩展脚本能证明新增场地可自主通过，又能让旧 13 点路线继续一键回归。
-- 影响：新增对象统一使用 `ScoutWheelGround_ChallengeSurface_*`、`ScoutWheelGround_ChallengeObstacle_*`、`ScoutWheelGround_ChallengeMarker_*` 前缀；验收脚本新增挑战对象计数、挑战接触步数和挑战截图检查。当前扩展路线通过 run id `vln_scout_wheel_ground_challenge_route_20260817_144908`，旧基线回归通过 run id `vln_scout_wheel_ground_route_20260817_145357`。
+- 影响：新增对象统一使用 `ScoutWheelGround_ChallengeSurface_*`、`ScoutWheelGround_ChallengeObstacle_*`、`ScoutWheelGround_ChallengeMarker_*` 前缀；验收脚本新增挑战对象计数、挑战接触步数和挑战截图检查。该分散布局首次稳定通过 run id `vln_scout_wheel_ground_challenge_route_20260817_144908`，PBR 材质升级后的当前最新扩展路线为 `vln_scout_wheel_ground_challenge_route_20260817_182912`，旧基线当前最新回归为 `vln_scout_wheel_ground_route_20260817_183540`。
 
 ## 2026-08-17：阶段 18 挑战区从末端堆叠改为分散布局
 
 - 决策：草地、青石路、沙地不再全部挤在最后一块地；改为利用斜坡后的连续大空间分散布置，草地区约 `z=10.0..16.8`，青石路约 `z=20.0..28.0`，沙地区约 `z=32.0..49.0`，终点挡墙后移到 `z=53.5m`。
 - 备选项：继续在末端小范围堆叠三块区域；只把终点墙后移但不改三段分布；直接引入大型外部场景资产。
 - 理由：用户明确指出斜坡后有大空间，三段场地挤在最后不符合观察和演示需求；当前阶段仍应保护旧桥/坡和路线基线，所以优先用现有程序化低模生成器重做分布和细节，而不是立即引入不可控大资产。
-- 影响：挑战路线仍是独立 16 点扩展路线，不替代旧 13 点金标准；视觉细节必须体现草地、青石路、沙地的形态特征，物理障碍必须有接触但可通过。最新扩展路线 run id `vln_scout_wheel_ground_challenge_route_20260817_144908` 通过，旧 13 点路线 run id `vln_scout_wheel_ground_route_20260817_145357` 通过。
+- 影响：挑战路线仍是独立 16 点扩展路线，不替代旧 13 点金标准；视觉细节必须体现草地、青石路、沙地的形态特征，物理障碍必须有接触但可通过。该布局首次通过 run id `vln_scout_wheel_ground_challenge_route_20260817_144908`；PBR 材质升级后的当前最新扩展路线为 `vln_scout_wheel_ground_challenge_route_20260817_182912`，旧 13 点路线当前最新为 `vln_scout_wheel_ground_route_20260817_183540`。
 
 ## 2026-08-17：挑战障碍采用低矮扰动，不采用硬阻挡
 
@@ -407,3 +407,45 @@
 - 备选项：继续把一键 batch 验收命令作为文档首选入口；或只保留手工流程、删除自动验收入口。
 - 理由：用户需要在 Unity 界面里亲自观察小车、相机、LiDAR、桥/坡和新增挑战场地的实时效果；batch 验收虽然可靠，但会自动打开 Unity 并隐藏主要观察过程，不符合演示和人工确认习惯。
 - 影响：新增 `scripts/drive_scout_wheel_ground_challenge_route_demo.sh`；`user.md` 已改为手工流程优先；`run_*_smoke_test.sh` 输出提示自己是自动回归入口。后续给用户操作步骤时，除非明确说“自动验收/回归/你自己跑测试”，否则优先给 `open_unity_vln_project.sh` + `start_ros_tcp_endpoint.sh` + Unity Play + `drive_*_demo.sh` 的顺序。
+
+## 2026-08-17：Unity 菜单只封装脚本，不内置导航控制
+
+- 决策：新增 Unity Editor 面板和菜单按钮，用于启动 endpoint、13 点路线、16 点挑战路线、相机、RViz 和中文控制面板；按钮只调用现有 shell 脚本，实际控制仍由 ROS2 节点发布 `/vln/cmd_vel`。
+- 备选项：把固定路线控制器重写成 Unity C# 组件，或者继续完全依赖终端命令。
+- 理由：用户希望像普通 Unity 软件一样在界面里点按钮运行，但师兄路线要求 Unity3D 提供 ROS 接口和仿真传感器，控制链路应保持在 ROS2 外部，方便后续接 VLN/Nav2/VLA。
+- 影响：新增 `Assets/VLN/Editor/VlnManualDemoLauncherWindow.cs` 和 `scripts/unity_menu_launch.sh`。Unity 菜单是操作便利层，不是新的控制架构；后续排障仍以现有 shell 脚本和 ROS2 topic 为准。
+
+## 2026-08-17：挑战区视觉升级采用程序化低模层，不改物理主链路
+
+- 决策：针对用户反馈“草地不像草、沙石地粗糙”，先用程序化低模视觉层升级现有挑战区：草地为 3 层草叶 mesh，青石路为不规则铺石、暗缝、裂纹和碎石视觉 field，沙地为沙纹、浅洼和颗粒 field；真实物理扰动仍由低矮可通过 collider 负责。
+- 备选项：直接下载大型第三方高精度场景资产；把视觉对象也全部加 collider；只解释 Unity 能做高质量建模但暂不改当前场景。
+- 理由：当前主线是按师兄路线先跑通 Unity + ROS2 + 相机 + LiDAR + 物理小车。立即引入大型资产会增加下载、授权、导入和性能风险；把所有视觉细节都加 collider 会改变通过性，可能破坏已经通过的桥/坡和挑战路线。程序化低模层能快速提高辨识度，同时保持可控、可回归、可维护。
+- 影响：`run_scout_wheel_ground_challenge_route_smoke_test.sh` 现在检查草地/青石/沙地三段截图和视觉细节数量。低模视觉层首次通过 `vln_scout_wheel_ground_challenge_route_20260817_173720`，后续 PBR 材质升级通过 `vln_scout_wheel_ground_challenge_route_20260817_182912`；旧 13 点金标准回归通过 `vln_scout_wheel_ground_route_20260817_183540`。后续如果要进一步接近游戏级画面，应作为“外部美术资产/PBR 材质阶段”单独推进，不得直接覆盖当前物理基线。
+
+## 2026-08-17：阶段 18A 采用 ambientCG 1K PBR 小样本升级青石/沙地
+
+- 决策：青石路和沙地视觉升级采用 ambientCG 的 `PavingStones151_1K-JPG` 与 `Ground054_1K-JPG` 小体积 PBR 材质包；只导入 1K JPG 贴图子集，不导入大型源文件、不切换渲染管线、不改变物理 collider。
+- 备选项：直接导入大型 Unity Asset Store 场景包；切到 URP/HDRP 后重做地表 shader；继续只用程序化纯色材质。
+- 理由：用户需要更真实的沙地和石路，但当前项目主线仍是师兄要求的 Unity + ROS2 感知/物理链路。1K PBR 小样本能明显提升地表真实感，同时工程导入量约 `9.1M`，不会把仓库塞爆，也不触碰 CUDA/PyTorch/ROS2/Conda 环境。
+- 影响：原始 zip 和完整解包缓存保留在 `/home/ubuntu22/VLN/VLN_ASSETS_CACHE/pbr_materials/ambientcg`，Unity 工程只放行 `Assets/VLN/ExternalAssets/PBRMaterials/AmbientCG` 小子集；`.gitignore` 已增加对应例外规则。挑战路线验收新增 `challenge_pbr_albedo_material_count`、`challenge_pbr_normal_material_count`、`challenge_pbr_occlusion_material_count`，当前均为 `7`。挑战路线通过 `vln_scout_wheel_ground_challenge_route_20260817_182912`，旧 13 点路线通过 `vln_scout_wheel_ground_route_20260817_183540`。
+
+## 2026-08-17：下一阶段转向“材质一致物理代理”，而不是继续只做视觉
+
+- 决策：阶段 18B 明确为草地、沙地、青石/石板路建立和视觉形状对应的简化物理代理与接触审计。后续不能只加贴图和视觉 mesh，必须让主要可接触形状在物理层有对应效果。
+- 备选项：继续只升级 PBR/外观；直接上高密度真实草、沙粒和碎石刚体；或把所有区域统一成普通高摩擦平面。
+- 理由：用户的电脑硬件不是当前视觉/物理精度的根本上限。当前场景之所以保守，是为了先保护 Unity-ROS2、相机、LiDAR、Scout wheel-ground、固定路线和挑战路线基线。现在这些基线已稳定，下一步应该把物理真实性往材质维度推进：草地柔软轻阻力、沙地滚阻/低附着、石板刚性接缝/凸起。
+- 影响：后续实现应使用合并 collider、PhysicMaterial、trigger 区域、轮地阻力/附着修正和可视化变形近似，而不是给每片草叶/每粒沙子做重型 Rigidbody。验收必须同时看分材质接触统计、路线通过性、旧 13 点基线和用户手工视觉观察。
+
+## 2026-08-17：阶段 18B 采用低矮可见物理代理和分材质阻力审计
+
+- 决策：草地、青石/石板路、沙地的第一版物理一致升级采用 `ScoutWheelGround_ChallengePhysicsProxy_*` 低矮可见代理 + WheelCollider 接触分类 + 控制器温和滚阻/低附着近似；不把每片草叶、每粒沙子、每块碎石都做成独立 Rigidbody。
+- 备选项：继续只做 PBR/视觉贴图；给所有视觉细节加刚性 collider；或用隐藏触发区/隐藏托底面模拟材质效果。
+- 理由：当前需求是“小车接触的主要材质语义要和视觉一致”，不是做不可控的高密度粒子级仿真。低矮代理能让轮胎实际接触主要草根/石缝/沙纹形状，控制器滚阻让草、沙、石表现出不同通行特性，同时保持 13 点金标准和 16 点挑战路线可回归。
+- 影响：新增 22 个材质物理代理，挑战路线验收新增 `challenge_physics_proxy_count`、`grass/stone/sand_physics_proxy_count`、`challenge_visual_physics_proxy_audit_pass`、分材质接触步数、代理接触步数、平均速度和轮地高度扰动。第一版通过 `vln_scout_wheel_ground_challenge_route_20260817_210512`；旧 13 点金标准通过 `vln_scout_wheel_ground_route_20260817_210945`。后续升级草叶压倒、更多资产或 URP/HDRP 时必须保持这些审计项和两条路线不退化。
+
+## 2026-08-17：草地视觉反馈固定为第一版轻倒伏
+
+- 决策：按用户最新反馈，草地视觉反馈回退并固定为第一版 `VlnChallengeGrassDeformer` 轻倒伏方案：车轮附近草叶被压低、向两侧推开，并以低恢复速度留下轻微轮迹感。
+- 备选项：保留第二版明显深色压痕/强倒伏轮迹；继续加强车身 footprint 清扫式倒伏；或完全取消草叶变形只保留物理代理。
+- 理由：用户明确表示不喜欢第二版特别明显的压痕版本，喜欢第一版倒伏版本。当前项目目标是仿真交互与视觉直觉一致，不是为了“看得很明显”牺牲真实感。
+- 影响：`GrassTrackPainter`、深色轮迹贴片、`challenge_grass_track_*` 指标不再属于当前方案；后续除非用户明确改变偏好，不得恢复明显深色压痕或强倒伏轮迹。回退后 16 点挑战路线通过 `vln_scout_wheel_ground_challenge_route_20260817_231723`，旧 13 点金标准通过 `vln_scout_wheel_ground_route_20260817_232310`。

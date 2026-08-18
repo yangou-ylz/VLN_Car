@@ -21,6 +21,9 @@ SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_candidate_sc
 BRIDGE_SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_bridge_screenshot.png"
 SHORT_RAMP_SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_short_ramp_screenshot.png"
 CHALLENGE_SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_challenge_screenshot.png"
+CHALLENGE_GRASS_SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_challenge_grass_screenshot.png"
+CHALLENGE_STONE_SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_challenge_stone_screenshot.png"
+CHALLENGE_SAND_SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_challenge_sand_screenshot.png"
 CONTROLLER_RESULT_FILE="$UNITY_PROJECT/Logs/vln_scout_wheel_ground_controller_result.txt"
 ROUTE_RESULT_FILE="$UNITY_PROJECT/Logs/vln_scout_physics_route_demo_result.txt"
 
@@ -35,6 +38,12 @@ EXPECTED_ROUTE_WAYPOINT_COUNT="${EXPECTED_ROUTE_WAYPOINT_COUNT:-13}"
 REQUIRE_CHALLENGE_COURSE="${REQUIRE_CHALLENGE_COURSE:-0}"
 MIN_CHALLENGE_SURFACE_CONTACT_STEPS="${MIN_CHALLENGE_SURFACE_CONTACT_STEPS:-0}"
 MIN_CHALLENGE_OBSTACLE_CONTACT_STEPS="${MIN_CHALLENGE_OBSTACLE_CONTACT_STEPS:-0}"
+MIN_CHALLENGE_PBR_MATERIALS="${MIN_CHALLENGE_PBR_MATERIALS:-0}"
+MIN_CHALLENGE_PHYSICS_PROXY_COUNT="${MIN_CHALLENGE_PHYSICS_PROXY_COUNT:-0}"
+MIN_CHALLENGE_PHYSICS_PROXY_CONTACT_STEPS="${MIN_CHALLENGE_PHYSICS_PROXY_CONTACT_STEPS:-0}"
+MIN_CHALLENGE_MATERIAL_CONTACT_STEPS="${MIN_CHALLENGE_MATERIAL_CONTACT_STEPS:-0}"
+MIN_CHALLENGE_GRASS_DEFORMED_BLADES="${MIN_CHALLENGE_GRASS_DEFORMED_BLADES:-0}"
+MIN_CHALLENGE_GRASS_FRESH_AFFECTED_BLADES="${MIN_CHALLENGE_GRASS_FRESH_AFFECTED_BLADES:-0}"
 
 mkdir -p "$LOG_DIR" "$VLN_ROOT/.ros/log"
 export ROS_LOG_DIR="${ROS_LOG_DIR:-$VLN_ROOT/.ros/log}"
@@ -64,7 +73,7 @@ cleanup()
 
 trap cleanup EXIT
 
-for old_file in "$RESULT_FILE" "$SCREENSHOT_FILE" "$BRIDGE_SCREENSHOT_FILE" "$SHORT_RAMP_SCREENSHOT_FILE" "$CHALLENGE_SCREENSHOT_FILE" "$CONTROLLER_RESULT_FILE" "$ROUTE_RESULT_FILE"; do
+for old_file in "$RESULT_FILE" "$SCREENSHOT_FILE" "$BRIDGE_SCREENSHOT_FILE" "$SHORT_RAMP_SCREENSHOT_FILE" "$CHALLENGE_SCREENSHOT_FILE" "$CHALLENGE_GRASS_SCREENSHOT_FILE" "$CHALLENGE_STONE_SCREENSHOT_FILE" "$CHALLENGE_SAND_SCREENSHOT_FILE" "$CONTROLLER_RESULT_FILE" "$ROUTE_RESULT_FILE"; do
   if [ -f "$old_file" ]; then
     mv "$old_file" "$LOG_DIR/previous_$(basename "$old_file")"
   fi
@@ -140,6 +149,15 @@ fi
 if [ -f "$CHALLENGE_SCREENSHOT_FILE" ]; then
   cp "$CHALLENGE_SCREENSHOT_FILE" "$LOG_DIR/vln_offroad_scout_wheel_ground_challenge_screenshot.png"
 fi
+if [ -f "$CHALLENGE_GRASS_SCREENSHOT_FILE" ]; then
+  cp "$CHALLENGE_GRASS_SCREENSHOT_FILE" "$LOG_DIR/vln_offroad_scout_wheel_ground_challenge_grass_screenshot.png"
+fi
+if [ -f "$CHALLENGE_STONE_SCREENSHOT_FILE" ]; then
+  cp "$CHALLENGE_STONE_SCREENSHOT_FILE" "$LOG_DIR/vln_offroad_scout_wheel_ground_challenge_stone_screenshot.png"
+fi
+if [ -f "$CHALLENGE_SAND_SCREENSHOT_FILE" ]; then
+  cp "$CHALLENGE_SAND_SCREENSHOT_FILE" "$LOG_DIR/vln_offroad_scout_wheel_ground_challenge_sand_screenshot.png"
+fi
 
 for current_file in "$RESULT_FILE" "$CONTROLLER_RESULT_FILE" "$ROUTE_RESULT_FILE"; do
   if [ -f "$current_file" ]; then
@@ -166,6 +184,27 @@ challenge_surface_count=$(grep -E '^challenge_surface_count=' "$RESULT_FILE" 2>/
 challenge_grass_surface_count=$(grep -E '^challenge_grass_surface_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 challenge_stone_surface_count=$(grep -E '^challenge_stone_surface_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 challenge_sand_surface_count=$(grep -E '^challenge_sand_surface_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_grass_blade_field_count=$(grep -E '^challenge_grass_blade_field_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_stone_visual_detail_count=$(grep -E '^challenge_stone_visual_detail_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_stone_chip_field_count=$(grep -E '^challenge_stone_chip_field_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_sand_visual_detail_count=$(grep -E '^challenge_sand_visual_detail_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_sand_grain_field_count=$(grep -E '^challenge_sand_grain_field_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_grass_deformer_count=$(grep -E '^challenge_grass_deformer_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_grass_deformer_final_count=$(grep -E '^challenge_grass_deformer_final_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_grass_total_blade_count=$(grep -E '^challenge_grass_total_blade_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_grass_current_deformed_blade_count=$(grep -E '^challenge_grass_current_deformed_blade_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_grass_max_deformed_blade_count=$(grep -E '^challenge_grass_max_deformed_blade_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_grass_max_fresh_affected_blade_count=$(grep -E '^challenge_grass_max_fresh_affected_blade_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_grass_max_deformed_fraction=$(grep -E '^challenge_grass_max_deformed_fraction=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_physics_proxy_count=$(grep -E '^challenge_physics_proxy_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+grass_physics_proxy_count=$(grep -E '^grass_physics_proxy_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+stone_physics_proxy_count=$(grep -E '^stone_physics_proxy_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+sand_physics_proxy_count=$(grep -E '^sand_physics_proxy_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_physics_proxy_collider_count=$(grep -E '^challenge_physics_proxy_collider_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_visual_physics_proxy_audit_pass=$(grep -E '^challenge_visual_physics_proxy_audit_pass=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_pbr_albedo_material_count=$(grep -E '^challenge_pbr_albedo_material_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_pbr_normal_material_count=$(grep -E '^challenge_pbr_normal_material_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_pbr_occlusion_material_count=$(grep -E '^challenge_pbr_occlusion_material_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 challenge_obstacle_count=$(grep -E '^challenge_obstacle_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 challenge_obstacle_collider_count=$(grep -E '^challenge_obstacle_collider_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 challenge_marker_count=$(grep -E '^challenge_marker_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
@@ -193,6 +232,23 @@ bridge_contact_steps=$(grep -E '^bridge_contact_steps=' "$CONTROLLER_RESULT_FILE
 short_ramp_contact_steps=$(grep -E '^short_ramp_contact_steps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 challenge_surface_contact_steps=$(grep -E '^challenge_surface_contact_steps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 challenge_obstacle_contact_steps=$(grep -E '^challenge_obstacle_contact_steps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_physics_proxy_contact_steps=$(grep -E '^challenge_physics_proxy_contact_steps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+challenge_material_resistance_steps=$(grep -E '^challenge_material_resistance_steps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+grass_contact_steps=$(grep -E '^grass_contact_steps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+stone_contact_steps=$(grep -E '^stone_contact_steps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+sand_contact_steps=$(grep -E '^sand_contact_steps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+grass_surface_contact_steps=$(grep -E '^grass_surface_contact_steps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+stone_surface_contact_steps=$(grep -E '^stone_surface_contact_steps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+sand_surface_contact_steps=$(grep -E '^sand_surface_contact_steps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+grass_physics_proxy_contact_steps=$(grep -E '^grass_physics_proxy_contact_steps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+stone_physics_proxy_contact_steps=$(grep -E '^stone_physics_proxy_contact_steps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+sand_physics_proxy_contact_steps=$(grep -E '^sand_physics_proxy_contact_steps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+grass_avg_speed=$(grep -E '^grass_avg_speed_mps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+stone_avg_speed=$(grep -E '^stone_avg_speed_mps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+sand_avg_speed=$(grep -E '^sand_avg_speed_mps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+grass_wheel_ground_height_span=$(grep -E '^grass_wheel_ground_height_span_m=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+stone_wheel_ground_height_span=$(grep -E '^stone_wheel_ground_height_span_m=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+sand_wheel_ground_height_span=$(grep -E '^sand_wheel_ground_height_span_m=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 body_height_span=$(grep -E '^body_height_span_m=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 wheel_ground_height_span=$(grep -E '^wheel_ground_height_span_m=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 wheel_visual_total_abs_roll_deg=$(grep -E '^wheel_visual_total_abs_roll_deg=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
@@ -214,6 +270,9 @@ wheel_visual_direction_reversal_count=$(grep -E '^wheel_visual_direction_reversa
   echo "bridge_screenshot_file=${BRIDGE_SCREENSHOT_FILE}"
   echo "short_ramp_screenshot_file=${SHORT_RAMP_SCREENSHOT_FILE}"
   echo "challenge_screenshot_file=${CHALLENGE_SCREENSHOT_FILE}"
+  echo "challenge_grass_screenshot_file=${CHALLENGE_GRASS_SCREENSHOT_FILE}"
+  echo "challenge_stone_screenshot_file=${CHALLENGE_STONE_SCREENSHOT_FILE}"
+  echo "challenge_sand_screenshot_file=${CHALLENGE_SAND_SCREENSHOT_FILE}"
   echo "reached_count=${reached_count:-0}"
   echo "route_waypoint_count=${route_waypoint_count:-0}"
   echo "total_progress=${total_progress:-0}"
@@ -233,6 +292,27 @@ wheel_visual_direction_reversal_count=$(grep -E '^wheel_visual_direction_reversa
   echo "challenge_grass_surface_count=${challenge_grass_surface_count:-missing}"
   echo "challenge_stone_surface_count=${challenge_stone_surface_count:-missing}"
   echo "challenge_sand_surface_count=${challenge_sand_surface_count:-missing}"
+  echo "challenge_grass_blade_field_count=${challenge_grass_blade_field_count:-missing}"
+  echo "challenge_stone_visual_detail_count=${challenge_stone_visual_detail_count:-missing}"
+  echo "challenge_stone_chip_field_count=${challenge_stone_chip_field_count:-missing}"
+  echo "challenge_sand_visual_detail_count=${challenge_sand_visual_detail_count:-missing}"
+  echo "challenge_sand_grain_field_count=${challenge_sand_grain_field_count:-missing}"
+  echo "challenge_grass_deformer_count=${challenge_grass_deformer_count:-missing}"
+  echo "challenge_grass_deformer_final_count=${challenge_grass_deformer_final_count:-missing}"
+  echo "challenge_grass_total_blade_count=${challenge_grass_total_blade_count:-missing}"
+  echo "challenge_grass_current_deformed_blade_count=${challenge_grass_current_deformed_blade_count:-missing}"
+  echo "challenge_grass_max_deformed_blade_count=${challenge_grass_max_deformed_blade_count:-missing}"
+  echo "challenge_grass_max_fresh_affected_blade_count=${challenge_grass_max_fresh_affected_blade_count:-missing}"
+  echo "challenge_grass_max_deformed_fraction=${challenge_grass_max_deformed_fraction:-missing}"
+  echo "challenge_physics_proxy_count=${challenge_physics_proxy_count:-missing}"
+  echo "grass_physics_proxy_count=${grass_physics_proxy_count:-missing}"
+  echo "stone_physics_proxy_count=${stone_physics_proxy_count:-missing}"
+  echo "sand_physics_proxy_count=${sand_physics_proxy_count:-missing}"
+  echo "challenge_physics_proxy_collider_count=${challenge_physics_proxy_collider_count:-missing}"
+  echo "challenge_visual_physics_proxy_audit_pass=${challenge_visual_physics_proxy_audit_pass:-missing}"
+  echo "challenge_pbr_albedo_material_count=${challenge_pbr_albedo_material_count:-missing}"
+  echo "challenge_pbr_normal_material_count=${challenge_pbr_normal_material_count:-missing}"
+  echo "challenge_pbr_occlusion_material_count=${challenge_pbr_occlusion_material_count:-missing}"
   echo "challenge_obstacle_count=${challenge_obstacle_count:-missing}"
   echo "challenge_obstacle_collider_count=${challenge_obstacle_collider_count:-missing}"
   echo "challenge_marker_count=${challenge_marker_count:-missing}"
@@ -260,6 +340,23 @@ wheel_visual_direction_reversal_count=$(grep -E '^wheel_visual_direction_reversa
   echo "short_ramp_contact_steps=${short_ramp_contact_steps:-0}"
   echo "challenge_surface_contact_steps=${challenge_surface_contact_steps:-0}"
   echo "challenge_obstacle_contact_steps=${challenge_obstacle_contact_steps:-0}"
+  echo "challenge_physics_proxy_contact_steps=${challenge_physics_proxy_contact_steps:-0}"
+  echo "challenge_material_resistance_steps=${challenge_material_resistance_steps:-0}"
+  echo "grass_contact_steps=${grass_contact_steps:-0}"
+  echo "stone_contact_steps=${stone_contact_steps:-0}"
+  echo "sand_contact_steps=${sand_contact_steps:-0}"
+  echo "grass_surface_contact_steps=${grass_surface_contact_steps:-0}"
+  echo "stone_surface_contact_steps=${stone_surface_contact_steps:-0}"
+  echo "sand_surface_contact_steps=${sand_surface_contact_steps:-0}"
+  echo "grass_physics_proxy_contact_steps=${grass_physics_proxy_contact_steps:-0}"
+  echo "stone_physics_proxy_contact_steps=${stone_physics_proxy_contact_steps:-0}"
+  echo "sand_physics_proxy_contact_steps=${sand_physics_proxy_contact_steps:-0}"
+  echo "grass_avg_speed_mps=${grass_avg_speed:-0}"
+  echo "stone_avg_speed_mps=${stone_avg_speed:-0}"
+  echo "sand_avg_speed_mps=${sand_avg_speed:-0}"
+  echo "grass_wheel_ground_height_span_m=${grass_wheel_ground_height_span:-0}"
+  echo "stone_wheel_ground_height_span_m=${stone_wheel_ground_height_span:-0}"
+  echo "sand_wheel_ground_height_span_m=${sand_wheel_ground_height_span:-0}"
   echo "body_height_span_m=${body_height_span:-0}"
   echo "wheel_ground_height_span_m=${wheel_ground_height_span:-0}"
   echo "wheel_visual_total_abs_roll_deg=${wheel_visual_total_abs_roll_deg:-0}"
@@ -471,8 +568,84 @@ if [ "${REQUIRE_CHALLENGE_COURSE:-0}" -eq 1 ]; then
     echo "challenge_visual_evidence_screenshot_missing"
     exit 1
   fi
+  if [ ! -s "$LOG_DIR/vln_offroad_scout_wheel_ground_challenge_grass_screenshot.png" ]; then
+    echo "challenge_grass_visual_evidence_screenshot_missing"
+    exit 1
+  fi
+  if [ ! -s "$LOG_DIR/vln_offroad_scout_wheel_ground_challenge_stone_screenshot.png" ]; then
+    echo "challenge_stone_visual_evidence_screenshot_missing"
+    exit 1
+  fi
+  if [ ! -s "$LOG_DIR/vln_offroad_scout_wheel_ground_challenge_sand_screenshot.png" ]; then
+    echo "challenge_sand_visual_evidence_screenshot_missing"
+    exit 1
+  fi
   if [ "${challenge_grass_surface_count:-0}" -lt 1 ] || [ "${challenge_stone_surface_count:-0}" -lt 1 ] || [ "${challenge_sand_surface_count:-0}" -lt 1 ]; then
     echo "challenge_special_surface_types_missing"
+    exit 1
+  fi
+  if [ "${challenge_grass_blade_field_count:-0}" -lt 3 ]; then
+    echo "challenge_grass_visual_blade_fields_too_few"
+    exit 1
+  fi
+  if [ "${challenge_grass_deformer_count:-0}" -lt 3 ] || [ "${challenge_grass_deformer_final_count:-0}" -lt 3 ]; then
+    echo "challenge_grass_deformer_missing"
+    exit 1
+  fi
+  if [ "${challenge_grass_total_blade_count:-0}" -lt 1400 ]; then
+    echo "challenge_grass_blade_count_too_low_for_deformation"
+    exit 1
+  fi
+  if [ "${challenge_grass_max_deformed_blade_count:-0}" -lt "${MIN_CHALLENGE_GRASS_DEFORMED_BLADES:-0}" ]; then
+    echo "challenge_grass_deformed_blade_count_too_low"
+    exit 1
+  fi
+  if [ "${challenge_grass_max_fresh_affected_blade_count:-0}" -lt "${MIN_CHALLENGE_GRASS_FRESH_AFFECTED_BLADES:-0}" ]; then
+    echo "challenge_grass_fresh_affected_blade_count_too_low"
+    exit 1
+  fi
+  if [ "${challenge_stone_visual_detail_count:-0}" -lt 55 ] || [ "${challenge_stone_chip_field_count:-0}" -lt 1 ]; then
+    echo "challenge_stone_visual_detail_too_simple"
+    exit 1
+  fi
+  if [ "${challenge_sand_visual_detail_count:-0}" -lt 45 ] || [ "${challenge_sand_grain_field_count:-0}" -lt 1 ]; then
+    echo "challenge_sand_visual_detail_too_simple"
+    exit 1
+  fi
+  if [ "${challenge_visual_physics_proxy_audit_pass:-0}" -ne 1 ]; then
+    echo "challenge_visual_physics_proxy_audit_failed"
+    exit 1
+  fi
+  if [ "${grass_physics_proxy_count:-0}" -lt 5 ]; then
+    echo "challenge_grass_physics_proxy_too_few"
+    exit 1
+  fi
+  if [ "${stone_physics_proxy_count:-0}" -lt 7 ]; then
+    echo "challenge_stone_physics_proxy_too_few"
+    exit 1
+  fi
+  if [ "${sand_physics_proxy_count:-0}" -lt 10 ]; then
+    echo "challenge_sand_physics_proxy_too_few"
+    exit 1
+  fi
+  if [ "${challenge_physics_proxy_count:-0}" -lt "${MIN_CHALLENGE_PHYSICS_PROXY_COUNT:-0}" ]; then
+    echo "challenge_physics_proxy_count_too_low"
+    exit 1
+  fi
+  if [ "${challenge_physics_proxy_collider_count:-0}" -lt "${MIN_CHALLENGE_PHYSICS_PROXY_COUNT:-0}" ]; then
+    echo "challenge_physics_proxy_colliders_too_few"
+    exit 1
+  fi
+  if [ "${challenge_pbr_albedo_material_count:-0}" -lt "${MIN_CHALLENGE_PBR_MATERIALS:-0}" ]; then
+    echo "challenge_pbr_albedo_materials_too_few"
+    exit 1
+  fi
+  if [ "${challenge_pbr_normal_material_count:-0}" -lt "${MIN_CHALLENGE_PBR_MATERIALS:-0}" ]; then
+    echo "challenge_pbr_normal_materials_too_few"
+    exit 1
+  fi
+  if [ "${challenge_pbr_occlusion_material_count:-0}" -lt "${MIN_CHALLENGE_PBR_MATERIALS:-0}" ]; then
+    echo "challenge_pbr_occlusion_materials_too_few"
     exit 1
   fi
   if [ "${challenge_obstacle_collider_count:-0}" -lt 8 ]; then
@@ -489,6 +662,38 @@ if [ "${REQUIRE_CHALLENGE_COURSE:-0}" -eq 1 ]; then
   fi
   if ! awk "BEGIN { exit !(${challenge_obstacle_contact_steps:-0} >= ${MIN_CHALLENGE_OBSTACLE_CONTACT_STEPS:-0}) }"; then
     echo "challenge_obstacle_contact_steps_too_low"
+    exit 1
+  fi
+  if ! awk "BEGIN { exit !(${challenge_physics_proxy_contact_steps:-0} >= ${MIN_CHALLENGE_PHYSICS_PROXY_CONTACT_STEPS:-0}) }"; then
+    echo "challenge_physics_proxy_contact_steps_too_low"
+    exit 1
+  fi
+  if ! awk "BEGIN { exit !(${challenge_material_resistance_steps:-0} >= ${MIN_CHALLENGE_MATERIAL_CONTACT_STEPS:-0}) }"; then
+    echo "challenge_material_resistance_steps_too_low"
+    exit 1
+  fi
+  if ! awk "BEGIN { exit !(${grass_contact_steps:-0} >= ${MIN_CHALLENGE_MATERIAL_CONTACT_STEPS:-0}) }"; then
+    echo "challenge_grass_contact_steps_too_low"
+    exit 1
+  fi
+  if ! awk "BEGIN { exit !(${stone_contact_steps:-0} >= ${MIN_CHALLENGE_MATERIAL_CONTACT_STEPS:-0}) }"; then
+    echo "challenge_stone_contact_steps_too_low"
+    exit 1
+  fi
+  if ! awk "BEGIN { exit !(${sand_contact_steps:-0} >= ${MIN_CHALLENGE_MATERIAL_CONTACT_STEPS:-0}) }"; then
+    echo "challenge_sand_contact_steps_too_low"
+    exit 1
+  fi
+  if ! awk "BEGIN { exit !(${grass_surface_contact_steps:-0} >= ${MIN_CHALLENGE_MATERIAL_CONTACT_STEPS:-0}) }"; then
+    echo "challenge_grass_surface_contact_steps_too_low"
+    exit 1
+  fi
+  if ! awk "BEGIN { exit !(${stone_surface_contact_steps:-0} >= ${MIN_CHALLENGE_MATERIAL_CONTACT_STEPS:-0}) }"; then
+    echo "challenge_stone_surface_contact_steps_too_low"
+    exit 1
+  fi
+  if ! awk "BEGIN { exit !(${sand_surface_contact_steps:-0} >= ${MIN_CHALLENGE_MATERIAL_CONTACT_STEPS:-0}) }"; then
+    echo "challenge_sand_surface_contact_steps_too_low"
     exit 1
   fi
 fi

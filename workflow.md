@@ -402,14 +402,14 @@ VLN_SCOUT_WHEEL_GROUND_ROUTE_SMOKE_TEST_PASS
 最近通过：
 
 ```text
-run id: vln_scout_wheel_ground_route_20260817_145357
+run id: vln_scout_wheel_ground_route_20260817_183540
 reached_count=13/13
-total_forward_progress=52.427m
-total_progress=52.427m
-final_lateral_offset=-0.024m
-max_reached_cross_track=0.024m
-max_abs_lateral_offset=0.040m
-max_bridge_abs_lateral_offset=0.000m
+total_forward_progress=52.447m
+total_progress=52.447m
+final_lateral_offset=-0.001m
+max_reached_cross_track=0.015m
+max_abs_lateral_offset=0.020m
+max_bridge_abs_lateral_offset=0.012m
 stall_count=0
 skipped_count=0
 broad_physical_trail_count=0
@@ -430,7 +430,7 @@ short_ramp_physical_height_span_m=0.804
 bridge_contact_steps=1628
 short_ramp_contact_steps=1648
 wheel_ground_height_span_m=0.821
-wheel_visual_total_abs_roll_deg=74073.8
+wheel_visual_total_abs_roll_deg=73571.7
 wheel_visual_direction_reversal_count=0
 bridge_screenshot=vln_offroad_scout_wheel_ground_bridge_screenshot.png
 short_ramp_screenshot=vln_offroad_scout_wheel_ground_short_ramp_screenshot.png
@@ -453,7 +453,7 @@ short_ramp_screenshot=vln_offroad_scout_wheel_ground_short_ramp_screenshot.png
 - 回放入口：`/home/ubuntu22/VLN/scripts/replay_manual_drive_recording.sh --file <manual_drive_*.json>`。
 - git 规则：`VLN_RECORDINGS/` 已加入 `.gitignore`，路线记录默认不提交，避免大量实验文件进入仓库。
 
-阶段 16 当前验收状态：`./scripts/run_control_panel_manual_velocity_unity_smoke_test.sh` 已通过，最新 run id `vln_control_panel_manual_velocity_unity_20260817_130258`，覆盖 `↑` 正向直行、A/D 原地左右转、方向键 `←/→` 原地左右转和停车漂移检查；`./scripts/run_control_panel_manual_recording_smoke_test.sh` 已通过，run id `vln_control_panel_manual_recording_20260817_041218`；基础 wheel-ground 回归 `vln_scout_wheel_ground_20260817_041230` 已通过。阶段 15 自动路线已恢复，并在后段挑战场地重做后再次回归通过，最新通过 run id `vln_scout_wheel_ground_route_20260817_145357`；后续仍不能用隐藏托底、压平桥/坡、跳点或放宽 gate 修路线。
+阶段 16 当前验收状态：`./scripts/run_control_panel_manual_velocity_unity_smoke_test.sh` 已通过，最新 run id `vln_control_panel_manual_velocity_unity_20260817_130258`，覆盖 `↑` 正向直行、A/D 原地左右转、方向键 `←/→` 原地左右转和停车漂移检查；`./scripts/run_control_panel_manual_recording_smoke_test.sh` 已通过，run id `vln_control_panel_manual_recording_20260817_041218`；基础 wheel-ground 回归 `vln_scout_wheel_ground_20260817_041230` 已通过。阶段 15 自动路线已恢复，并在 PBR 材质升级后再次回归通过，最新通过 run id `vln_scout_wheel_ground_route_20260817_183540`；后续仍不能用隐藏托底、压平桥/坡、跳点或放宽 gate 修路线。
 
 阶段 16 记录/导出固定验收命令：
 
@@ -501,6 +501,27 @@ VLN_MANUAL_DRIVE_REPLAY_OK
 - 新增障碍：`ScoutWheelGround_ChallengeObstacle_*`，包括低矮石纹凸起、铺石缝隙/沉降、草簇/土斑、沙地波纹、浅洼和两侧导向石。目标是让轮胎/车体姿态出现扰动，但不形成不可越过硬墙。
 - 路段延长：原 `Offroad_DistantWall_Target` 从旧末端附近后移到 `z=53.5m`，让挑战区有完整通行空间。
 - 控制策略：新增挑战路线脚本复用阶段 15 路线控制器，不改 `/vln/cmd_vel`、TF、相机、LiDAR 或 odom 接口；旧 `run_scout_wheel_ground_route_smoke_test.sh` 默认仍是 13 点金标准回归。用户手工看效果时使用 `drive_scout_wheel_ground_challenge_route_demo.sh`，它只发布路线，不自动打开 Unity。
+- Unity 菜单封装：新增 `VLN/ROS2 手工演示面板` 和 `VLN/手工演示/*` 菜单。菜单只调用 `scripts/unity_menu_launch.sh`，再由它打开新终端运行现有脚本；不要把自动路线控制逻辑改写到 Unity C# 里，避免偏离 ROS2 外部控制链路。
+
+### 阶段 18A：PBR 材质小步升级
+
+- 目标：在不改物理 collider、不改旧桥/坡、不改 ROS2 控制链路的前提下，让青石路和沙地从纯色/低模材质升级为可见纹理地表。
+- 外部来源：ambientCG `Ground054_1K-JPG` 用于沙地，ambientCG `PavingStones151_1K-JPG` 用于青石/铺石；原始 zip 和完整解包缓存放在 `/home/ubuntu22/VLN/VLN_ASSETS_CACHE/pbr_materials/ambientcg`，资料索引见 `/home/ubuntu22/VLN/VLN_REFERENCE_LIBRARY/pbr_materials/index.md`。
+- Unity 导入：只把 1K JPG 的 `Color`、`NormalGL`、`AmbientOcclusion`、`Roughness` 小子集导入 `Assets/VLN/ExternalAssets/PBRMaterials/AmbientCG`，总量约 `9.1M`；`.blend`、`.mtlx`、`.tres`、`.usdc` 不导入工程。
+- 当前接入：Built-in Standard 材质实际连接 `Albedo / Normal / Occlusion`，`Roughness` 贴图先保留，不在本轮转换为 smoothness 通道。
+- 验收：挑战路线要求 `challenge_pbr_albedo_material_count`、`challenge_pbr_normal_material_count`、`challenge_pbr_occlusion_material_count` 均不低于 `6`；同时仍要求 16 点挑战路线通过、旧 13 点路线回归通过。
+
+### 阶段 18B：材质一致物理代理升级
+
+- 目标：让草地、沙地、青石/石板路的物理交互和视觉形状、材质特性一致。当前 PBR/低模视觉层不能长期只作为“好看贴图”；小车碾过这些区域时，应能体现真实世界中的柔软草、软沙和刚性石板差异。
+- 总原则：不做每片草叶、每粒沙子的重型 Rigidbody；改用“合并碰撞体 + PhysicMaterial + 触发区域 + 轮地阻力/附着修正 + 可视化变形”的近似模型。简化允许，但交互语义不能和视觉完全脱节。
+- 草地物理：草叶视觉保持轻 mesh；主要交互由成片 grass trigger/collider field、低强度阻力参数和第一版运行时草叶轻倒伏变形表示。车轮经过时草叶应被压低、向两侧推开，并以低恢复速度留下轻微轮迹感；草不能把车弹飞，也不能完全无交互地穿模。用户不喜欢第二版明显深色压痕/强倒伏轮迹，禁止无明确要求恢复 `GrassTrackPainter`、深色轮迹贴片或大面积强制压痕。
+- 沙地物理：沙地表面仍是连续可通行面，但应有更高滚阻、较低横向附着、软沙波纹/浅洼的低矮碰撞体或阻力区。小车经过时速度/姿态应有可观察扰动，但不能变成卡死硬障碍。
+- 青石/石板物理：石板是刚性地面，高摩擦、边缘/接缝/沉降凸起应有低矮可见 collider 或合并 MeshCollider。视觉石板、暗缝、裂纹不能完全只是贴图；主要缝隙和凸起要能被轮胎接触统计捕捉。
+- 验收指标：新增 `grass_physics_proxy_count`、`sand_physics_proxy_count`、`stone_physics_proxy_count`、分材质接触步数、分材质平均速度/高度扰动和“视觉对象对应物理代理”审计；16 点挑战路线必须继续 `reached_count=16/16`、`stall_count=0`、`skipped_count=0`，旧 13 点路线必须继续回归通过。
+- 禁止事项：禁止通过隐藏托底平面、关闭碰撞、把草/沙/石统一成同一种普通高摩擦平面、或把所有细节都做成刚性硬障碍来凑“有碰撞”。
+
+当前状态：阶段 18B 第一版轻倒伏方案已完成。实现方式是在挑战区增加 `ScoutWheelGround_ChallengePhysicsProxy_*` 低矮可见代理：草地 5 条柔性草/根代理、石板路 7 条刚性接缝代理、沙地 10 条软沙波纹代理；`VlnScoutWheelGroundController` 根据 WheelCollider 接触对象区分草/石/沙，并施加温和滚阻、沙地轻微低附着，同时输出分材质接触、代理接触、平均速度和轮地高度扰动；`VlnChallengeGrassDeformer` 负责草叶被压低、向两侧推开和慢恢复。该实现不使用隐藏托底、不关闭碰撞、不创建每片草叶/每粒沙子的重型 Rigidbody，也不使用第二版明显深色压痕/强倒伏轮迹。
 
 阶段 18 固定验收命令：
 
@@ -517,25 +538,58 @@ VLN_SCOUT_WHEEL_GROUND_CHALLENGE_ROUTE_SMOKE_TEST_PASS
 最近通过：
 
 ```text
-run id: vln_scout_wheel_ground_challenge_route_20260817_144908
+run id: vln_scout_wheel_ground_challenge_route_20260817_231723
 reached_count=16/16
-total_forward_progress=70.432m
-final_lateral_offset=0.065m
-max_abs_lateral_offset=0.088m
+total_forward_progress=70.434m
+final_lateral_offset=-0.004m
+max_abs_lateral_offset=0.086m
 stall_count=0
 skipped_count=0
 challenge_grass_surface_count=1
 challenge_stone_surface_count=1
 challenge_sand_surface_count=1
-challenge_obstacle_count=155
+challenge_grass_blade_field_count=3
+challenge_grass_deformer_count=3
+challenge_grass_max_deformed_blade_count=418
+challenge_grass_max_fresh_affected_blade_count=156
+challenge_stone_visual_detail_count=80
+challenge_stone_chip_field_count=1
+challenge_sand_visual_detail_count=46
+challenge_sand_grain_field_count=1
+challenge_physics_proxy_count=22
+grass_physics_proxy_count=5
+stone_physics_proxy_count=7
+sand_physics_proxy_count=10
+challenge_visual_physics_proxy_audit_pass=1
+challenge_pbr_albedo_material_count=7
+challenge_pbr_normal_material_count=7
+challenge_pbr_occlusion_material_count=7
+challenge_obstacle_count=139
 challenge_obstacle_collider_count=15
-challenge_surface_contact_steps=16576
-challenge_obstacle_contact_steps=498
+challenge_surface_contact_steps=16404
+challenge_obstacle_contact_steps=1423
+challenge_physics_proxy_contact_steps=991
+grass_contact_steps=1334
+stone_contact_steps=1351
+sand_contact_steps=13752
+grass_avg_speed_mps=0.580
+stone_avg_speed_mps=0.631
+sand_avg_speed_mps=0.110
+grass_wheel_ground_height_span_m=0.086
+stone_wheel_ground_height_span_m=0.055
+sand_wheel_ground_height_span_m=0.106
 challenge_surface_height_span_m=0.164
-challenge_obstacle_height_span_m=0.144
+challenge_obstacle_height_span_m=0.653
 challenge_end_wall_z=53.500
 challenge_screenshot=vln_offroad_scout_wheel_ground_challenge_screenshot.png
+challenge_grass_screenshot=vln_offroad_scout_wheel_ground_challenge_grass_screenshot.png
+challenge_stone_screenshot=vln_offroad_scout_wheel_ground_challenge_stone_screenshot.png
+challenge_sand_screenshot=vln_offroad_scout_wheel_ground_challenge_sand_screenshot.png
 ```
+
+旧 13 点金标准同轮回归通过：`vln_scout_wheel_ground_route_20260817_232310`，`reached_count=13/13`、`total_forward_progress=52.432m`、`final_lateral_offset=-0.024m`、`max_abs_lateral_offset=0.067m`、`stall_count=0`、`skipped_count=0`。
+
+视觉/物理一致验收：草地必须至少有 3 个草叶 mesh field、5 个草地物理代理和 3 个 `VlnChallengeGrassDeformer`；青石路必须至少有铺石/裂缝/碎石视觉细节、PBR 贴图和 7 个石板物理代理；沙地必须至少有沙纹/浅洼/颗粒视觉细节、PBR 贴图和 10 个沙地物理代理；三段截图必须归档。视觉增强层不承担全部交互，主要可接触语义由连续路面 collider、低矮可见代理、PhysicMaterial、控制器阻力/接触审计和第一版草叶轻倒伏共同承担。`GrassTrackPainter` 和 `challenge_grass_track_*` 不属于当前完成标准。
 
 阶段 18 当前边界：这是“后段挑战场地 + 写死自主路线演示”，不是动态绕障导航，也不是完整 VLN 决策。新增障碍的难度必须通过真实接触、车体姿态变化和无停滞通过来验收；如果新增障碍导致卡死，优先调障碍几何、局部材质和路线参数，禁止回退到隐藏托底、压平桥/坡或关闭碰撞。
 

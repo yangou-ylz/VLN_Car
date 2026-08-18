@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Unity.Robotics.ROSTCPConnector;
 using UnityEngine;
@@ -28,6 +29,9 @@ namespace VLN.ROS2
         bool m_BridgeScreenshotRequested;
         bool m_ShortRampScreenshotRequested;
         bool m_ChallengeScreenshotRequested;
+        bool m_ChallengeGrassScreenshotRequested;
+        bool m_ChallengeStoneScreenshotRequested;
+        bool m_ChallengeSandScreenshotRequested;
         bool m_FinalSnapshotWritten;
 
         void Start()
@@ -121,10 +125,25 @@ namespace VLN.ROS2
             if (!m_ChallengeScreenshotRequested && physicsRoot != null && physicsRoot.transform.position.z >= 24.0f && physicsRoot.transform.position.z <= 49.5f)
             {
                 m_ChallengeScreenshotRequested = true;
-                string challengeScreenshotPath = Path.Combine(Application.dataPath, "../Logs/vln_offroad_scout_wheel_ground_challenge_screenshot.png");
-                SaveViewerCameraScreenshot(challengeScreenshotPath);
-                File.AppendAllText(m_ResultPath, $"challenge_screenshot={challengeScreenshotPath}\n");
-                Debug.Log($"VLN_OFFROAD_SCOUT_WHEEL_GROUND_CHALLENGE_SCREENSHOT {challengeScreenshotPath}");
+                SaveNamedScreenshot("challenge", "vln_offroad_scout_wheel_ground_challenge_screenshot.png", "VLN_OFFROAD_SCOUT_WHEEL_GROUND_CHALLENGE_SCREENSHOT");
+            }
+
+            if (!m_ChallengeGrassScreenshotRequested && physicsRoot != null && physicsRoot.transform.position.z >= 14.0f && physicsRoot.transform.position.z <= 16.7f)
+            {
+                m_ChallengeGrassScreenshotRequested = true;
+                SaveNamedScreenshot("challenge_grass", "vln_offroad_scout_wheel_ground_challenge_grass_screenshot.png", "VLN_OFFROAD_SCOUT_WHEEL_GROUND_CHALLENGE_GRASS_SCREENSHOT");
+            }
+
+            if (!m_ChallengeStoneScreenshotRequested && physicsRoot != null && physicsRoot.transform.position.z >= 22.0f && physicsRoot.transform.position.z <= 27.2f)
+            {
+                m_ChallengeStoneScreenshotRequested = true;
+                SaveNamedScreenshot("challenge_stone", "vln_offroad_scout_wheel_ground_challenge_stone_screenshot.png", "VLN_OFFROAD_SCOUT_WHEEL_GROUND_CHALLENGE_STONE_SCREENSHOT");
+            }
+
+            if (!m_ChallengeSandScreenshotRequested && physicsRoot != null && physicsRoot.transform.position.z >= 37.0f && physicsRoot.transform.position.z <= 46.0f)
+            {
+                m_ChallengeSandScreenshotRequested = true;
+                SaveNamedScreenshot("challenge_sand", "vln_offroad_scout_wheel_ground_challenge_sand_screenshot.png", "VLN_OFFROAD_SCOUT_WHEEL_GROUND_CHALLENGE_SAND_SCREENSHOT");
             }
 
             if (!Application.isBatchMode || elapsed < m_BatchModeAutoExitAfterSeconds)
@@ -170,7 +189,38 @@ namespace VLN.ROS2
                 $"finished={DateTime.UtcNow:O}\n" +
                 $"physics_root_delta_m={baseDelta:F4}\n" +
                 $"final_position={(physicsRoot != null ? FormatVector(physicsRoot.transform.position) : "missing")}\n" +
-                $"final_yaw_deg={(physicsRoot != null ? physicsRoot.transform.eulerAngles.y.ToString("F3") : "missing")}\n");
+                $"final_yaw_deg={(physicsRoot != null ? physicsRoot.transform.eulerAngles.y.ToString("F3") : "missing")}\n" +
+                BuildGrassDeformationSummary());
+        }
+
+        static string BuildGrassDeformationSummary()
+        {
+            var deformers = FindObjectsOfType<VlnChallengeGrassDeformer>();
+            int totalBlades = 0;
+            int currentDeformed = 0;
+            int maxDeformed = 0;
+            int maxFreshAffected = 0;
+            foreach (var deformer in deformers)
+            {
+                if (deformer == null)
+                {
+                    continue;
+                }
+
+                totalBlades += deformer.BladeCount;
+                currentDeformed += deformer.CurrentDeformedBladeCount;
+                maxDeformed += deformer.MaxDeformedBladeCount;
+                maxFreshAffected += deformer.MaxFreshAffectedBladeCount;
+            }
+
+            float maxDeformedFraction = totalBlades > 0 ? maxDeformed / (float)totalBlades : 0f;
+            return
+                $"challenge_grass_deformer_final_count={deformers.Length}\n" +
+                $"challenge_grass_total_blade_count={totalBlades}\n" +
+                $"challenge_grass_current_deformed_blade_count={currentDeformed}\n" +
+                $"challenge_grass_max_deformed_blade_count={maxDeformed}\n" +
+                $"challenge_grass_max_fresh_affected_blade_count={maxFreshAffected}\n" +
+                $"challenge_grass_max_deformed_fraction={maxDeformedFraction:F3}\n";
         }
 
         static string BuildPhysicsSummary(GameObject physicsRoot)
@@ -191,6 +241,21 @@ namespace VLN.ROS2
                 $"challenge_grass_surface_count={CountGameObjectsByPrefix("ScoutWheelGround_ChallengeSurface_Grass")}\n" +
                 $"challenge_stone_surface_count={CountGameObjectsByPrefix("ScoutWheelGround_ChallengeSurface_Stone")}\n" +
                 $"challenge_sand_surface_count={CountGameObjectsByPrefix("ScoutWheelGround_ChallengeSurface_Sand")}\n" +
+                $"challenge_grass_blade_field_count={CountGameObjectsByPrefix("ScoutWheelGround_ChallengeObstacle_GrassBladeField")}\n" +
+                $"challenge_grass_deformer_count={FindObjectsOfType<VlnChallengeGrassDeformer>().Length}\n" +
+                $"challenge_stone_visual_detail_count={CountGameObjectsByPrefix("ScoutWheelGround_ChallengeObstacle_Stone")}\n" +
+                $"challenge_stone_chip_field_count={CountGameObjectsByPrefix("ScoutWheelGround_ChallengeObstacle_StoneChipField")}\n" +
+                $"challenge_sand_visual_detail_count={CountGameObjectsByPrefix("ScoutWheelGround_ChallengeObstacle_Sand")}\n" +
+                $"challenge_sand_grain_field_count={CountGameObjectsByPrefix("ScoutWheelGround_ChallengeObstacle_SandGrainField")}\n" +
+                $"challenge_physics_proxy_count={CountGameObjectsByPrefix("ScoutWheelGround_ChallengePhysicsProxy_")}\n" +
+                $"grass_physics_proxy_count={CountGameObjectsByPrefix("ScoutWheelGround_ChallengePhysicsProxy_Grass")}\n" +
+                $"stone_physics_proxy_count={CountGameObjectsByPrefix("ScoutWheelGround_ChallengePhysicsProxy_Stone")}\n" +
+                $"sand_physics_proxy_count={CountGameObjectsByPrefix("ScoutWheelGround_ChallengePhysicsProxy_Sand")}\n" +
+                $"challenge_physics_proxy_collider_count={CountCollidersByPrefix("ScoutWheelGround_ChallengePhysicsProxy_")}\n" +
+                $"challenge_visual_physics_proxy_audit_pass={(ChallengeVisualPhysicsProxyAuditPass() ? 1 : 0)}\n" +
+                $"challenge_pbr_albedo_material_count={CountChallengePbrMaterialsWithTexture("_MainTex")}\n" +
+                $"challenge_pbr_normal_material_count={CountChallengePbrMaterialsWithTexture("_BumpMap")}\n" +
+                $"challenge_pbr_occlusion_material_count={CountChallengePbrMaterialsWithTexture("_OcclusionMap")}\n" +
                 $"challenge_obstacle_count={CountGameObjectsByPrefix("ScoutWheelGround_ChallengeObstacle_")}\n" +
                 $"challenge_obstacle_collider_count={CountCollidersByPrefix("ScoutWheelGround_ChallengeObstacle_")}\n" +
                 $"challenge_marker_count={CountGameObjectsByPrefix("ScoutWheelGround_ChallengeMarker_")}\n" +
@@ -241,6 +306,49 @@ namespace VLN.ROS2
                 }
             }
             return count;
+        }
+
+        static bool ChallengeVisualPhysicsProxyAuditPass()
+        {
+            return CountGameObjectsByPrefix("ScoutWheelGround_ChallengeSurface_Grass") >= 1 &&
+                   CountGameObjectsByPrefix("ScoutWheelGround_ChallengeSurface_Stone") >= 1 &&
+                   CountGameObjectsByPrefix("ScoutWheelGround_ChallengeSurface_Sand") >= 1 &&
+                   CountGameObjectsByPrefix("ScoutWheelGround_ChallengeObstacle_GrassBladeField") >= 3 &&
+                   FindObjectsOfType<VlnChallengeGrassDeformer>().Length >= 3 &&
+                   CountGameObjectsByPrefix("ScoutWheelGround_ChallengeObstacle_Stone") >= 55 &&
+                   CountGameObjectsByPrefix("ScoutWheelGround_ChallengeObstacle_Sand") >= 45 &&
+                   CountGameObjectsByPrefix("ScoutWheelGround_ChallengePhysicsProxy_Grass") >= 5 &&
+                   CountGameObjectsByPrefix("ScoutWheelGround_ChallengePhysicsProxy_Stone") >= 7 &&
+                   CountGameObjectsByPrefix("ScoutWheelGround_ChallengePhysicsProxy_Sand") >= 10 &&
+                   CountCollidersByPrefix("ScoutWheelGround_ChallengePhysicsProxy_") >= 22;
+        }
+
+        static int CountChallengePbrMaterialsWithTexture(string textureProperty)
+        {
+            var materials = new HashSet<Material>();
+            foreach (var renderer in FindObjectsOfType<Renderer>())
+            {
+                foreach (var material in renderer.sharedMaterials)
+                {
+                    if (material == null || !IsChallengePbrMaterial(material.name))
+                    {
+                        continue;
+                    }
+
+                    if (material.HasProperty(textureProperty) && material.GetTexture(textureProperty) != null)
+                    {
+                        materials.Add(material);
+                    }
+                }
+            }
+
+            return materials.Count;
+        }
+
+        static bool IsChallengePbrMaterial(string materialName)
+        {
+            return materialName.StartsWith("ScoutWheelGround_ChallengeStone", StringComparison.Ordinal) ||
+                   materialName.StartsWith("ScoutWheelGround_ChallengeSand", StringComparison.Ordinal);
         }
 
         static float MaxBoundsWidthByPrefix(string prefix)
@@ -406,6 +514,14 @@ namespace VLN.ROS2
             }
 
             RenderCameraToPng(camera, path, 1280, 720);
+        }
+
+        void SaveNamedScreenshot(string resultKey, string fileName, string logMarker)
+        {
+            string path = Path.Combine(Application.dataPath, "../Logs/" + fileName);
+            SaveViewerCameraScreenshot(path);
+            File.AppendAllText(m_ResultPath, $"{resultKey}_screenshot={path}\n");
+            Debug.Log($"{logMarker} {path}");
         }
 
         static void RenderCameraToPng(Camera camera, string path, int width, int height)

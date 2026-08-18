@@ -14,6 +14,15 @@ namespace VLN.Editor
         public const string ScenePath = "Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity";
         const string UrdfAssetPath = "Assets/VLN/ExternalAssets/ScoutUrdfPhysics/scout_v2_unity_import.urdf";
         const string ScoutAssetRoot = "Assets/VLN/ExternalAssets/ScoutUrdfPhysics";
+        const string PbrMaterialRoot = "Assets/VLN/ExternalAssets/PBRMaterials/AmbientCG";
+        const string StoneAlbedoTexturePath = PbrMaterialRoot + "/PavingStones151_1K-JPG/PavingStones151_1K-JPG_Color.jpg";
+        const string StoneNormalTexturePath = PbrMaterialRoot + "/PavingStones151_1K-JPG/PavingStones151_1K-JPG_NormalGL.jpg";
+        const string StoneOcclusionTexturePath = PbrMaterialRoot + "/PavingStones151_1K-JPG/PavingStones151_1K-JPG_AmbientOcclusion.jpg";
+        const string StoneRoughnessTexturePath = PbrMaterialRoot + "/PavingStones151_1K-JPG/PavingStones151_1K-JPG_Roughness.jpg";
+        const string SandAlbedoTexturePath = PbrMaterialRoot + "/Ground054_1K-JPG/Ground054_1K-JPG_Color.jpg";
+        const string SandNormalTexturePath = PbrMaterialRoot + "/Ground054_1K-JPG/Ground054_1K-JPG_NormalGL.jpg";
+        const string SandOcclusionTexturePath = PbrMaterialRoot + "/Ground054_1K-JPG/Ground054_1K-JPG_AmbientOcclusion.jpg";
+        const string SandRoughnessTexturePath = PbrMaterialRoot + "/Ground054_1K-JPG/Ground054_1K-JPG_Roughness.jpg";
         const string RigName = "Offroad_SensorRig_StaticVehiclePlaceholder";
         public const string PhysicsRootName = "ScoutWheelGround_PhysicsRoot";
         public const string VisualRootName = "ScoutWheelGround_VisualUrdf";
@@ -24,15 +33,24 @@ namespace VLN.Editor
         const string RampDetailMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_VisibleRampDetail.mat";
         const string ChallengeGrassSurfaceMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeGrassSurface.mat";
         const string ChallengeGrassBladeMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeGrassBlade.mat";
+        const string ChallengeGrassBladeLightMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeGrassBladeLight.mat";
+        const string ChallengeGrassBladeDryMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeGrassBladeDry.mat";
         const string ChallengeGrassSoilMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeGrassSoil.mat";
         const string ChallengeStoneSurfaceMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeStoneSurface.mat";
         const string ChallengeStonePaverMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeStonePaver.mat";
         const string ChallengeStoneSeamMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeStoneSeam.mat";
+        const string ChallengeStoneChipMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeStoneChip.mat";
         const string ChallengeSandSurfaceMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeSandSurface.mat";
         const string ChallengeSandRippleMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeSandRipple.mat";
         const string ChallengeSandDepressionMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeSandDepression.mat";
+        const string ChallengeSandGrainMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeSandGrain.mat";
         const string ChallengeObstacleMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeObstacle.mat";
         const string ChallengeMarkerMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeMarker.mat";
+        const string ChallengeGrassBladeMeshPath = "Assets/VLN/Terrain/ScoutWheelGround_ChallengeGrassBladeField.asset";
+        const string ChallengeGrassBladeLightMeshPath = "Assets/VLN/Terrain/ScoutWheelGround_ChallengeGrassBladeField_Light.asset";
+        const string ChallengeGrassBladeDryMeshPath = "Assets/VLN/Terrain/ScoutWheelGround_ChallengeGrassBladeField_Dry.asset";
+        const string ChallengeStoneChipMeshPath = "Assets/VLN/Terrain/ScoutWheelGround_ChallengeStoneChipField.asset";
+        const string ChallengeSandGrainMeshPath = "Assets/VLN/Terrain/ScoutWheelGround_ChallengeSandGrainField.asset";
         const string ChallengeGrassPhysicMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeGrass.physicMaterial";
         const string ChallengeStonePhysicMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeStone.physicMaterial";
         const string ChallengeSandPhysicMaterialPath = "Assets/VLN/Materials/ScoutWheelGround_ChallengeSand.physicMaterial";
@@ -57,6 +75,7 @@ namespace VLN.Editor
             EnsureScoutAssetsExist();
             VlnOffroadAssetCandidateProjectSetup.BuildAssetCandidateScene();
             AssetDatabase.ImportAsset(ScoutAssetRoot, ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceUpdate);
+            ImportPbrTextureFolderIfPresent();
             AssetDatabase.Refresh();
 
             var scene = EditorSceneManager.OpenScene(VlnOffroadAssetCandidateProjectSetup.ScenePath, OpenSceneMode.Single);
@@ -85,15 +104,27 @@ namespace VLN.Editor
             var rampDetailMaterial = EnsureSurfaceMaterial(RampDetailMaterialPath, new Color(0.26f, 0.18f, 0.10f));
             var challengeGrassMaterial = EnsureSurfaceMaterial(ChallengeGrassSurfaceMaterialPath, new Color(0.23f, 0.36f, 0.19f));
             var challengeGrassBladeMaterial = EnsureSurfaceMaterial(ChallengeGrassBladeMaterialPath, new Color(0.10f, 0.34f, 0.10f));
+            var challengeGrassBladeLightMaterial = EnsureSurfaceMaterial(ChallengeGrassBladeLightMaterialPath, new Color(0.20f, 0.48f, 0.15f));
+            var challengeGrassBladeDryMaterial = EnsureSurfaceMaterial(ChallengeGrassBladeDryMaterialPath, new Color(0.42f, 0.39f, 0.18f));
             var challengeGrassSoilMaterial = EnsureSurfaceMaterial(ChallengeGrassSoilMaterialPath, new Color(0.24f, 0.18f, 0.10f));
             var challengeStoneMaterial = EnsureSurfaceMaterial(ChallengeStoneSurfaceMaterialPath, new Color(0.31f, 0.36f, 0.36f));
             var challengeStonePaverMaterial = EnsureSurfaceMaterial(ChallengeStonePaverMaterialPath, new Color(0.42f, 0.50f, 0.50f));
             var challengeStoneSeamMaterial = EnsureSurfaceMaterial(ChallengeStoneSeamMaterialPath, new Color(0.12f, 0.14f, 0.14f));
+            var challengeStoneChipMaterial = EnsureSurfaceMaterial(ChallengeStoneChipMaterialPath, new Color(0.25f, 0.30f, 0.30f));
             var challengeSandMaterial = EnsureSurfaceMaterial(ChallengeSandSurfaceMaterialPath, new Color(0.66f, 0.56f, 0.34f));
             var challengeSandRippleMaterial = EnsureSurfaceMaterial(ChallengeSandRippleMaterialPath, new Color(0.78f, 0.69f, 0.45f));
             var challengeSandDepressionMaterial = EnsureSurfaceMaterial(ChallengeSandDepressionMaterialPath, new Color(0.47f, 0.39f, 0.24f));
+            var challengeSandGrainMaterial = EnsureSurfaceMaterial(ChallengeSandGrainMaterialPath, new Color(0.88f, 0.78f, 0.50f));
             var challengeObstacleMaterial = EnsureSurfaceMaterial(ChallengeObstacleMaterialPath, new Color(0.28f, 0.25f, 0.21f));
             var challengeMarkerMaterial = EnsureSurfaceMaterial(ChallengeMarkerMaterialPath, new Color(0.76f, 0.43f, 0.12f));
+            ConfigureChallengePbrMaterials(
+                challengeStoneMaterial,
+                challengeStonePaverMaterial,
+                challengeStoneChipMaterial,
+                challengeSandMaterial,
+                challengeSandRippleMaterial,
+                challengeSandDepressionMaterial,
+                challengeSandGrainMaterial);
             var challengeGrassPhysic = EnsurePhysicMaterial(ChallengeGrassPhysicMaterialPath, "ScoutWheelGround_ChallengeGrass", 1.05f, 0.92f, PhysicMaterialCombine.Maximum);
             var challengeStonePhysic = EnsurePhysicMaterial(ChallengeStonePhysicMaterialPath, "ScoutWheelGround_ChallengeStone", 1.08f, 0.96f, PhysicMaterialCombine.Maximum);
             var challengeSandPhysic = EnsurePhysicMaterial(ChallengeSandPhysicMaterialPath, "ScoutWheelGround_ChallengeSand", 0.78f, 0.64f, PhysicMaterialCombine.Average);
@@ -105,13 +136,17 @@ namespace VLN.Editor
             CreatePostRampChallengeCourse(
                 challengeGrassMaterial,
                 challengeGrassBladeMaterial,
+                challengeGrassBladeLightMaterial,
+                challengeGrassBladeDryMaterial,
                 challengeGrassSoilMaterial,
                 challengeStoneMaterial,
                 challengeStonePaverMaterial,
                 challengeStoneSeamMaterial,
+                challengeStoneChipMaterial,
                 challengeSandMaterial,
                 challengeSandRippleMaterial,
                 challengeSandDepressionMaterial,
+                challengeSandGrainMaterial,
                 challengeObstacleMaterial,
                 challengeMarkerMaterial,
                 challengeGrassPhysic,
@@ -379,6 +414,12 @@ namespace VLN.Editor
             serializedController.FindProperty("m_OverspeedBrakeTorqueRatio").floatValue = 0.25f;
             serializedController.FindProperty("m_RollingBrakeSpeedThreshold").floatValue = 0.08f;
             serializedController.FindProperty("m_CommandTimeoutSeconds").floatValue = 0.18f;
+            serializedController.FindProperty("m_GrassRollingResistanceAcceleration").floatValue = 0.12f;
+            serializedController.FindProperty("m_StoneRollingResistanceAcceleration").floatValue = 0.03f;
+            serializedController.FindProperty("m_SandRollingResistanceAcceleration").floatValue = 0.32f;
+            serializedController.FindProperty("m_GrassTractionAssistReduction").floatValue = 0.05f;
+            serializedController.FindProperty("m_SandTractionAssistReduction").floatValue = 0.16f;
+            serializedController.FindProperty("m_SandLateralDampingReduction").floatValue = 0.20f;
             serializedController.ApplyModifiedPropertiesWithoutUndo();
         }
 
@@ -486,8 +527,226 @@ namespace VLN.Editor
             }
 
             material.color = color;
+            if (material.HasProperty("_Glossiness"))
+            {
+                material.SetFloat("_Glossiness", 0.08f);
+            }
+            if (material.HasProperty("_Metallic"))
+            {
+                material.SetFloat("_Metallic", 0.0f);
+            }
             EditorUtility.SetDirty(material);
             return material;
+        }
+
+        static void ImportPbrTextureFolderIfPresent()
+        {
+            if (!AssetDatabase.IsValidFolder(PbrMaterialRoot))
+            {
+                Debug.Log("VLN_SCOUT_WHEEL_GROUND_PBR_TEXTURES_MISSING using_color_fallback=true");
+                return;
+            }
+
+            AssetDatabase.ImportAsset(PbrMaterialRoot, ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceUpdate);
+            ConfigurePbrTextureImporter(StoneAlbedoTexturePath, TextureImporterType.Default, true);
+            ConfigurePbrTextureImporter(StoneNormalTexturePath, TextureImporterType.NormalMap, false);
+            ConfigurePbrTextureImporter(StoneOcclusionTexturePath, TextureImporterType.Default, false);
+            ConfigurePbrTextureImporter(StoneRoughnessTexturePath, TextureImporterType.Default, false);
+            ConfigurePbrTextureImporter(SandAlbedoTexturePath, TextureImporterType.Default, true);
+            ConfigurePbrTextureImporter(SandNormalTexturePath, TextureImporterType.NormalMap, false);
+            ConfigurePbrTextureImporter(SandOcclusionTexturePath, TextureImporterType.Default, false);
+            ConfigurePbrTextureImporter(SandRoughnessTexturePath, TextureImporterType.Default, false);
+        }
+
+        static void ConfigurePbrTextureImporter(string texturePath, TextureImporterType textureType, bool sRgbTexture)
+        {
+            var importer = AssetImporter.GetAtPath(texturePath) as TextureImporter;
+            if (importer == null)
+            {
+                return;
+            }
+
+            bool changed = false;
+            if (importer.textureType != textureType)
+            {
+                importer.textureType = textureType;
+                changed = true;
+            }
+
+            if (importer.sRGBTexture != sRgbTexture)
+            {
+                importer.sRGBTexture = sRgbTexture;
+                changed = true;
+            }
+
+            if (importer.wrapMode != TextureWrapMode.Repeat)
+            {
+                importer.wrapMode = TextureWrapMode.Repeat;
+                changed = true;
+            }
+
+            if (!importer.mipmapEnabled)
+            {
+                importer.mipmapEnabled = true;
+                changed = true;
+            }
+
+            if (importer.filterMode != FilterMode.Trilinear)
+            {
+                importer.filterMode = FilterMode.Trilinear;
+                changed = true;
+            }
+
+            if (importer.maxTextureSize != 1024)
+            {
+                importer.maxTextureSize = 1024;
+                changed = true;
+            }
+
+            if (changed)
+            {
+                importer.SaveAndReimport();
+            }
+        }
+
+        static void ConfigureChallengePbrMaterials(
+            Material stoneSurface,
+            Material stonePaver,
+            Material stoneChip,
+            Material sandSurface,
+            Material sandRipple,
+            Material sandDepression,
+            Material sandGrain)
+        {
+            ConfigurePbrMaterial(
+                stoneSurface,
+                new Color(0.92f, 0.96f, 0.96f),
+                StoneAlbedoTexturePath,
+                StoneNormalTexturePath,
+                StoneOcclusionTexturePath,
+                0.82f,
+                0.68f,
+                0.05f);
+            ConfigurePbrMaterial(
+                stonePaver,
+                new Color(0.96f, 0.99f, 0.99f),
+                StoneAlbedoTexturePath,
+                StoneNormalTexturePath,
+                StoneOcclusionTexturePath,
+                1.05f,
+                0.78f,
+                0.06f);
+            ConfigurePbrMaterial(
+                stoneChip,
+                new Color(0.78f, 0.84f, 0.84f),
+                StoneAlbedoTexturePath,
+                StoneNormalTexturePath,
+                StoneOcclusionTexturePath,
+                1.35f,
+                0.55f,
+                0.04f);
+            ConfigurePbrMaterial(
+                sandSurface,
+                new Color(1.00f, 0.94f, 0.76f),
+                SandAlbedoTexturePath,
+                SandNormalTexturePath,
+                SandOcclusionTexturePath,
+                0.95f,
+                0.72f,
+                0.025f);
+            ConfigurePbrMaterial(
+                sandRipple,
+                new Color(1.00f, 0.96f, 0.80f),
+                SandAlbedoTexturePath,
+                SandNormalTexturePath,
+                SandOcclusionTexturePath,
+                1.25f,
+                0.85f,
+                0.02f);
+            ConfigurePbrMaterial(
+                sandDepression,
+                new Color(0.82f, 0.75f, 0.58f),
+                SandAlbedoTexturePath,
+                SandNormalTexturePath,
+                SandOcclusionTexturePath,
+                0.75f,
+                0.45f,
+                0.015f);
+            ConfigurePbrMaterial(
+                sandGrain,
+                new Color(1.00f, 0.93f, 0.70f),
+                SandAlbedoTexturePath,
+                SandNormalTexturePath,
+                SandOcclusionTexturePath,
+                1.55f,
+                0.40f,
+                0.018f);
+        }
+
+        static void ConfigurePbrMaterial(
+            Material material,
+            Color tint,
+            string albedoPath,
+            string normalPath,
+            string occlusionPath,
+            float textureScale,
+            float normalScale,
+            float glossiness)
+        {
+            if (material == null)
+            {
+                return;
+            }
+
+            material.color = tint;
+            var albedo = AssetDatabase.LoadAssetAtPath<Texture2D>(albedoPath);
+            var normal = AssetDatabase.LoadAssetAtPath<Texture2D>(normalPath);
+            var occlusion = AssetDatabase.LoadAssetAtPath<Texture2D>(occlusionPath);
+
+            if (material.HasProperty("_MainTex"))
+            {
+                material.SetTexture("_MainTex", albedo);
+                material.SetTextureScale("_MainTex", Vector2.one * textureScale);
+            }
+
+            if (material.HasProperty("_BumpMap"))
+            {
+                material.SetTexture("_BumpMap", normal);
+                material.SetFloat("_BumpScale", normal != null ? normalScale : 1f);
+                if (normal != null)
+                {
+                    material.EnableKeyword("_NORMALMAP");
+                }
+                else
+                {
+                    material.DisableKeyword("_NORMALMAP");
+                }
+            }
+
+            if (material.HasProperty("_OcclusionMap"))
+            {
+                material.SetTexture("_OcclusionMap", occlusion);
+                material.SetFloat("_OcclusionStrength", occlusion != null ? 0.72f : 0f);
+                if (occlusion != null)
+                {
+                    material.EnableKeyword("_OCCLUSIONMAP");
+                }
+                else
+                {
+                    material.DisableKeyword("_OCCLUSIONMAP");
+                }
+            }
+
+            if (material.HasProperty("_Metallic"))
+            {
+                material.SetFloat("_Metallic", 0.0f);
+            }
+            if (material.HasProperty("_Glossiness"))
+            {
+                material.SetFloat("_Glossiness", glossiness);
+            }
+
+            EditorUtility.SetDirty(material);
         }
 
         static void AssignSceneFrictionMaterial(PhysicMaterial material)
@@ -511,13 +770,17 @@ namespace VLN.Editor
         static void CreatePostRampChallengeCourse(
             Material grassMaterial,
             Material grassBladeMaterial,
+            Material grassBladeLightMaterial,
+            Material grassBladeDryMaterial,
             Material grassSoilMaterial,
             Material stoneMaterial,
             Material stonePaverMaterial,
             Material stoneSeamMaterial,
+            Material stoneChipMaterial,
             Material sandMaterial,
             Material sandRippleMaterial,
             Material sandDepressionMaterial,
+            Material sandGrainMaterial,
             Material obstacleMaterial,
             Material markerMaterial,
             PhysicMaterial grassPhysic,
@@ -527,6 +790,7 @@ namespace VLN.Editor
         {
             RemoveGeneratedObjectsByPrefix("ScoutWheelGround_ChallengeSurface_");
             RemoveGeneratedObjectsByPrefix("ScoutWheelGround_ChallengeObstacle_");
+            RemoveGeneratedObjectsByPrefix("ScoutWheelGround_ChallengePhysicsProxy_");
             RemoveGeneratedObjectsByPrefix("ScoutWheelGround_ChallengeMarker_");
             RemoveIfExists("Offroad_DistantWall_Target");
 
@@ -539,7 +803,8 @@ namespace VLN.Editor
                 0.055f,
                 grassPhysic,
                 grassMaterial);
-            CreateGrassDetails(grassBladeMaterial, grassSoilMaterial, obstacleMaterial, obstaclePhysic);
+            CreateGrassDetails(grassBladeMaterial, grassBladeLightMaterial, grassBladeDryMaterial, grassSoilMaterial, obstacleMaterial, obstaclePhysic);
+            CreateGrassPhysicsProxies(grassSoilMaterial, grassPhysic);
 
             CreateChallengeProfileSurface(
                 "ScoutWheelGround_ChallengeSurface_Stone",
@@ -550,7 +815,8 @@ namespace VLN.Editor
                 0.055f,
                 stonePhysic,
                 stoneMaterial);
-            CreateStonePaverDetails(stonePaverMaterial, stoneSeamMaterial, obstacleMaterial, obstaclePhysic);
+            CreateStonePaverDetails(stonePaverMaterial, stoneSeamMaterial, stoneChipMaterial, obstacleMaterial, obstaclePhysic);
+            CreateStonePhysicsProxies(stoneSeamMaterial, stonePhysic);
 
             CreateChallengeProfileSurface(
                 "ScoutWheelGround_ChallengeSurface_Sand",
@@ -561,7 +827,8 @@ namespace VLN.Editor
                 0.062f,
                 sandPhysic,
                 sandMaterial);
-            CreateSandDetails(sandRippleMaterial, sandDepressionMaterial, obstacleMaterial, obstaclePhysic);
+            CreateSandDetails(sandRippleMaterial, sandDepressionMaterial, sandGrainMaterial, obstacleMaterial, obstaclePhysic);
+            CreateSandPhysicsProxies(sandRippleMaterial, sandPhysic);
 
             CreateChallengeBox(
                 "Offroad_DistantWall_Target",
@@ -586,7 +853,7 @@ namespace VLN.Editor
                 obstaclePhysic,
                 true);
 
-            Debug.Log("VLN_SCOUT_WHEEL_GROUND_CHALLENGE_COURSE_READY surfaces=3 grass_z=10.0..16.8 stone_z=20.0..28.0 sand_z=32.0..49.0 obstacles=scattered_passable_low_features end_wall_z=53.50 baseline_bridge_and_ramp_unchanged=true");
+            Debug.Log("VLN_SCOUT_WHEEL_GROUND_CHALLENGE_COURSE_READY surfaces=3 grass_z=10.0..16.8 stone_z=20.0..28.0 sand_z=32.0..49.0 obstacles=scattered_passable_low_features material_physics_proxies=grass_stone_sand end_wall_z=53.50 baseline_bridge_and_ramp_unchanged=true");
         }
 
         static void CreateChallengeProfileSurface(string name, float centerX, float width, float[] zValues, float[] yOffsets, float thickness, PhysicMaterial material, Material renderMaterial)
@@ -605,17 +872,11 @@ namespace VLN.Editor
             CreateProfiledPhysicalSurface(name, centerX, width, zValues, yValues, thickness, material, renderMaterial);
         }
 
-        static void CreateGrassDetails(Material bladeMaterial, Material soilMaterial, Material bumpMaterial, PhysicMaterial physicMaterial)
+        static void CreateGrassDetails(Material bladeMaterial, Material bladeLightMaterial, Material bladeDryMaterial, Material soilMaterial, Material bumpMaterial, PhysicMaterial physicMaterial)
         {
-            const float width = 4.8f;
-            for (int i = 0; i < 52; i++)
-            {
-                float laneOffset = ((i * 37) % 17 - 8) * 0.29f;
-                float z = 10.35f + (i % 26) * 0.245f + (i / 26) * 0.11f;
-                float x = Mathf.Clamp(laneOffset, -width * 0.5f, width * 0.5f);
-                float y = TerrainWorldY(x, z) + 0.132f;
-                CreateVisualBox($"ScoutWheelGround_ChallengeObstacle_GrassBladeVisual_{i:00}", x, y, z, 0.038f + 0.012f * (i % 3), 0.090f + 0.018f * (i % 4), 0.18f + 0.025f * (i % 5), i * 29f, bladeMaterial);
-            }
+            CreateGrassBladeField("ScoutWheelGround_ChallengeObstacle_GrassBladeField_Dark", bladeMaterial, ChallengeGrassBladeMeshPath, 0, 680, 0.18f, 0.43f, 0.000f);
+            CreateGrassBladeField("ScoutWheelGround_ChallengeObstacle_GrassBladeField_Light", bladeLightMaterial, ChallengeGrassBladeLightMeshPath, 131, 560, 0.15f, 0.35f, 0.018f);
+            CreateGrassBladeField("ScoutWheelGround_ChallengeObstacle_GrassBladeField_Dry", bladeDryMaterial, ChallengeGrassBladeDryMeshPath, 263, 260, 0.11f, 0.28f, -0.014f);
 
             for (int i = 0; i < 8; i++)
             {
@@ -628,7 +889,110 @@ namespace VLN.Editor
             CreateChallengeBox("ScoutWheelGround_ChallengeObstacle_GrassLowRoot_01", 0.95f, 14.60f, 0.38f, 0.026f, 0.50f, 0.105f, bumpMaterial, physicMaterial, false, -18f);
         }
 
-        static void CreateStonePaverDetails(Material paverMaterial, Material seamMaterial, Material bumpMaterial, PhysicMaterial physicMaterial)
+        static void CreateGrassPhysicsProxies(Material material, PhysicMaterial physicMaterial)
+        {
+            float[] zValues = { 10.90f, 12.05f, 13.28f, 14.45f, 15.70f };
+            for (int i = 0; i < zValues.Length; i++)
+            {
+                float x = i % 2 == 0 ? -0.10f : 0.14f;
+                float yaw = i % 2 == 0 ? -9f : 8f;
+                CreateChallengeBox(
+                    $"ScoutWheelGround_ChallengePhysicsProxy_GrassFlexRow_{i:00}",
+                    x,
+                    zValues[i],
+                    4.70f,
+                    0.012f,
+                    0.115f,
+                    0.132f,
+                    material,
+                    physicMaterial,
+                    false,
+                    yaw);
+            }
+        }
+
+        static void CreateGrassBladeField(string name, Material bladeMaterial, string meshPath, int seedOffset, int bladeCount, float minHeight, float maxHeight, float zBias)
+        {
+            const float halfWidth = 2.45f;
+            const float zStart = 10.28f;
+            const float zLength = 6.20f;
+            var vertices = new Vector3[bladeCount * 6];
+            var triangles = new int[bladeCount * 6];
+            var uvs = new Vector2[bladeCount * 6];
+
+            for (int i = 0; i < bladeCount; i++)
+            {
+                float xNoise = PseudoRandom01(seedOffset + i * 17 + 3);
+                float zNoise = PseudoRandom01(seedOffset + i * 29 + 11);
+                float leanNoise = PseudoRandom01(seedOffset + i * 43 + 7);
+                float widthNoise = PseudoRandom01(seedOffset + i * 59 + 19);
+                float heightNoise = PseudoRandom01(seedOffset + i * 71 + 23);
+                float yaw = PseudoRandom01(seedOffset + i * 83 + 31) * Mathf.PI * 2f;
+                float x = Mathf.Lerp(-halfWidth, halfWidth, xNoise);
+                float z = zStart + zNoise * zLength + zBias;
+                float baseY = TerrainWorldY(x, z) + 0.136f;
+                float bladeWidth = Mathf.Lerp(0.018f, 0.042f, widthNoise);
+                float bladeHeight = Mathf.Lerp(minHeight, maxHeight, heightNoise);
+                float lean = Mathf.Lerp(-0.075f, 0.075f, leanNoise);
+                Vector3 right = new Vector3(Mathf.Cos(yaw), 0f, Mathf.Sin(yaw));
+                Vector3 forward = new Vector3(-right.z, 0f, right.x);
+                Vector3 baseCenter = new Vector3(x, baseY, z);
+                Vector3 tip = baseCenter + Vector3.up * bladeHeight + forward * lean;
+                Vector3 leftBase = baseCenter - right * bladeWidth;
+                Vector3 rightBase = baseCenter + right * bladeWidth;
+                int v = i * 6;
+
+                vertices[v + 0] = leftBase;
+                vertices[v + 1] = rightBase;
+                vertices[v + 2] = tip;
+                vertices[v + 3] = rightBase;
+                vertices[v + 4] = leftBase;
+                vertices[v + 5] = tip;
+
+                for (int j = 0; j < 6; j++)
+                {
+                    triangles[v + j] = v + j;
+                }
+
+                uvs[v + 0] = new Vector2(0f, 0f);
+                uvs[v + 1] = new Vector2(1f, 0f);
+                uvs[v + 2] = new Vector2(0.5f, 1f);
+                uvs[v + 3] = new Vector2(1f, 0f);
+                uvs[v + 4] = new Vector2(0f, 0f);
+                uvs[v + 5] = new Vector2(0.5f, 1f);
+            }
+
+            var mesh = new Mesh { name = "ScoutWheelGround_ChallengeGrassBladeFieldMesh" };
+            mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.uv = uvs;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+
+            DeleteAssetIfExists(meshPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(meshPath));
+            AssetDatabase.CreateAsset(mesh, meshPath);
+
+            var field = new GameObject(name);
+            field.transform.position = Vector3.zero;
+            field.transform.rotation = Quaternion.identity;
+            field.isStatic = true;
+            var meshFilter = field.AddComponent<MeshFilter>();
+            meshFilter.sharedMesh = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
+            var meshRenderer = field.AddComponent<MeshRenderer>();
+            meshRenderer.sharedMaterial = bladeMaterial;
+            var deformer = field.AddComponent<VlnChallengeGrassDeformer>();
+            deformer.Configure(PhysicsRootName, 0.56f, 0.25f, 0.26f, 0.32f, 0.012f);
+        }
+
+        static float PseudoRandom01(int seed)
+        {
+            float value = Mathf.Sin(seed * 12.9898f) * 43758.5453f;
+            return value - Mathf.Floor(value);
+        }
+
+        static void CreateStonePaverDetails(Material paverMaterial, Material seamMaterial, Material chipMaterial, Material bumpMaterial, PhysicMaterial physicMaterial)
         {
             int slabIndex = 0;
             for (int row = 0; row < 8; row++)
@@ -644,7 +1008,15 @@ namespace VLN.Editor
                     }
 
                     float y = TerrainWorldY(x, z) + 0.093f + 0.003f * ((row + col + 8) % 3);
-                    CreateVisualBox($"ScoutWheelGround_ChallengeObstacle_StonePaverVisual_{slabIndex:00}", x, y, z, 0.64f, 0.014f, 0.58f, (row + col) * 2.0f, paverMaterial);
+                    float width = 0.60f + 0.08f * PseudoRandom01(row * 37 + col * 11 + 5);
+                    float length = 0.53f + 0.09f * PseudoRandom01(row * 41 + col * 13 + 17);
+                    CreateVisualBox($"ScoutWheelGround_ChallengeObstacle_StonePaverVisual_{slabIndex:00}", x, y, z, width, 0.014f, length, (row + col) * 2.0f, paverMaterial);
+
+                    if ((row + col + 7) % 3 == 0)
+                    {
+                        CreateVisualBox($"ScoutWheelGround_ChallengeObstacle_StoneHairlineCrack_{slabIndex:00}", x + 0.05f, y + 0.009f, z, 0.018f, 0.004f, length * 0.62f, 31f + row * 3f, seamMaterial);
+                    }
+
                     slabIndex++;
                 }
             }
@@ -655,27 +1027,93 @@ namespace VLN.Editor
                 CreateVisualBox($"ScoutWheelGround_ChallengeObstacle_StoneDarkJoint_{i:00}", 0f, TerrainWorldY(0f, z) + 0.096f, z, 5.15f, 0.006f, 0.030f, 0f, seamMaterial);
             }
 
+            CreateStoneChipField("ScoutWheelGround_ChallengeObstacle_StoneChipField", chipMaterial);
+
             CreateChallengeBox("ScoutWheelGround_ChallengeObstacle_StoneSettledBump_00", -0.62f, 22.35f, 0.52f, 0.018f, 0.38f, 0.106f, bumpMaterial, physicMaterial, false, 4f);
             CreateChallengeBox("ScoutWheelGround_ChallengeObstacle_StoneSettledBump_01", 0.72f, 24.10f, 0.54f, 0.020f, 0.40f, 0.108f, bumpMaterial, physicMaterial, false, -6f);
             CreateChallengeBox("ScoutWheelGround_ChallengeObstacle_StoneSettledBump_02", -0.10f, 26.10f, 0.48f, 0.018f, 0.34f, 0.106f, bumpMaterial, physicMaterial, false, 9f);
         }
 
-        static void CreateSandDetails(Material rippleMaterial, Material depressionMaterial, Material bumpMaterial, PhysicMaterial physicMaterial)
+        static void CreateStonePhysicsProxies(Material material, PhysicMaterial physicMaterial)
         {
-            for (int i = 0; i < 14; i++)
-            {
-                float z = 32.55f + i * 1.12f;
-                float x = (i % 2 == 0) ? -0.26f : 0.24f;
-                float yaw = (i % 2 == 0) ? 8f : -10f;
-                CreateVisualBox($"ScoutWheelGround_ChallengeObstacle_SandRippleVisual_{i:00}", x, TerrainWorldY(x, z) + 0.126f, z, 4.6f, 0.010f, 0.070f, yaw, rippleMaterial);
-            }
-
             for (int i = 0; i < 7; i++)
             {
-                float x = (i - 3) * 0.46f;
-                float z = 33.2f + i * 2.05f;
+                float z = 20.75f + i * 0.88f;
+                CreateChallengeBox(
+                    $"ScoutWheelGround_ChallengePhysicsProxy_StoneRigidJoint_{i:00}",
+                    0f,
+                    z,
+                    5.10f,
+                    0.010f,
+                    0.030f,
+                    0.116f,
+                    material,
+                    physicMaterial,
+                    false,
+                    0f);
+            }
+        }
+
+        static void CreateStoneChipField(string name, Material chipMaterial)
+        {
+            const int chipCount = 140;
+            var vertices = new Vector3[chipCount * 4];
+            var triangles = new int[chipCount * 6];
+            var uvs = new Vector2[chipCount * 4];
+
+            for (int i = 0; i < chipCount; i++)
+            {
+                float x = Mathf.Lerp(-2.35f, 2.35f, PseudoRandom01(i * 19 + 5));
+                float z = Mathf.Lerp(20.25f, 27.75f, PseudoRandom01(i * 23 + 13));
+                float yaw = PseudoRandom01(i * 29 + 17) * Mathf.PI;
+                float halfWidth = Mathf.Lerp(0.025f, 0.070f, PseudoRandom01(i * 31 + 19));
+                float halfLength = Mathf.Lerp(0.018f, 0.055f, PseudoRandom01(i * 37 + 23));
+                float y = TerrainWorldY(x, z) + 0.106f;
+                Vector3 right = new Vector3(Mathf.Cos(yaw), 0f, Mathf.Sin(yaw));
+                Vector3 forward = new Vector3(-right.z, 0f, right.x);
+                Vector3 center = new Vector3(x, y, z);
+                int v = i * 4;
+                vertices[v + 0] = center - right * halfWidth - forward * halfLength;
+                vertices[v + 1] = center + right * halfWidth - forward * halfLength * 0.8f;
+                vertices[v + 2] = center + right * halfWidth * 0.7f + forward * halfLength;
+                vertices[v + 3] = center - right * halfWidth * 0.9f + forward * halfLength * 0.8f;
+
+                int t = i * 6;
+                triangles[t + 0] = v + 0;
+                triangles[t + 1] = v + 1;
+                triangles[t + 2] = v + 2;
+                triangles[t + 3] = v + 0;
+                triangles[t + 4] = v + 2;
+                triangles[t + 5] = v + 3;
+                uvs[v + 0] = new Vector2(0f, 0f);
+                uvs[v + 1] = new Vector2(1f, 0f);
+                uvs[v + 2] = new Vector2(1f, 1f);
+                uvs[v + 3] = new Vector2(0f, 1f);
+            }
+
+            CreateMeshFieldAssetAndObject(name, ChallengeStoneChipMeshPath, vertices, triangles, uvs, chipMaterial);
+        }
+
+        static void CreateSandDetails(Material rippleMaterial, Material depressionMaterial, Material grainMaterial, Material bumpMaterial, PhysicMaterial physicMaterial)
+        {
+            for (int i = 0; i < 24; i++)
+            {
+                float z = 32.40f + i * 0.70f;
+                float x = Mathf.Lerp(-0.34f, 0.34f, PseudoRandom01(i * 23 + 11));
+                float yaw = Mathf.Lerp(-14f, 14f, PseudoRandom01(i * 31 + 7));
+                float width = Mathf.Lerp(3.4f, 5.1f, PseudoRandom01(i * 37 + 13));
+                float length = Mathf.Lerp(0.045f, 0.095f, PseudoRandom01(i * 41 + 19));
+                CreateVisualBox($"ScoutWheelGround_ChallengeObstacle_SandRippleVisual_{i:00}", x, TerrainWorldY(x, z) + 0.126f, z, width, 0.010f, length, yaw, rippleMaterial);
+            }
+
+            for (int i = 0; i < 11; i++)
+            {
+                float x = (i - 5) * 0.34f;
+                float z = 33.0f + i * 1.48f;
                 CreateVisualCylinderDisk($"ScoutWheelGround_ChallengeObstacle_SandShallowDepression_{i:00}", x, TerrainWorldY(x, z) + 0.123f, z, 0.44f + 0.04f * (i % 2), 0.22f, 0.006f, i * 19f, depressionMaterial);
             }
+
+            CreateSandGrainField("ScoutWheelGround_ChallengeObstacle_SandGrainField", grainMaterial);
 
             for (int i = 0; i < 8; i++)
             {
@@ -686,6 +1124,93 @@ namespace VLN.Editor
 
             CreateChallengeBox("ScoutWheelGround_ChallengeObstacle_SandSideStoneLeft", -1.95f, 39.70f, 0.34f, 0.070f, 0.42f, 0.135f, bumpMaterial, physicMaterial, false, 14f);
             CreateChallengeBox("ScoutWheelGround_ChallengeObstacle_SandSideStoneRight", 1.90f, 41.10f, 0.32f, 0.065f, 0.40f, 0.132f, bumpMaterial, physicMaterial, false, -12f);
+        }
+
+        static void CreateSandPhysicsProxies(Material material, PhysicMaterial physicMaterial)
+        {
+            for (int i = 0; i < 10; i++)
+            {
+                float z = 32.65f + i * 1.58f;
+                float x = Mathf.Lerp(-0.22f, 0.22f, PseudoRandom01(i * 29 + 7));
+                float yaw = Mathf.Lerp(-12f, 12f, PseudoRandom01(i * 31 + 13));
+                float width = Mathf.Lerp(3.9f, 5.0f, PseudoRandom01(i * 37 + 17));
+                CreateChallengeBox(
+                    $"ScoutWheelGround_ChallengePhysicsProxy_SandSoftRipple_{i:00}",
+                    x,
+                    z,
+                    width,
+                    0.012f,
+                    0.080f,
+                    0.140f,
+                    material,
+                    physicMaterial,
+                    false,
+                    yaw);
+            }
+        }
+
+        static void CreateSandGrainField(string name, Material grainMaterial)
+        {
+            const int grainCount = 360;
+            var vertices = new Vector3[grainCount * 4];
+            var triangles = new int[grainCount * 6];
+            var uvs = new Vector2[grainCount * 4];
+
+            for (int i = 0; i < grainCount; i++)
+            {
+                float x = Mathf.Lerp(-2.55f, 2.55f, PseudoRandom01(i * 17 + 41));
+                float z = Mathf.Lerp(32.15f, 48.65f, PseudoRandom01(i * 29 + 47));
+                float yaw = PseudoRandom01(i * 31 + 53) * Mathf.PI;
+                float halfWidth = Mathf.Lerp(0.010f, 0.026f, PseudoRandom01(i * 37 + 59));
+                float halfLength = Mathf.Lerp(0.007f, 0.022f, PseudoRandom01(i * 43 + 61));
+                float y = TerrainWorldY(x, z) + 0.129f;
+                Vector3 right = new Vector3(Mathf.Cos(yaw), 0f, Mathf.Sin(yaw));
+                Vector3 forward = new Vector3(-right.z, 0f, right.x);
+                Vector3 center = new Vector3(x, y, z);
+                int v = i * 4;
+                vertices[v + 0] = center - right * halfWidth - forward * halfLength;
+                vertices[v + 1] = center + right * halfWidth - forward * halfLength;
+                vertices[v + 2] = center + right * halfWidth + forward * halfLength;
+                vertices[v + 3] = center - right * halfWidth + forward * halfLength;
+
+                int t = i * 6;
+                triangles[t + 0] = v + 0;
+                triangles[t + 1] = v + 1;
+                triangles[t + 2] = v + 2;
+                triangles[t + 3] = v + 0;
+                triangles[t + 4] = v + 2;
+                triangles[t + 5] = v + 3;
+                uvs[v + 0] = new Vector2(0f, 0f);
+                uvs[v + 1] = new Vector2(1f, 0f);
+                uvs[v + 2] = new Vector2(1f, 1f);
+                uvs[v + 3] = new Vector2(0f, 1f);
+            }
+
+            CreateMeshFieldAssetAndObject(name, ChallengeSandGrainMeshPath, vertices, triangles, uvs, grainMaterial);
+        }
+
+        static void CreateMeshFieldAssetAndObject(string name, string meshPath, Vector3[] vertices, int[] triangles, Vector2[] uvs, Material material)
+        {
+            var mesh = new Mesh { name = name + "Mesh" };
+            mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.uv = uvs;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+
+            DeleteAssetIfExists(meshPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(meshPath));
+            AssetDatabase.CreateAsset(mesh, meshPath);
+
+            var field = new GameObject(name);
+            field.transform.position = Vector3.zero;
+            field.transform.rotation = Quaternion.identity;
+            field.isStatic = true;
+            var meshFilter = field.AddComponent<MeshFilter>();
+            meshFilter.sharedMesh = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
+            var meshRenderer = field.AddComponent<MeshRenderer>();
+            meshRenderer.sharedMaterial = material;
         }
 
         static void CreateVisualBox(string name, float x, float y, float z, float width, float height, float length, float yawDegrees, Material material)
@@ -988,12 +1513,18 @@ namespace VLN.Editor
             int profileCount = zValues.Length;
             float halfWidth = width * 0.5f;
             var vertices = new Vector3[profileCount * 4];
+            var uvs = new Vector2[profileCount * 4];
             for (int i = 0; i < profileCount; i++)
             {
                 vertices[i * 2] = new Vector3(centerX - halfWidth, yValues[i], zValues[i]);
                 vertices[i * 2 + 1] = new Vector3(centerX + halfWidth, yValues[i], zValues[i]);
                 vertices[profileCount * 2 + i * 2] = new Vector3(centerX - halfWidth, yValues[i] - thickness, zValues[i]);
                 vertices[profileCount * 2 + i * 2 + 1] = new Vector3(centerX + halfWidth, yValues[i] - thickness, zValues[i]);
+
+                uvs[i * 2] = new Vector2(vertices[i * 2].x, vertices[i * 2].z);
+                uvs[i * 2 + 1] = new Vector2(vertices[i * 2 + 1].x, vertices[i * 2 + 1].z);
+                uvs[profileCount * 2 + i * 2] = new Vector2(vertices[profileCount * 2 + i * 2].x, vertices[profileCount * 2 + i * 2].z);
+                uvs[profileCount * 2 + i * 2 + 1] = new Vector2(vertices[profileCount * 2 + i * 2 + 1].x, vertices[profileCount * 2 + i * 2 + 1].z);
             }
 
             var triangles = new List<int>();
@@ -1022,6 +1553,7 @@ namespace VLN.Editor
             {
                 name = name + "Mesh",
                 vertices = vertices,
+                uv = uvs,
                 triangles = triangles.ToArray()
             };
             mesh.RecalculateNormals();
@@ -1466,6 +1998,14 @@ namespace VLN.Editor
         static string ProjectRelativeToFullPath(string assetPath)
         {
             return Path.GetFullPath(Path.Combine(Application.dataPath, "..", assetPath));
+        }
+
+        static void DeleteAssetIfExists(string path)
+        {
+            if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(path) != null)
+            {
+                AssetDatabase.DeleteAsset(path);
+            }
         }
 
         static float TerrainWorldY(float x, float z)

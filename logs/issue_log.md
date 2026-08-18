@@ -630,3 +630,39 @@
 - 解决方案：新增 `scripts/drive_scout_wheel_ground_challenge_route_demo.sh`，它只在 Unity 已打开、endpoint 已启动、场景已 Play 的情况下发布 16 点挑战路线，不自动打开 Unity；重写 `user.md`，把手工流程放在最前；在 `CURRENT_STATE.md` 和 `AGENTS.md` 写入“手工演示优先、自动验收只用于回归”的约束。
 - 验收方式：`bash -n scripts/drive_scout_wheel_ground_route_demo.sh scripts/drive_scout_wheel_ground_challenge_route_demo.sh scripts/run_scout_wheel_ground_route_smoke_test.sh scripts/run_scout_wheel_ground_challenge_route_smoke_test.sh` 通过；`python3 -m py_compile scripts/ros2_drive_scout_physics_route.py` 通过；`git diff --check` 对相关文档和新脚本无输出。
 - 状态：已再次加固并写入最高约束。后续给用户“怎么看、怎么运行”的步骤时，除非用户明确说“自动验收/回归/你自己跑测试”，否则先给 `open_unity_vln_project.sh`、`start_ros_tcp_endpoint.sh`、Unity Play、`drive_*_demo.sh` 的顺序；自动回归只能作为我改代码后的内部验证。
+
+## 2026-08-17：挑战区草地、沙石地视觉仍显粗糙
+
+- 现象：用户指出当前草地不像草，只像绿色地面上放方块；沙石地也不像真实沙石，质疑 Unity 作为游戏开发软件不应只有这种粗糙建模能力。
+- 环境：`Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，阶段 18 后段挑战场地，草地、青石路、沙地均为程序化低模场景。
+- 根因：当前场景最初为了保护 ROS2、传感器、WheelCollider 物理和自动路线基线，采用低多边形程序化几何和简单材质，没有引入 Terrain 草系统、PBR 地表材质、Shader Graph、贴图 splat 或外部高质量资产；所以视觉辨识度不足，但这不是 Unity 本身能力上限。
+- 解决方案：不安装新包、不下载大资产、不改桥/坡/路线控制。用程序化低模视觉层增强现有挑战区：草地改为 3 层草叶 mesh + 土斑/根茎；青石路加入不规则铺石、暗缝、裂纹和碎石 field；沙地加入更密沙纹、浅洼和颗粒 field。视觉增强层主要不加 collider，避免为了外观改变通过性；真实扰动仍由低矮可越 collider 负责。
+- 验收方式：`./scripts/run_scout_wheel_ground_challenge_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_challenge_route_20260817_173720`，`reached_count=16/16`、`stall_count=0`、`skipped_count=0`、`challenge_grass_blade_field_count=3`、`challenge_stone_visual_detail_count=80`、`challenge_sand_visual_detail_count=46`，并归档草地、青石路、沙地三段截图；旧 13 点基线 `./scripts/run_scout_wheel_ground_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_route_20260817_174346`。
+- 状态：已小步修复并补强自动验收。当前仍是低模工程演示风格，不是游戏级高精度美术资产；后续若要更真实，应单独开“外部材质/资产升级阶段”，先筛选授权和性能，再小步导入，不能覆盖当前物理基线。
+
+## 2026-08-17：青石路和沙地需要 PBR 材质真实感
+
+- 现象：草地低模升级经用户确认可接受后，用户要求继续进入 PBR 材质/外部资产/植被系统升级阶段，重点把沙地、石路做得更真实。
+- 环境：`Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，阶段 18 后段挑战路线已通过，旧桥/坡和 ROS2 控制链路为不可破坏基线。
+- 根因：上一轮主要靠程序化低模几何和颜色区分地表，缺少真实照片纹理、normal map、AO 等 PBR 信息，所以近景仍有“工程演示感”。
+- 解决方案：使用代理下载 ambientCG `Ground054_1K-JPG` 和 `PavingStones151_1K-JPG`，只导入 1K JPG 小子集；Unity Built-in Standard 材质接入 Albedo、Normal、Occlusion，并给挑战地面 profile mesh 增加 world-space UV。视觉材质不改变 collider 和通过性；`Roughness` 贴图保留，后续如切到 URP/HDRP 或自定义 shader 再转换使用。
+- 验收方式：`./scripts/run_scout_wheel_ground_challenge_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_challenge_route_20260817_182912`，16/16 到达，`stall_count=0`、`skipped_count=0`，`challenge_pbr_albedo_material_count=7`、`challenge_pbr_normal_material_count=7`、`challenge_pbr_occlusion_material_count=7`；旧 13 点基线 `./scripts/run_scout_wheel_ground_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_route_20260817_183540`。
+- 状态：已解决本轮 PBR 小样本升级。当前仍不是完整高精度美术生产流程；下一步如果继续提升，可做 Terrain/Decal/URP 或更多外部资产候选，但必须继续小步验收。
+
+## 2026-08-17：挑战区材质视觉与物理交互仍可能脱节
+
+- 现象：用户指出草地、沙地、石板路不能只是视觉贴图或纯色模型；小车接触区域必须体现材质本身的形状和物理特性，不能视觉上是草/沙/石，物理上却全部等价为普通地面。
+- 环境：`Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，阶段 18A 后已有 PBR 贴图和低模视觉细节，但主要视觉细节仍大多无 collider，控制器只记录总体挑战区接触。
+- 根因：前几轮优先保护 Unity-ROS2、相机、LiDAR、Scout wheel-ground、旧桥/坡和自动路线基线，因此视觉层与物理层刻意解耦；进入阶段 18B 后，这种解耦已不满足“材质一致物理仿真”的目标。
+- 解决方案：新增 22 个低矮可见 `ScoutWheelGround_ChallengePhysicsProxy_*` 代理，分别对应草地柔性根/草阻、石板刚性接缝、沙地软波纹；控制器按 WheelCollider 命中的对象区分草/石/沙，施加温和滚阻和沙地低附着近似，并输出分材质接触步数、代理接触、平均速度和高度扰动。
+- 验收方式：`./scripts/run_scout_wheel_ground_challenge_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_challenge_route_20260817_210512`，`challenge_physics_proxy_count=22`、`challenge_visual_physics_proxy_audit_pass=1`、`challenge_physics_proxy_contact_steps=1003`、`grass_contact_steps=1255`、`stone_contact_steps=1330`、`sand_contact_steps=13843`，且 `reached_count=16/16`、`stall_count=0`、`skipped_count=0`；旧 13 点金标准 `./scripts/run_scout_wheel_ground_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_route_20260817_210945`。
+- 状态：已完成第一版修复。后续如果手工观察仍觉得某个材质不真实，应微调代理几何、阻力参数或视觉反馈，不能回退到纯贴图、隐藏托底或关闭碰撞。
+
+## 2026-08-17：草地第二版明显压痕不符合用户偏好
+
+- 现象：用户反馈加强版草叶渲染中的明显压痕/强倒伏效果不满意，要求回退到第一版倒伏版本，即经过时草叶被压低、向两侧推开，并留下低恢复速度的轮迹。
+- 环境：`Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，阶段 18B 草地视觉反馈和材质一致物理代理已接入，16 点挑战路线和旧 13 点路线为不可破坏基线。
+- 根因：第二版为了让轮迹更明显，加入了独立轮迹 painter / 深色压痕视觉层，视觉反馈过重，偏离用户想要的自然轻倒伏效果。
+- 解决方案：回退到第一版 `VlnChallengeGrassDeformer` 方案，只保留草叶 mesh 的运行时轻倒伏、侧向推开和慢恢复；移除 `GrassTrackPainter`、深色轮迹贴片和 `challenge_grass_track_*` 当前验收指标；在 `AGENTS.md`、`CURRENT_STATE.md`、`PROJECT_MEMORY.md`、`workflow.md` 和决策日志中记录禁止无明确要求恢复强压痕。
+- 验收方式：16 点挑战路线 `./scripts/run_scout_wheel_ground_challenge_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_challenge_route_20260817_231723`，`reached_count=16/16`、`total_forward_progress=70.434m`、`final_lateral_offset=-0.004m`、`max_abs_lateral_offset=0.086m`、`stall_count=0`、`skipped_count=0`、`challenge_grass_deformer_count=3`、`challenge_grass_max_deformed_blade_count=418`、`challenge_grass_max_fresh_affected_blade_count=156`；旧 13 点金标准 `./scripts/run_scout_wheel_ground_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_route_20260817_232310`，`reached_count=13/13`、`stall_count=0`、`skipped_count=0`。
+- 状态：已解决并锁定为当前偏好。后续草地升级可以微调草叶密度、材质、恢复速度或侧推强度，但不得默认恢复明显深色压痕、强倒伏轮迹或车身 footprint 清扫式压痕。

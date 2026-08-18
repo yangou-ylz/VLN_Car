@@ -171,6 +171,18 @@ UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/**
 !UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/Reference/scout_v2.xacro.meta
 !UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/Reference/package.xml
 !UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/Reference/package.xml.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/PBRMaterials.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/PBRMaterials/
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/PBRMaterials/AmbientCG.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/PBRMaterials/AmbientCG/
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/PBRMaterials/AmbientCG/Ground054_1K-JPG.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/PBRMaterials/AmbientCG/Ground054_1K-JPG/
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/PBRMaterials/AmbientCG/Ground054_1K-JPG/*.jpg
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/PBRMaterials/AmbientCG/Ground054_1K-JPG/*.jpg.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/PBRMaterials/AmbientCG/PavingStones151_1K-JPG.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/PBRMaterials/AmbientCG/PavingStones151_1K-JPG/
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/PBRMaterials/AmbientCG/PavingStones151_1K-JPG/*.jpg
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/PBRMaterials/AmbientCG/PavingStones151_1K-JPG/*.jpg.meta
 
 # Unity Hub / Editor local install state
 tools/unityhub_download/

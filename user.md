@@ -44,6 +44,14 @@ cd /home/ubuntu22/VLN
 
 这是手工演示入口，不会自动打开 Unity。希望看到终端持续输出路径点进度，小车沿路线通过独木桥和斜坡，最后出现 `VLN_SCOUT_PHYSICS_ROUTE_MSG_OK`。
 
+## 4A. 可选：在 Unity 菜单里运行路线
+
+Unity 顶部菜单打开：`VLN -> ROS2 手工演示面板`。
+
+面板里的推荐顺序也是：`打开 Scout 场景` -> `启动 ROS-TCP-Endpoint` -> 回 Unity 点 `Play` -> `运行 13 点自动路线` 或 `运行 16 点挑战路线`。
+
+这个面板只是帮你开新终端执行现有脚本，底层仍然是 ROS2 发布 `/vln/cmd_vel`，不是 Unity 内置导航。
+
 ## 5. 终端 3：运行新增后段挑战路线演示
 
 ```bash
@@ -52,6 +60,8 @@ cd /home/ubuntu22/VLN
 ```
 
 这是新增草地、青石路、沙地和低矮障碍的手工演示入口，也不会自动打开 Unity。希望小车先通过原来的桥/坡，再继续走到后段挑战区；终端最后应出现 `VLN_SCOUT_PHYSICS_ROUTE_MSG_OK`。
+
+当前阶段 18A 已给青石路和沙地接入 1K PBR 贴图；手工看效果仍然使用这个挑战路线演示脚本，不需要换新命令。
 
 ## 6. 终端 4：检查 ROS2 topic
 
@@ -126,6 +136,7 @@ cd /home/ubuntu22/VLN
 
 ## 当前基线
 
-- 13 点自动路线当前通过 run id：`vln_scout_wheel_ground_route_20260817_145357`。
-- 16 点挑战路线当前通过 run id：`vln_scout_wheel_ground_challenge_route_20260817_144908`。
+- 13 点自动路线当前通过 run id：`vln_scout_wheel_ground_route_20260817_183540`。
+- 16 点挑战路线当前通过 run id：`vln_scout_wheel_ground_challenge_route_20260817_182912`。
+- 挑战区当前已归档三段截图：草地、青石路、沙地；自动回归会检查三段截图和视觉细节数量。
 - 关键约束：禁止隐藏托底、压平桥/坡、关闭碰撞、跳过卡点或放宽 gate 来掩盖失败。
