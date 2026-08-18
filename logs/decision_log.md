@@ -350,7 +350,7 @@
 - 决策：阶段 16 的手动速度控制不再沿用旧固定路线脚本的角速度经验，而是以当前 `VLNOffroadScoutWheelGroundCandidate.unity` 中 Scout wheel-ground 场景实测行为为准：`↑` 发布正 `linear.x` 前进，`↓` 发布负 `linear.x` 后退，`←/A` 发布正 `angular.z` 且视觉左转，`→/D` 发布负 `angular.z` 且视觉右转。
 - 备选项：继续用 WheelCollider 差速电机承担纯转向、只靠开环键盘速度、或为了直行/转向效果去改地图几何和碰撞体。
 - 理由：纯转向使用轮端差速电机会在当前 WheelCollider/简化轮胎约束下产生大平移；只用 AddTorque 又会被轮地约束抵消。用户操作看的是 Unity 里车是否前进、直行、左转和右转，因此低层控制器必须把 `/cmd_vel` 解释成底盘速度伺服，同时保留碰撞、轮地接触、传感器跟随和桥/坡物理审计。
-- 影响：`scripts/vln_control_panel.py` 默认 `publish-rate=100Hz`、`manual-command-timeout=0.18s`、`manual-left-angular-sign=+1`；`VlnScoutWheelGroundController` 使用 `m_WheelAngularMotorScale=0`，并保留 yaw-rate PID + Rigidbody 角速度伺服。阶段 16 的完成标准新增 `run_control_panel_manual_velocity_unity_smoke_test.sh`，它必须验证前进方向、直行横漂/偏航、松键停车漂移和 A/D 左右转方向。
+- 影响：当时 `scripts/vln_control_panel.py` 默认 `publish-rate=100Hz`、`manual-command-timeout=0.18s`、`manual-left-angular-sign=+1`；`VlnScoutWheelGroundController` 使用 `m_WheelAngularMotorScale=0`，并保留 yaw-rate PID + Rigidbody 角速度伺服。2026-08-18 已因真实浏览器体感问题将 fallback 超时改为 `0.35s` 并加入请求背压/序号过滤。
 
 ## 2026-08-17：旧固定路线控制器暂不作为阶段 16 完成标准
 
@@ -443,9 +443,44 @@
 - 理由：当前需求是“小车接触的主要材质语义要和视觉一致”，不是做不可控的高密度粒子级仿真。低矮代理能让轮胎实际接触主要草根/石缝/沙纹形状，控制器滚阻让草、沙、石表现出不同通行特性，同时保持 13 点金标准和 16 点挑战路线可回归。
 - 影响：新增 22 个材质物理代理，挑战路线验收新增 `challenge_physics_proxy_count`、`grass/stone/sand_physics_proxy_count`、`challenge_visual_physics_proxy_audit_pass`、分材质接触步数、代理接触步数、平均速度和轮地高度扰动。第一版通过 `vln_scout_wheel_ground_challenge_route_20260817_210512`；旧 13 点金标准通过 `vln_scout_wheel_ground_route_20260817_210945`。后续升级草叶压倒、更多资产或 URP/HDRP 时必须保持这些审计项和两条路线不退化。
 
+## 2026-08-18：手动速度控制上限放宽到 20m/s，但自动路线默认不变
+
+- 决策：把中文控制面板速度模块的线速度可输入上限、后端 `--manual-max-linear` 默认值、Scout wheel-ground 控制器 `m_MaxLinearSpeedMetersPerSecond`、场景生成器和已保存 wheel-ground 场景中的线速度夹紧上限统一放宽到 `20.0m/s`。
+- 备选项：继续保持 `1.20m/s` UI 上限和 `2.0m/s` Unity 控制器夹紧；或者把所有自动路线默认速度也改到极高。
+- 理由：用户明确要求仿真里允许自行尝试高速，翻车可重新运行；限制太小会妨碍手动探索。自动演示路线已经是老师演示金标准，默认速度不应跟着放大，否则会把路线稳定性问题混进手动控制自由度调整。
+- 影响：`scripts/vln_control_panel.py` 的线速度输入现在显示“最高 20”，`+/-` 步进为 `0.50m/s`；`VlnScoutWheelGroundController` 和 `VLNOffroadScoutWheelGroundCandidate.unity` 允许 `/vln/cmd_vel.linear.x` 到 `±20m/s`。`drive_*_demo.sh` 与 `run_*_smoke_test.sh` 里的自动路线 `--max-linear` 默认保持原值，用于保护阶段 15/18 回归基线。
+
 ## 2026-08-17：草地视觉反馈固定为第一版轻倒伏
 
 - 决策：按用户最新反馈，草地视觉反馈回退并固定为第一版 `VlnChallengeGrassDeformer` 轻倒伏方案：车轮附近草叶被压低、向两侧推开，并以低恢复速度留下轻微轮迹感。
 - 备选项：保留第二版明显深色压痕/强倒伏轮迹；继续加强车身 footprint 清扫式倒伏；或完全取消草叶变形只保留物理代理。
 - 理由：用户明确表示不喜欢第二版特别明显的压痕版本，喜欢第一版倒伏版本。当前项目目标是仿真交互与视觉直觉一致，不是为了“看得很明显”牺牲真实感。
 - 影响：`GrassTrackPainter`、深色轮迹贴片、`challenge_grass_track_*` 指标不再属于当前方案；后续除非用户明确改变偏好，不得恢复明显深色压痕或强倒伏轮迹。回退后 16 点挑战路线通过 `vln_scout_wheel_ground_challenge_route_20260817_231723`，旧 13 点金标准通过 `vln_scout_wheel_ground_route_20260817_232310`。
+
+## 2026-08-18：手动速度控制按持续命令流处理
+
+- 决策：控制面板速度模块不再只依赖浏览器键盘事件和无序 HTTP 请求；按“持续命令流”处理，屏幕按钮也必须可按住，速度/停车请求必须有序，旧请求不能覆盖新停车或新按键。
+- 备选项：继续只让真实键盘控制；只提高发布频率；或放弃浏览器 UI 改成单独 ROS2 teleop 终端。
+- 理由：用户实际体验比自动路线差，核心差异不是车体物理本身，而是输入链路不稳定。自动路线持续闭环发布 `/vln/cmd_vel`，浏览器手动控制如果出现请求堆积、焦点丢失或旧请求晚到，就会表现成延迟、只动一下或松键后还动。
+- 影响：`scripts/vln_control_panel.py` 的箭头/A/D 显示改为真实按钮，前端加入请求背压，后端加入 `manual_command_seq` 过期请求过滤，fallback 超时改为 `0.35s`。阶段 19 前必须重新人工验收手动速度控制；如果仍明显差于自动路线，继续阶段 16 修复，不进入数据采集主线。
+
+## 2026-08-18：速度控制默认值和可调上限分离（中间策略，已被 20m/s 上限覆盖）
+
+- 决策：速度控制面板保持默认线速度 `0.55m/s` 不变。该中间策略曾把用户可调线速度上限从 `0.55m/s` 放宽到 `1.20m/s`，并让前端输入框和后端 clamp 使用同一上限；随后已按用户明确要求进一步统一放宽到 `20.0m/s`。
+- 备选项：把默认速度也直接提高；继续固定最大 `0.55m/s`；或只改前端不改后端。
+- 理由：默认速度需要保守，避免用户一打开就因桥/坡/窄路处横摆而误判物理链路；但用户显式调高速度时应该真实生效。只改前端会被后端夹回 `0.55`，只改后端会让 UI 看起来仍不能调。
+- 影响：当前有效实现以同日“手动速度控制上限放宽到 20m/s，但自动路线默认不变”决策为准：`manualLinearSpeed` 前端 `max`、`--manual-max-linear` 默认值和 Unity wheel-ground 控制器夹紧上限均为 `20.0m/s`；自动路线默认速度仍不跟随放大。
+
+## 2026-08-18：Unity 菜单外部终端采用登记和手动清理机制
+
+- 决策：Unity 顶部 `VLN` 菜单启动的外部终端必须登记进程组，但暂时不再绑定 Unity Editor 退出事件自动清理；当前只保留手工“关闭 VLN 后台终端”入口处理异常退出和历史残留。
+- 备选项：继续让用户手工找进程杀；每个脚本启动前先强杀同类进程；或者把 endpoint/RViz/控制面板都塞进 Unity 内部运行。
+- 理由：用户现在主要通过 Unity 面板统一操作，旧终端残留会直接造成 `8765` 端口占用和重复启动失败。登记菜单进程组仍有价值，但外部 watchdog 和 C# 退出 hook 都出现过“一打开就被杀”的误杀风险。稳定优先，先保证菜单启动不会被自动清理打断。
+- 影响：新增 `cleanup_unity_menu_processes.sh` 和 `unity_menu_terminal_session.sh`；`unity_menu_launch.sh` 不再直接拼接终端命令，而是通过会话包装器运行目标脚本。运行态登记文件位于 `.runtime/unity_menu/processes.tsv`，`.runtime/` 已加入 `.gitignore`。外部 watchdog 方案已删除；`VlnManualDemoLauncherCleanupHook` 也已删除，代码中不再订阅 `EditorApplication.quitting`。
+
+## 2026-08-18：Unity 菜单终端不再使用 setsid 隔离
+
+- 决策：`unity_menu_terminal_session.sh` 不再用 `setsid` 重启自身；菜单终端保持普通 GNOME Terminal 会话。每次启动写 `.runtime/unity_menu/logs/<session>.log`，目标脚本退出后保留一个交互 shell，方便用户看到错误。
+- 备选项：继续使用 `setsid` 并尝试修 stdin；继续让终端报错后关闭；或者完全取消 Unity 菜单，只让用户手工开终端运行脚本。
+- 理由：用户的真实操作入口是 Unity 菜单，如果终端 1 秒关闭，就无法判断是 ROS2 环境、端口占用、RViz/rqt 问题还是包装器问题。`setsid` 对当前目标不是必要条件，反而增加 GNOME Terminal 会话控制复杂度。手动清理可以通过登记 PID/PGID 和 `--include-known` 完成，不需要自动退出清理。
+- 影响：菜单启动行为以“能稳定看到日志和错误”为最高优先级。`cleanup_unity_menu_processes.sh` 只清理仍活着的登记 PID，跳过 stale PGID，降低误杀风险。后续如果要恢复自动清理或重新隔离进程组，必须先证明不会导致菜单终端一打开就关闭。

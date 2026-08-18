@@ -7,6 +7,8 @@ set -eo pipefail
 
 VLN_ROOT="/home/ubuntu22/VLN"
 MODE="${1:-help}"
+UNITY_PID="${2:-}"
+SESSION_SCRIPT="$VLN_ROOT/scripts/unity_menu_terminal_session.sh"
 
 case "$MODE" in
   endpoint)
@@ -41,6 +43,8 @@ case "$MODE" in
     ;;
   selftest)
     for script in \
+      "$VLN_ROOT/scripts/unity_menu_terminal_session.sh" \
+      "$VLN_ROOT/scripts/cleanup_unity_menu_processes.sh" \
       "$VLN_ROOT/scripts/start_ros_tcp_endpoint.sh" \
       "$VLN_ROOT/scripts/drive_scout_wheel_ground_route_demo.sh" \
       "$VLN_ROOT/scripts/drive_scout_wheel_ground_challenge_route_demo.sh" \
@@ -64,39 +68,30 @@ if [ ! -x "$TARGET_SCRIPT" ]; then
   exit 1
 fi
 
-read -r -d '' RUN_CMD <<EOF || true
-cd "$VLN_ROOT"
-echo "$SUMMARY"
-echo "执行脚本：$TARGET_SCRIPT"
-echo
-"$TARGET_SCRIPT"
-status=\$?
-echo
-echo "进程退出码：\$status"
-echo "按回车关闭窗口..."
-read -r _
-exit \$status
-EOF
+if [ ! -x "$SESSION_SCRIPT" ]; then
+  echo "终端会话包装器不存在或不可执行：$SESSION_SCRIPT" >&2
+  exit 1
+fi
 
 if command -v gnome-terminal >/dev/null 2>&1; then
-  exec gnome-terminal --title="$TITLE" -- bash -lc "$RUN_CMD"
+  exec gnome-terminal --title="$TITLE" -- "$SESSION_SCRIPT" "$MODE" "$TARGET_SCRIPT" "$SUMMARY" "$UNITY_PID"
 fi
 
 if command -v kgx >/dev/null 2>&1; then
-  exec kgx --title "$TITLE" -- bash -lc "$RUN_CMD"
+  exec kgx --title "$TITLE" -- "$SESSION_SCRIPT" "$MODE" "$TARGET_SCRIPT" "$SUMMARY" "$UNITY_PID"
 fi
 
 if command -v konsole >/dev/null 2>&1; then
-  exec konsole --new-tab -p "tabtitle=$TITLE" -e bash -lc "$RUN_CMD"
+  exec konsole --new-tab -p "tabtitle=$TITLE" -e "$SESSION_SCRIPT" "$MODE" "$TARGET_SCRIPT" "$SUMMARY" "$UNITY_PID"
 fi
 
 if command -v xfce4-terminal >/dev/null 2>&1; then
-  exec xfce4-terminal --title="$TITLE" --command="bash -lc '$RUN_CMD'"
+  exec xfce4-terminal --title="$TITLE" --command="$SESSION_SCRIPT '$MODE' '$TARGET_SCRIPT' '$SUMMARY' '$UNITY_PID'"
 fi
 
 if command -v xterm >/dev/null 2>&1; then
-  exec xterm -T "$TITLE" -e bash -lc "$RUN_CMD"
+  exec xterm -T "$TITLE" -e "$SESSION_SCRIPT" "$MODE" "$TARGET_SCRIPT" "$SUMMARY" "$UNITY_PID"
 fi
 
 echo "没有找到可用终端模拟器，将在当前进程中运行。" >&2
-exec bash -lc "$RUN_CMD"
+exec "$SESSION_SCRIPT" "$MODE" "$TARGET_SCRIPT" "$SUMMARY" "$UNITY_PID"

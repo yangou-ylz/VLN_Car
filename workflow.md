@@ -444,16 +444,16 @@ short_ramp_screenshot=vln_offroad_scout_wheel_ground_short_ramp_screenshot.png
 
 - 目标：让用户亲自驾驶 Scout wheel-ground 物理车体通过满意路线，记录实际 `/vln/cmd_vel` 速度数据，后续用该记录复现同一路线，避免继续硬调不稳定的自动 S 型路线。
 - UI 入口：`/home/ubuntu22/VLN/scripts/start_vln_control_panel.sh`，浏览器打开 `http://127.0.0.1:8765/` 后进入“速度控制”模块。
-- 键盘映射：`↑` 前进，`↓` 后退，`←` 或 `A` 左转，`→` 或 `D` 右转；前进/后退可与左转/右转组合。当前 Scout 是差速轮式底盘，不发布横向平移速度。
+- 输入映射：真实键盘和网页屏幕按钮都支持 `↑` 前进，`↓` 后退，`←` 或 `A` 左转，`→` 或 `D` 右转；前进/后退可与左转/右转组合。当前 Scout 是差速轮式底盘，不发布横向平移速度。
 - 当前方向符号：`↑` 发布正 `linear.x`，`↓` 发布负 `linear.x`，`←/A` 发布正 `angular.z`，`→/D` 发布负 `angular.z`。该约定匹配当前 Unity wheel-ground 场景的视觉左/右方向。
-- 默认速度：线速度 `0.55m/s`，角速度 `0.42rad/s`；可在 UI 中调整，但不要一开始调太快，避免物理车体在桥/坡和窄路处横摆。
-- 安全保护：前端在按键保持时每 `50ms` 刷新速度心跳；后端 `manual-command-timeout=0.18s`，松键、浏览器失焦、页面隐藏或心跳丢失都会立即发布多帧 0 速度停车。
+- 默认速度：线速度 `0.55m/s`，角速度 `0.42rad/s`；线速度 UI、后端和 Unity wheel-ground 控制器上限当前为 `20.0m/s`，角速度上限为 `1.00rad/s`。线速度 `+/-` 步进为 `0.50m/s`，角速度 `+/-` 步进为 `0.05rad/s`；调速时会立即刷新当前按键速度。不要一开始调太快，避免物理车体在桥/坡和窄路处横摆。
+- 安全保护：前端在按键保持时每 `50ms` 刷新速度心跳；前端速度请求有背压，避免 HTTP 请求堆积；速度/停车请求带递增序号，后端会忽略过期请求，避免旧速度请求晚到后覆盖停车或新按键；后端 `manual-command-timeout=0.35s`，松键、浏览器失焦、页面隐藏或心跳丢失都会发布多帧 0 速度停车。
 - 当前专项修复：`VlnScoutWheelGroundController` 不再让 WheelCollider 电机承担纯转向，轮端转向电机比例为 `0`；角速度由 Unity 物理层 yaw-rate PID + Rigidbody 角速度伺服执行，键位按 `←/A` 左转、`→/D` 右转。
-- 记录格式：导出到 `/home/ubuntu22/VLN/VLN_RECORDINGS/manual_drives/manual_drive_YYYYMMDD_HHMMSS.json`，schema 为 `vln_manual_cmd_vel_recording_v1`，每条样本包含 `t`、`linear_x`、`angular_z`、按键状态和可选 `pose`。
+- 记录格式：导出到 `/home/ubuntu22/VLN/VLN_RECORDINGS/manual_drives/manual_drive_YYYYMMDD_HHMMSS.json`，schema 为 `vln_manual_cmd_vel_recording_v1`，每条样本包含 `t`、`linear_x`、`angular_z`、按键状态和可选 `pose`；网页会显示导出目录或最新文件路径，并提供“复制路径”按钮。
 - 回放入口：`/home/ubuntu22/VLN/scripts/replay_manual_drive_recording.sh --file <manual_drive_*.json>`。
 - git 规则：`VLN_RECORDINGS/` 已加入 `.gitignore`，路线记录默认不提交，避免大量实验文件进入仓库。
 
-阶段 16 当前验收状态：`./scripts/run_control_panel_manual_velocity_unity_smoke_test.sh` 已通过，最新 run id `vln_control_panel_manual_velocity_unity_20260817_130258`，覆盖 `↑` 正向直行、A/D 原地左右转、方向键 `←/→` 原地左右转和停车漂移检查；`./scripts/run_control_panel_manual_recording_smoke_test.sh` 已通过，run id `vln_control_panel_manual_recording_20260817_041218`；基础 wheel-ground 回归 `vln_scout_wheel_ground_20260817_041230` 已通过。阶段 15 自动路线已恢复，并在 PBR 材质升级后再次回归通过，最新通过 run id `vln_scout_wheel_ground_route_20260817_183540`；后续仍不能用隐藏托底、压平桥/坡、跳点或放宽 gate 修路线。
+阶段 16 当前验收状态：历史自动验收 `./scripts/run_control_panel_manual_velocity_unity_smoke_test.sh` 曾通过 run id `vln_control_panel_manual_velocity_unity_20260817_130258`，覆盖 `↑` 正向直行、A/D 原地左右转、方向键 `←/→` 原地左右转和停车漂移检查；但用户 2026-08-18 反馈真实浏览器 UI 体感仍明显差于自动路线。已完成 UI/HTTP 链路修复：屏幕按钮可按住、请求背压、命令序号过滤、`0.35s` fallback 超时、导出路径复制按钮、线速度上限放宽到 `20.0m/s` 和速度步进按钮。该修复已经通过静态检查，仍需用户按手工流程重新验收。阶段 15 自动路线最新金标准为 `vln_scout_wheel_ground_route_20260817_232310`；后续仍不能用隐藏托底、压平桥/坡、跳点或放宽 gate 修路线。
 
 阶段 16 记录/导出固定验收命令：
 
@@ -501,7 +501,7 @@ VLN_MANUAL_DRIVE_REPLAY_OK
 - 新增障碍：`ScoutWheelGround_ChallengeObstacle_*`，包括低矮石纹凸起、铺石缝隙/沉降、草簇/土斑、沙地波纹、浅洼和两侧导向石。目标是让轮胎/车体姿态出现扰动，但不形成不可越过硬墙。
 - 路段延长：原 `Offroad_DistantWall_Target` 从旧末端附近后移到 `z=53.5m`，让挑战区有完整通行空间。
 - 控制策略：新增挑战路线脚本复用阶段 15 路线控制器，不改 `/vln/cmd_vel`、TF、相机、LiDAR 或 odom 接口；旧 `run_scout_wheel_ground_route_smoke_test.sh` 默认仍是 13 点金标准回归。用户手工看效果时使用 `drive_scout_wheel_ground_challenge_route_demo.sh`，它只发布路线，不自动打开 Unity。
-- Unity 菜单封装：新增 `VLN/ROS2 手工演示面板` 和 `VLN/手工演示/*` 菜单。菜单只调用 `scripts/unity_menu_launch.sh`，再由它打开新终端运行现有脚本；不要把自动路线控制逻辑改写到 Unity C# 里，避免偏离 ROS2 外部控制链路。
+- Unity 菜单封装：新增 `VLN/ROS2 手工演示面板` 和 `VLN/手工演示/*` 菜单。菜单只调用 `scripts/unity_menu_launch.sh`，再由它打开新终端运行现有脚本；不要把自动路线控制逻辑改写到 Unity C# 里，避免偏离 ROS2 外部控制链路。菜单终端通过 `scripts/unity_menu_terminal_session.sh` 登记进程组到 `.runtime/unity_menu/processes.tsv`，日志写入 `.runtime/unity_menu/logs/`。2026-08-18 已临时禁用 Unity 退出自动清理 hook，因为该方案会误杀刚由菜单启动的终端；当前只保留手工按钮“关闭 VLN 后台终端”，它使用 `--include-known` 额外清理历史残留的控制面板/endpoint。终端包装器不再使用 `setsid`，目标脚本退出后会保留窗口而不是立刻关闭。
 
 ### 阶段 18A：PBR 材质小步升级
 

@@ -380,7 +380,7 @@ namespace VLN.Editor
             serializedController.FindProperty("m_WheelVisualVerticalOffset").floatValue = 0.085f;
             serializedController.FindProperty("m_WheelVisualForwardRollDirection").floatValue = 1f;
             serializedController.FindProperty("m_WheelVisualAngularSmoothing").floatValue = 14f;
-            serializedController.FindProperty("m_MaxLinearSpeedMetersPerSecond").floatValue = 2.0f;
+            serializedController.FindProperty("m_MaxLinearSpeedMetersPerSecond").floatValue = 20.0f;
             serializedController.FindProperty("m_MaxAngularSpeedRadPerSecond").floatValue = 1.0f;
             serializedController.FindProperty("m_MaxMotorTorque").floatValue = 160f;
             serializedController.FindProperty("m_MaxBrakeTorque").floatValue = 220f;

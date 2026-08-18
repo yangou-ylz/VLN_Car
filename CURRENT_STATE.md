@@ -2,7 +2,7 @@
 
 本文件是每次继续工作的第一层短上下文，用来替代过去每次全量阅读长日志的低效流程。它不取代 `AGENTS.md`、`PROJECT_MEMORY.md`、`workflow.md`、`env.md` 或 `logs/issue_log.md`；它只负责把当前阶段、不可破坏的基线和下一步读取策略压缩到一个短文件里。
 
-更新时间：2026-08-17
+更新时间：2026-08-18
 
 ## 启动读取策略
 
@@ -42,7 +42,7 @@
 - Scout V2 URDF 视觉模型 + Unity WheelCollider/Rigidbody 轮地物理候选。
 - `/vln/cmd_vel` 控制、`/vln/odom`、中文控制面板。
 - 固定自动路线后段已新增挑战场地：草地、青石路、沙地、低矮可越障碍；三段已分散到斜坡后的大空间，不再挤在最后一块地，终点挡墙后移到 `z=53.5m`；旧桥/坡基线保留。
-- Unity Editor 内已新增 `VLN/ROS2 手工演示面板` 和 `VLN/手工演示/*` 菜单。它们只启动现有 ROS2 shell 脚本，不把导航控制塞进 Unity；底层仍通过 ROS2 发布 `/vln/cmd_vel`。
+- Unity Editor 内已新增 `VLN/ROS2 手工演示面板` 和 `VLN/手工演示/*` 菜单。它们只启动现有 ROS2 shell 脚本，不把导航控制塞进 Unity；底层仍通过 ROS2 发布 `/vln/cmd_vel`。菜单启动的外部终端会登记到 `.runtime/unity_menu/processes.tsv`，每次输出日志写入 `.runtime/unity_menu/logs/`；2026-08-18 因自动退出清理会误杀刚启动的终端，已临时彻底禁用 Unity 退出自动清理，只保留面板/菜单里的“关闭 VLN 后台终端”手动按钮。菜单终端包装器不再使用 `setsid`，目标脚本退出后会保留窗口，方便看到报错。
 
 ## 当前金标准基线
 
@@ -77,6 +77,19 @@ cd /home/ubuntu22/VLN
 ```
 
 也可以在 Unity 顶部菜单打开 `VLN -> ROS2 手工演示面板`，按同样顺序点击按钮。菜单只是帮你开新终端运行现有脚本，仍需要 endpoint 正常运行，并且运行路线/传感器查看前 Unity 已点击 Play。
+
+如果从 Unity 菜单启动过 endpoint、相机、RViz、中文控制面板或路线脚本，这些进程会被登记，但当前不会在 Unity 退出时自动清理。若遇到 `Address already in use` 或确认要关闭 VLN 菜单拉起的后台终端，在 Unity 菜单/面板点击 `关闭 VLN 后台终端`，或在终端运行：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/cleanup_unity_menu_processes.sh --include-known
+```
+
+如果菜单弹出的终端又快速退出，先查看最新日志：
+
+```bash
+ls -lt /home/ubuntu22/VLN/.runtime/unity_menu/logs | head
+```
 
 ### 自动路线基线
 
@@ -200,6 +213,8 @@ cd /home/ubuntu22/VLN
 ```
 
 当前专项验收覆盖 `↑`、A/D、`←/→` 和停车漂移。
+
+用户 2026-08-18 反馈：浏览器 UI 手动速度控制实际体验仍明显差于自动路线，表现为按住前进/方向后小车只动一下或响应慢。已定位主要差异：自动路线是 ROS2 侧闭环控制器持续读取 `/tf` 并发布 `/vln/cmd_vel`；浏览器 UI 原先更依赖键盘心跳和 HTTP 请求，且界面上的箭头/A/D 只是状态显示，不是真正可按住的屏幕按钮。当前已修复为：屏幕箭头/A/D 也可按住控制；前端速度请求有背压保护；速度/停车请求带序号，旧请求晚到不会覆盖新停车或新按键；心跳 fallback 超时为 `0.35s`，松键仍立即停车。补充修复：导出目录/文件路径旁新增“复制路径”按钮；线速度默认仍为 `0.55m/s`，但 UI、后端和 Unity wheel-ground 控制器可调上限已放宽到 `20.0m/s`；线速度 `+/-` 步进改为 `0.50m/s`，调速时会立即刷新当前按键速度。注意：自动路线脚本默认 `--max-linear` 不改，仍保护老师演示金标准；20m/s 只用于用户手动速度控制上限。该修复已通过 Python / shell 静态检查、备用端口短启动页面检查和 `/api/velocity` 夹紧检查；当前 8765 控制面板已重启为新版，但仍需要用户按手工流程亲自验收 Unity 体感。
 
 ## 常用入口
 

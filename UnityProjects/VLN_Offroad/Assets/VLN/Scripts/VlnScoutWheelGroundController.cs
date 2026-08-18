@@ -27,7 +27,7 @@ namespace VLN.ROS2
         [SerializeField] float m_WheelVisualVerticalOffset = 0.085f;
         [SerializeField] float m_WheelVisualForwardRollDirection = 1f;
         [SerializeField] float m_WheelVisualAngularSmoothing = 14f;
-        [SerializeField] float m_MaxLinearSpeedMetersPerSecond = 2.0f;
+        [SerializeField] float m_MaxLinearSpeedMetersPerSecond = 20.0f;
         [SerializeField] float m_MaxAngularSpeedRadPerSecond = 1.0f;
         [SerializeField] float m_MaxMotorTorque = 160f;
         [SerializeField] float m_MaxBrakeTorque = 220f;

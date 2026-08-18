@@ -9252,7 +9252,7 @@ MonoBehaviour:
   m_WheelVisualVerticalOffset: 0.085
   m_WheelVisualForwardRollDirection: 1
   m_WheelVisualAngularSmoothing: 14
-  m_MaxLinearSpeedMetersPerSecond: 2
+  m_MaxLinearSpeedMetersPerSecond: 20
   m_MaxAngularSpeedRadPerSecond: 1
   m_MaxMotorTorque: 160
   m_MaxBrakeTorque: 220
@@ -29561,7 +29561,7 @@ MonoBehaviour:
   m_EnableKinematicMotion: 0
   m_AutopilotUntilFirstCommand: 0
   m_CommandTimeoutSeconds: 0.75
-  m_MaxLinearSpeedMetersPerSecond: 2
+  m_MaxLinearSpeedMetersPerSecond: 20
   m_MaxAngularSpeedRadPerSecond: 1.2
   m_EnableObstacleCollisionStop: 0
   m_CollisionHalfExtents: {x: 0.62, y: 0.42, z: 0.95}

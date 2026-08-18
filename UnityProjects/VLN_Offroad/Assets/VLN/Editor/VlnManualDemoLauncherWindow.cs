@@ -11,6 +11,7 @@ namespace VLN.Editor
     {
         const string VlnRoot = "/home/ubuntu22/VLN";
         const string LauncherScript = "/home/ubuntu22/VLN/scripts/unity_menu_launch.sh";
+        const string CleanupScript = "/home/ubuntu22/VLN/scripts/cleanup_unity_menu_processes.sh";
         const string ControlPanelUrl = "http://127.0.0.1:8765/";
 
         Vector2 m_Scroll;
@@ -63,6 +64,12 @@ namespace VLN.Editor
         public static void StartControlPanelMenu()
         {
             LaunchMode("panel", requirePlayMode: true);
+        }
+
+        [MenuItem("VLN/手工演示/关闭 VLN 后台终端", priority = 90)]
+        public static void CleanupMenuProcessesMenu()
+        {
+            CleanupUnityMenuProcesses(includeKnownProjectProcesses: true, showDialog: true);
         }
 
         void OnGUI()
@@ -120,6 +127,11 @@ namespace VLN.Editor
                 if (GUILayout.Button("打开控制面板网页", GUILayout.Height(28f)))
                 {
                     Application.OpenURL(ControlPanelUrl);
+                }
+
+                if (GUILayout.Button("关闭 VLN 后台终端", GUILayout.Height(28f)))
+                {
+                    CleanupUnityMenuProcesses(includeKnownProjectProcesses: true, showDialog: true);
                 }
             }
 
@@ -185,7 +197,7 @@ namespace VLN.Editor
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = LauncherScript,
-                    Arguments = mode,
+                    Arguments = mode + " " + Process.GetCurrentProcess().Id,
                     WorkingDirectory = VlnRoot,
                     UseShellExecute = false,
                     CreateNoWindow = false,
@@ -196,6 +208,69 @@ namespace VLN.Editor
             catch (Exception ex)
             {
                 EditorUtility.DisplayDialog("启动失败", ex.Message, "知道了");
+                UnityEngine.Debug.LogError(ex);
+            }
+        }
+
+        internal static void CleanupUnityMenuProcesses(bool includeKnownProjectProcesses, bool showDialog)
+        {
+            if (!File.Exists(CleanupScript))
+            {
+                if (showDialog)
+                {
+                    EditorUtility.DisplayDialog("清理脚本缺失", "找不到脚本：" + CleanupScript, "知道了");
+                }
+                return;
+            }
+
+            string arguments = includeKnownProjectProcesses ? "--include-known" : "--tracked-only";
+            try
+            {
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = CleanupScript,
+                    Arguments = arguments,
+                    WorkingDirectory = VlnRoot,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                };
+                using (var process = Process.Start(startInfo))
+                {
+                    if (process == null)
+                    {
+                        return;
+                    }
+
+                    string output = process.StandardOutput.ReadToEnd();
+                    string error = process.StandardError.ReadToEnd();
+                    bool exited = process.WaitForExit(3000);
+                    if (!exited)
+                    {
+                        try
+                        {
+                            process.Kill();
+                        }
+                        catch (Exception)
+                        {
+                            // Best-effort termination of the cleanup helper process.
+                        }
+                    }
+
+                    UnityEngine.Debug.Log($"VLN cleanup finished args={arguments} exit={(exited ? process.ExitCode.ToString() : "timeout")} output={output} error={error}");
+                    if (showDialog)
+                    {
+                        EditorUtility.DisplayDialog("清理完成", string.IsNullOrWhiteSpace(output) ? "已请求关闭 VLN 后台终端。" : output.Trim(), "知道了");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                if (showDialog)
+                {
+                    EditorUtility.DisplayDialog("清理失败", ex.Message, "知道了");
+                }
                 UnityEngine.Debug.LogError(ex);
             }
         }

@@ -218,6 +218,12 @@ def make_html():
       border-color: #e3a7a2;
     }
     .secondary:hover { background: #fff4f2; }
+    .compact {
+      height: 38px;
+      padding: 0 14px;
+      font-size: 14px;
+      white-space: nowrap;
+    }
     .status-card {
       margin-top: 20px;
       border: 1px solid var(--line);
@@ -290,7 +296,12 @@ def make_html():
       color: #22313f;
       font-weight: 900;
       font-size: 14px;
+      font-family: inherit;
+      cursor: pointer;
+      user-select: none;
+      touch-action: none;
     }
+    .key:focus-visible { outline: 2px solid var(--main); outline-offset: 2px; }
     .key.active { background: #e3f0ff; color: var(--main); border-color: var(--main); }
     .record-actions {
       display: grid;
@@ -299,7 +310,6 @@ def make_html():
       margin-top: 16px;
     }
     .file-line {
-      margin-top: 12px;
       border: 1px dashed #b8c7d6;
       border-radius: 6px;
       padding: 10px 12px;
@@ -308,10 +318,18 @@ def make_html():
       word-break: break-all;
       background: #fff;
     }
+    .file-row {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+    }
     @media (max-width: 700px) {
       .app { width: calc(100vw - 16px); margin: 8px auto; }
       .content { padding: 16px; }
       .form-grid, .velocity-grid, .record-actions { grid-template-columns: 1fr; }
+      .file-row { grid-template-columns: 1fr; }
       .status-card { grid-template-columns: 1fr 1fr; }
       .tab { font-size: 14px; }
     }
@@ -373,12 +391,20 @@ def make_html():
         </div>
         <div class="velocity-grid">
           <div>
-            <label for="manualLinearSpeed">线速度（m/s）</label>
-            <input id="manualLinearSpeed" type="number" value="0.55" step="0.05" min="0" max="0.55" style="height:44px;border:1px solid var(--line);border-radius:6px;" />
+            <label for="manualLinearSpeed">线速度（m/s，最高 20）</label>
+            <div class="number-box">
+              <button class="step-btn" data-input="manualLinearSpeed" data-dir="-1" data-step="0.50">−</button>
+              <input id="manualLinearSpeed" type="number" value="0.55" step="0.50" min="0" max="20.00" />
+              <button class="step-btn" data-input="manualLinearSpeed" data-dir="1" data-step="0.50">+</button>
+            </div>
           </div>
           <div>
-            <label for="manualAngularSpeed">角速度（rad/s）</label>
-            <input id="manualAngularSpeed" type="number" value="0.42" step="0.05" min="0" max="1.00" style="height:44px;border:1px solid var(--line);border-radius:6px;" />
+            <label for="manualAngularSpeed">角速度（rad/s，最高 1.00）</label>
+            <div class="number-box">
+              <button class="step-btn" data-input="manualAngularSpeed" data-dir="-1" data-step="0.05">−</button>
+              <input id="manualAngularSpeed" type="number" value="0.42" step="0.05" min="0" max="1.00" />
+              <button class="step-btn" data-input="manualAngularSpeed" data-dir="1" data-step="0.05">+</button>
+            </div>
           </div>
           <div>
             <label>实时速度</label>
@@ -386,8 +412,8 @@ def make_html():
           </div>
         </div>
         <div class="key-help">
-          <div class="key-row"><span class="key" id="keyUp">↑</span><span>前进</span><span class="key" id="keyDown">↓</span><span>后退</span></div>
-          <div class="key-row"><span class="key" id="keyLeft">←</span><span>左转</span><span class="key" id="keyRight">→</span><span>右转</span><span class="key" id="keyA">A</span><span>左转</span><span class="key" id="keyD">D</span><span>右转</span></div>
+          <div class="key-row"><button type="button" class="key" id="keyUp" data-key="up">↑</button><span>前进</span><button type="button" class="key" id="keyDown" data-key="down">↓</button><span>后退</span></div>
+          <div class="key-row"><button type="button" class="key" id="keyLeft" data-key="left">←</button><span>左转</span><button type="button" class="key" id="keyRight" data-key="right">→</button><span>右转</span><button type="button" class="key" id="keyA" data-key="a">A</button><span>左转</span><button type="button" class="key" id="keyD" data-key="d">D</button><span>右转</span></div>
           <div class="metric-name">当前 Scout 是差速轮式底盘，不发布横向平移速度；←/A 为左转，→/D 为右转，可与前进/后退同时按。</div>
         </div>
         <div class="record-actions">
@@ -402,7 +428,10 @@ def make_html():
           <div class="metric"><div class="metric-name">导出状态</div><div class="metric-value" id="exportText">未导出</div></div>
           <div class="metric"><div class="metric-name">键盘状态</div><div class="metric-value" id="keyStateText">待命</div></div>
         </div>
-        <div class="file-line" id="recordFileText">记录目录：/home/ubuntu22/VLN/VLN_RECORDINGS/manual_drives</div>
+        <div class="file-row">
+          <div class="file-line" id="recordFileText">记录目录：/home/ubuntu22/VLN/VLN_RECORDINGS/manual_drives</div>
+          <button class="primary compact" id="copyRecordPath">复制路径</button>
+        </div>
         <div class="message" id="velocityMessage">点击“开始记录”后，用键盘开车；满意后点击“导出记录”。</div>
       </div>
     </section>
@@ -434,9 +463,16 @@ def make_html():
     document.querySelectorAll('.step-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
         const input = $(btn.dataset.input);
-        const step = Number($('stepSize').value || '0.1');
-        const next = Number(input.value || '0') + Number(btn.dataset.dir) * step;
+        if (!input) return;
+        const fallbackStepInput = $('stepSize');
+        const fallbackStep = fallbackStepInput ? Number(fallbackStepInput.value || '0.1') : Number(input.step || '0.1');
+        const step = Number(btn.dataset.step || fallbackStep || input.step || '0.1');
+        const minValue = input.min === '' ? -Infinity : Number(input.min);
+        const maxValue = input.max === '' ? Infinity : Number(input.max);
+        const rawNext = Number(input.value || '0') + Number(btn.dataset.dir) * step;
+        const next = Math.min(maxValue, Math.max(minValue, rawNext));
         input.value = next.toFixed(2);
+        input.dispatchEvent(new Event('change', {bubbles: true}));
       });
     });
     async function postJson(path, body) {
@@ -471,7 +507,19 @@ def make_html():
     });
     const keyState = {up: false, down: false, left: false, right: false, a: false, d: false};
     const keyMap = {ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', KeyA: 'a', KeyD: 'd'};
+    let manualSeq = 0;
+    let velocityRequestInFlight = false;
+    let velocityRequestPending = false;
+    const bumpManualSeq = () => { manualSeq += 1; return manualSeq; };
     const anyKeyActive = () => Object.values(keyState).some(Boolean);
+    const clampNumberInput = (input) => {
+      const minValue = input.min === '' ? -Infinity : Number(input.min);
+      const maxValue = input.max === '' ? Infinity : Number(input.max);
+      const rawValue = Number(input.value || '0');
+      const value = Math.min(maxValue, Math.max(minValue, Number.isFinite(rawValue) ? rawValue : 0));
+      input.value = value.toFixed(2);
+      return value;
+    };
     const updateKeyClasses = () => {
       $('keyUp').classList.toggle('active', keyState.up);
       $('keyDown').classList.toggle('active', keyState.down);
@@ -481,24 +529,51 @@ def make_html():
       $('keyD').classList.toggle('active', keyState.d);
     };
     const sendVelocity = async () => {
-      const linearSpeed = Number($('manualLinearSpeed').value || '0.55');
-      const angularSpeed = Number($('manualAngularSpeed').value || '0.42');
+      if (velocityRequestInFlight) {
+        velocityRequestPending = true;
+        return;
+      }
+      velocityRequestInFlight = true;
+      velocityRequestPending = false;
+      const seq = manualSeq;
+      const linearSpeed = clampNumberInput($('manualLinearSpeed'));
+      const angularSpeed = clampNumberInput($('manualAngularSpeed'));
       try {
-        const data = await postJson('/api/velocity', {keys: keyState, linear_speed: linearSpeed, angular_speed: angularSpeed});
-        $('velocityText').textContent = `${data.command.linear_x.toFixed(2)} / ${data.command.angular_z.toFixed(2)}`;
-        const activeKeys = Object.entries(keyState).filter(([, v]) => v).map(([k]) => k.toUpperCase()).join(' + ');
-        $('keyStateText').textContent = activeKeys || '待命';
+        const data = await postJson('/api/velocity', {seq, keys: keyState, linear_speed: linearSpeed, angular_speed: angularSpeed});
+        if (!data.stale && seq === manualSeq) {
+          $('velocityText').textContent = `${data.command.linear_x.toFixed(2)} / ${data.command.angular_z.toFixed(2)}`;
+          const activeKeys = Object.entries(keyState).filter(([, v]) => v).map(([k]) => k.toUpperCase()).join(' + ');
+          $('keyStateText').textContent = activeKeys || '待命';
+        }
       } catch (err) { setVelocityMessage(err.message, 'bad'); }
+      finally {
+        velocityRequestInFlight = false;
+        if (velocityRequestPending && !$('velocityPanel').classList.contains('hidden') && anyKeyActive()) {
+          setTimeout(sendVelocity, 0);
+        }
+      }
     };
     const stopVelocityNow = async () => {
+      const seq = bumpManualSeq();
+      velocityRequestPending = false;
       Object.keys(keyState).forEach((key) => { keyState[key] = false; });
       updateKeyClasses();
       try {
-        const data = await postJson('/api/velocity_stop', {});
+        const data = await postJson('/api/velocity_stop', {seq});
         $('velocityText').textContent = '0.00 / 0.00';
         $('keyStateText').textContent = '待命';
         setVelocityMessage(data.message, 'warn');
       } catch (err) { setVelocityMessage(err.message, 'bad'); }
+    };
+    const setManualKey = (key, pressed) => {
+      if (!Object.prototype.hasOwnProperty.call(keyState, key)) return;
+      if ($('velocityPanel').classList.contains('hidden')) return;
+      if (keyState[key] === pressed) return;
+      keyState[key] = pressed;
+      bumpManualSeq();
+      updateKeyClasses();
+      if (anyKeyActive()) sendVelocity();
+      else stopVelocityNow();
     };
     document.addEventListener('keydown', (event) => {
       if ($('velocityPanel').classList.contains('hidden')) return;
@@ -506,25 +581,33 @@ def make_html():
       const key = keyMap[event.code];
       if (!key) return;
       event.preventDefault();
-      if (!keyState[key]) {
-        keyState[key] = true;
-        updateKeyClasses();
-        sendVelocity();
-      }
+      setManualKey(key, true);
     });
     document.addEventListener('keyup', (event) => {
       const key = keyMap[event.code];
       if (!key) return;
       event.preventDefault();
-      if (keyState[key]) {
-        keyState[key] = false;
-        updateKeyClasses();
-        if (anyKeyActive()) sendVelocity();
-        else stopVelocityNow();
-      }
+      setManualKey(key, false);
+    });
+    document.querySelectorAll('.key[data-key]').forEach((button) => {
+      const key = button.dataset.key;
+      button.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        button.setPointerCapture?.(event.pointerId);
+        setManualKey(key, true);
+      });
+      button.addEventListener('pointerup', (event) => {
+        event.preventDefault();
+        setManualKey(key, false);
+      });
+      button.addEventListener('pointercancel', () => setManualKey(key, false));
+      button.addEventListener('lostpointercapture', () => setManualKey(key, false));
     });
     ['manualLinearSpeed', 'manualAngularSpeed'].forEach((inputId) => {
-      $(inputId).addEventListener('change', () => { if (anyKeyActive()) sendVelocity(); });
+      $(inputId).addEventListener('change', () => {
+        clampNumberInput($(inputId));
+        if (anyKeyActive()) { bumpManualSeq(); sendVelocity(); }
+      });
     });
     window.addEventListener('blur', async () => {
       let changed = false;
@@ -552,6 +635,31 @@ def make_html():
         $('exportText').textContent = '已导出';
         setVelocityMessage(data.message, 'ok');
       } catch (err) { setVelocityMessage(err.message, 'bad'); }
+    });
+    const getRecordPathForCopy = () => $('recordFileText').textContent.replace(/^记录目录：/, '').trim();
+    const copyTextToClipboard = async (text) => {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return;
+      }
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', 'readonly');
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    };
+    $('copyRecordPath').addEventListener('click', async () => {
+      const path = getRecordPathForCopy();
+      try {
+        await copyTextToClipboard(path);
+        setVelocityMessage(`已复制路径：${path}`, 'ok');
+      } catch (err) {
+        setVelocityMessage('复制失败，请手动选中文本复制。', 'bad');
+      }
     });
     async function refreshStatus() {
       try {
@@ -610,6 +718,7 @@ class ControlPanel:
         self.manual_heading_hold_yaw = None
         self.manual_heading_hold_active = False
         self.manual_last_heading_error = 0.0
+        self.manual_command_seq = 0
         self.recording_active = False
         self.recording_started_at_monotonic = None
         self.recording_started_at_utc = None
@@ -748,7 +857,33 @@ class ControlPanel:
 
         return keys, linear_x, angular_z
 
-    def set_manual_velocity(self, keys, linear_speed, angular_speed):
+    @staticmethod
+    def parse_manual_seq(seq):
+        if seq is None:
+            return None
+        try:
+            return int(seq)
+        except (TypeError, ValueError):
+            return None
+
+    def current_manual_response_locked(self, message="已忽略过期速度指令"):
+        return {
+            "ok": True,
+            "stale": True,
+            "message": message,
+            "seq": self.manual_command_seq,
+            "command": {"linear_x": self.manual_linear_x, "angular_z": self.manual_angular_z},
+            "keys": dict(self.manual_keys),
+        }
+
+    def set_manual_velocity(self, keys, linear_speed, angular_speed, seq=None):
+        seq_number = self.parse_manual_seq(seq)
+        with self.lock:
+            if seq_number is not None and seq_number < self.manual_command_seq:
+                return self.current_manual_response_locked()
+            if seq_number is not None:
+                self.manual_command_seq = seq_number
+
         keys, linear_x, angular_z = self.compute_manual_command(keys, linear_speed, angular_speed, update_heading_hold=True)
         active = abs(linear_x) > 1e-6 or abs(angular_z) > 1e-6
         with self.lock:
@@ -775,12 +910,18 @@ class ControlPanel:
         return {
             "ok": True,
             "message": message,
+            "seq": self.manual_command_seq,
             "command": {"linear_x": linear_x, "angular_z": angular_z},
             "keys": keys,
         }
 
-    def stop_manual_velocity(self):
+    def stop_manual_velocity(self, seq=None):
+        seq_number = self.parse_manual_seq(seq)
         with self.lock:
+            if seq_number is not None and seq_number < self.manual_command_seq:
+                return self.current_manual_response_locked("已忽略过期停车指令")
+            if seq_number is not None:
+                self.manual_command_seq = seq_number
             self.active = False
             self.target_map_xy = None
             self.target_relative_xy = None
@@ -795,7 +936,7 @@ class ControlPanel:
             self.last_message = "手动速度已归零"
         self.publish_zero(repeat=10)
         self.record_manual_sample(0.0, 0.0, normalize_keys({}), "manual_stop")
-        return {"ok": True, "message": "速度已归零", "command": {"linear_x": 0.0, "angular_z": 0.0}}
+        return {"ok": True, "message": "速度已归零", "seq": self.manual_command_seq, "command": {"linear_x": 0.0, "angular_z": 0.0}}
 
     def _pose_payload_locked(self):
         if self.pose_xy is None or self.pose_yaw is None:
@@ -1109,10 +1250,11 @@ def build_handler(panel):
                         data.get("keys", {}),
                         data.get("linear_speed", panel.args.manual_default_linear),
                         data.get("angular_speed", panel.args.manual_default_angular),
+                        data.get("seq"),
                     ))
                     return
                 if path == "/api/velocity_stop":
-                    self.send_json(panel.stop_manual_velocity())
+                    self.send_json(panel.stop_manual_velocity(data.get("seq")))
                     return
                 if path == "/api/recording/start":
                     self.send_json(panel.start_recording())
@@ -1144,9 +1286,9 @@ def parse_args():
     parser.add_argument("--publish-rate", type=float, default=100.0)
     parser.add_argument("--manual-default-linear", type=float, default=0.55, help="速度控制面板默认线速度，单位 m/s。")
     parser.add_argument("--manual-default-angular", type=float, default=0.42, help="速度控制面板默认角速度，单位 rad/s。")
-    parser.add_argument("--manual-max-linear", type=float, default=0.55, help="速度控制面板允许的最大线速度绝对值；更高速度需要单独做轮胎/电机标定。")
+    parser.add_argument("--manual-max-linear", type=float, default=20.0, help="速度控制面板允许的最大线速度绝对值；默认仍是 0.55m/s，但用户可手动调到 20m/s。")
     parser.add_argument("--manual-max-angular", type=float, default=1.00, help="速度控制面板允许的最大角速度绝对值。")
-    parser.add_argument("--manual-command-timeout", type=float, default=0.18, help="速度控制心跳超时时间；浏览器停止刷新按键状态后自动停车。")
+    parser.add_argument("--manual-command-timeout", type=float, default=0.35, help="速度控制心跳超时时间；浏览器停止刷新按键状态后自动停车。松键仍会立即发停车。")
     parser.add_argument(
         "--manual-forward-linear-sign",
         type=float,

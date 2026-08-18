@@ -580,7 +580,7 @@
 - 现象：用户手工运行固定路线时，小车会先旋转再慢慢拐回中心线，随后沿路线走出 S 型；过桥时由于横向偏差和栏杆碰撞边界问题，车辆可能擦到或穿过栏杆并偏出道路。
 - 环境：`Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，Scout wheel-ground 物理车体，固定路线脚本仍输出 `/vln/cmd_vel`。
 - 根因判断：固定路线脚本是开环/弱闭环路径点控制，地图道路中心线、桥面窄通行区域、WheelCollider 横向漂移、差速转向响应和栏杆物理边界会叠加；继续单纯调自动控制参数容易把物理问题和控制器问题混在一起，也容易诱导再次用“作弊式”几何修复。
-- 解决方案：新增控制面板“速度控制”模块，用户亲自用键盘驾驶真实物理车体通过满意路线；后端按 100Hz 持续发布当前速度，失焦或点击“速度归零”会发布零速度；前端按键心跳会持续刷新当前按键，若浏览器意外关闭或心跳丢失，后端 `manual-command-timeout=0.18s` 会自动停车；记录功能导出 `vln_manual_cmd_vel_recording_v1` JSON，后续用回放脚本按时间戳重放 `/vln/cmd_vel`。方向映射固定为 `↑` 正线速度、`↓` 负线速度、`←/A` 正 `angular.z` 左转、`→/D` 负 `angular.z` 右转。
+- 解决方案：新增控制面板“速度控制”模块，用户亲自用键盘驾驶真实物理车体通过满意路线；后端按 100Hz 持续发布当前速度，失焦或点击“速度归零”会发布零速度；前端按键心跳会持续刷新当前按键，当时后端 `manual-command-timeout=0.18s` 会自动停车；记录功能导出 `vln_manual_cmd_vel_recording_v1` JSON，后续用回放脚本按时间戳重放 `/vln/cmd_vel`。方向映射固定为 `↑` 正线速度、`↓` 负线速度、`←/A` 正 `angular.z` 左转、`→/D` 负 `angular.z` 右转。2026-08-18 已因真实浏览器体感问题将 fallback 超时改为 `0.35s` 并加入请求背压/序号过滤。
 - 验收方式：`python3 -m py_compile scripts/vln_control_panel.py scripts/replay_manual_drive_recording.py scripts/vln_control_panel_manual_recording_smoke_client.py` 通过；`bash -n scripts/start_vln_control_panel.sh scripts/replay_manual_drive_recording.sh scripts/run_control_panel_manual_recording_smoke_test.sh scripts/run_control_panel_smoke_test.sh` 通过；`./scripts/run_control_panel_manual_recording_smoke_test.sh` 输出 `VLN_CONTROL_PANEL_MANUAL_RECORDING_SMOKE_TEST_PASS`，run id `vln_control_panel_manual_recording_20260817_022128`；导出的示例 JSON `manual_drive_20260817_022130.json` 使用 `./scripts/replay_manual_drive_recording.sh --file ... --time-scale 20 --speed-scale 0 --max-duration 0.2` 输出 `VLN_MANUAL_DRIVE_REPLAY_OK`；旧目标位置回归 `./scripts/run_control_panel_smoke_test.sh` 输出 `VLN_CONTROL_PANEL_SMOKE_TEST_PASS`，run id `vln_control_panel_20260817_021533`。
 - 状态：已解决为阶段 16 手动示教记录/回放闭环。后续如果要把示教路线升级成自主导航，应新开阶段做闭环路径跟踪或 Nav2/VLN 接入，不要通过压平桥/坡、关闭碰撞或放宽路线 gate 来掩盖控制问题。
 
@@ -589,7 +589,7 @@
 - 现象：用户手工操作速度控制模块时发现 `↑/↓` 前后方向相反，按前进不能直行而会慢慢偏航，`←/→` 或 `A/D` 不是近似原地转而是乱走；松键后约数秒才停，控制延迟不可接受。用户明确要求至少 100Hz 控制频率，并要求有角度闭环/PID 控制。
 - 环境：`Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，中文控制面板速度控制模块，Scout wheel-ground `Rigidbody + WheelCollider` 物理候选，控制 topic 为 `/vln/cmd_vel`。
 - 根因：第一版手动控制只把键盘映射成 `/vln/cmd_vel` 速度，没有同时标定 Unity wheel-ground 场景里的轮端差速符号、视觉左/右方向、直行航向保持符号和停止超时；控制面板后端持续发布频率和心跳超时也偏保守，导致松键停车响应慢。固定路线脚本上的旧 `angular-sign` 经验不能直接照搬到手动控制 UI。
-- 解决方案：`scripts/vln_control_panel.py` 默认后端发布频率改为 `100Hz`，前端按键心跳为 `50ms`，后端 `manual-command-timeout=0.18s`；松键、窗口失焦、页面隐藏和心跳丢失都会立即调用 `/api/velocity_stop` 并连续发布多帧 0 速度。键位固定为 `↑` 正 `linear.x`、`↓` 负 `linear.x`、`←/A` 正 `angular.z`、`→/D` 负 `angular.z`。Unity 物理层不再让 WheelCollider 电机承担纯转向，`m_WheelAngularMotorScale=0`；角速度由 yaw-rate PID 计算，再通过 Rigidbody 角速度伺服/`MoveRotation` 施加到底盘，避免原地转变成大平移。
+- 解决方案：`scripts/vln_control_panel.py` 默认后端发布频率改为 `100Hz`，前端按键心跳为 `50ms`，当时后端 `manual-command-timeout=0.18s`；松键、窗口失焦、页面隐藏和心跳丢失都会立即调用 `/api/velocity_stop` 并连续发布多帧 0 速度。键位固定为 `↑` 正 `linear.x`、`↓` 负 `linear.x`、`←/A` 正 `angular.z`、`→/D` 负 `angular.z`。Unity 物理层不再让 WheelCollider 电机承担纯转向，`m_WheelAngularMotorScale=0`；角速度由 yaw-rate PID 计算，再通过 Rigidbody 角速度伺服/`MoveRotation` 施加到底盘，避免原地转变成大平移。2026-08-18 已因真实浏览器体感问题将 fallback 超时改为 `0.35s` 并加入请求背压/序号过滤。
 - 验收方式：静态检查 `python3 -m py_compile scripts/vln_control_panel.py scripts/vln_control_panel_manual_velocity_unity_client.py scripts/vln_control_panel_manual_recording_smoke_client.py scripts/replay_manual_drive_recording.py scripts/ros2_drive_scout_physics_route.py` 通过；`bash -n scripts/run_control_panel_manual_velocity_unity_smoke_test.sh scripts/run_control_panel_manual_recording_smoke_test.sh scripts/start_vln_control_panel.sh scripts/replay_manual_drive_recording.sh scripts/run_scout_wheel_ground_smoke_test.sh` 通过。专项 Unity 验收脚本 `./scripts/run_control_panel_manual_velocity_unity_smoke_test.sh` 用于检查前进为正、横漂/偏航受控、松键快速停车、A/D 近似原地转；最近已通过 run id `vln_control_panel_manual_velocity_unity_20260817_040919`，指标为前进 `0.531m`、横漂约 `0.000m`、偏航约 `0.000rad`、停车漂移 `0.001m/0.002m`、A 左转 yaw `+0.599rad`、D 右转 yaw `-0.634rad`、纯转向平移 `0.017m/0.016m`。手动记录验收 `vln_control_panel_manual_recording_20260817_041218` 通过；基础 wheel-ground 回归 `vln_scout_wheel_ground_20260817_041230` 通过。
 - 状态：已二次修复并新增专项验收。后续如果用户再次手工发现方向反或延迟大，第一优先级是复跑 `run_control_panel_manual_velocity_unity_smoke_test.sh`，不要先改地图、桥/坡几何或固定路线控制器。
 
@@ -658,6 +658,15 @@
 - 验收方式：`./scripts/run_scout_wheel_ground_challenge_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_challenge_route_20260817_210512`，`challenge_physics_proxy_count=22`、`challenge_visual_physics_proxy_audit_pass=1`、`challenge_physics_proxy_contact_steps=1003`、`grass_contact_steps=1255`、`stone_contact_steps=1330`、`sand_contact_steps=13843`，且 `reached_count=16/16`、`stall_count=0`、`skipped_count=0`；旧 13 点金标准 `./scripts/run_scout_wheel_ground_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_route_20260817_210945`。
 - 状态：已完成第一版修复。后续如果手工观察仍觉得某个材质不真实，应微调代理几何、阻力参数或视觉反馈，不能回退到纯贴图、隐藏托底或关闭碰撞。
 
+## 2026-08-18：手动速度控制线速度上限过低
+
+- 现象：用户指出仿真世界里应允许自行尝试高速，原先控制面板最大只能调到 `1.20m/s`，Unity wheel-ground 控制器内部还会把 `/vln/cmd_vel.linear.x` 夹到 `2.0m/s`，导致用户即使愿意承担翻车/重跑风险也无法调大速度。
+- 环境：中文控制面板速度模块 `scripts/vln_control_panel.py`，Scout wheel-ground 场景 `VLNOffroadScoutWheelGroundCandidate.unity`，控制 topic `/vln/cmd_vel`。
+- 根因：此前为了保护手工体感和自动路线稳定性，把 UI 上限和 Unity 控制器夹紧都设得很保守；这和“手动探索可以高速试错”的使用方式冲突。
+- 解决方案：只放开手动控制链路的线速度上限，不改自动路线默认速度。UI 输入上限和后端 `--manual-max-linear` 改为 `20.0m/s`，线速度按钮步进改为 `0.50m/s`；Scout wheel-ground 控制器源码、场景生成器和已保存场景中的 `m_MaxLinearSpeedMetersPerSecond` 改为 `20.0`。
+- 验收方式：`python3 -m py_compile scripts/vln_control_panel.py` 通过；`bash -n scripts/start_vln_control_panel.sh scripts/run_control_panel_manual_velocity_unity_smoke_test.sh` 通过；grep 确认控制面板、控制器、生成器和 wheel-ground 场景均已显示 `20` 上限。
+- 状态：已解决。注意：自动路线 `drive_*_demo.sh` 和 `run_*_smoke_test.sh` 的默认 `--max-linear` 没有改，仍用于保护老师演示基线。
+
 ## 2026-08-17：草地第二版明显压痕不符合用户偏好
 
 - 现象：用户反馈加强版草叶渲染中的明显压痕/强倒伏效果不满意，要求回退到第一版倒伏版本，即经过时草叶被压低、向两侧推开，并留下低恢复速度的轮迹。
@@ -666,3 +675,33 @@
 - 解决方案：回退到第一版 `VlnChallengeGrassDeformer` 方案，只保留草叶 mesh 的运行时轻倒伏、侧向推开和慢恢复；移除 `GrassTrackPainter`、深色轮迹贴片和 `challenge_grass_track_*` 当前验收指标；在 `AGENTS.md`、`CURRENT_STATE.md`、`PROJECT_MEMORY.md`、`workflow.md` 和决策日志中记录禁止无明确要求恢复强压痕。
 - 验收方式：16 点挑战路线 `./scripts/run_scout_wheel_ground_challenge_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_challenge_route_20260817_231723`，`reached_count=16/16`、`total_forward_progress=70.434m`、`final_lateral_offset=-0.004m`、`max_abs_lateral_offset=0.086m`、`stall_count=0`、`skipped_count=0`、`challenge_grass_deformer_count=3`、`challenge_grass_max_deformed_blade_count=418`、`challenge_grass_max_fresh_affected_blade_count=156`；旧 13 点金标准 `./scripts/run_scout_wheel_ground_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_route_20260817_232310`，`reached_count=13/13`、`stall_count=0`、`skipped_count=0`。
 - 状态：已解决并锁定为当前偏好。后续草地升级可以微调草叶密度、材质、恢复速度或侧推强度，但不得默认恢复明显深色压痕、强倒伏轮迹或车身 footprint 清扫式压痕。
+
+## 2026-08-18：浏览器 UI 手动速度控制体感明显差于自动路线
+
+- 现象：用户反馈控制面板“速度控制”模块实际使用时，小车响应慢，按住前进/方向后只动一下或短暂停住，整体远不如自动导航路线稳定。
+- 环境：`scripts/vln_control_panel.py` 浏览器 UI + ROS2 后端，Unity 主场景 `VLNOffroadScoutWheelGroundCandidate.unity`，控制 topic 为 `/vln/cmd_vel`。
+- 根因：自动路线脚本是 ROS2 侧闭环控制器，持续读取 `/tf`、计算目标航向/横向偏差，并以稳定频率发布 `/vln/cmd_vel`；浏览器手动 UI 原本更像“键盘心跳 + 开环速度”。具体问题有三点：第一，界面里的箭头/A/D 是 `span` 状态显示，不是真正可按住的屏幕按钮，用户如果用鼠标点击它只会像单次触发；第二，前端每 50ms 发一次 async 请求但没有背压，网络或浏览器稍慢时会堆积旧速度请求，造成延迟；第三，速度请求和停车请求没有序号，旧速度请求晚到可能覆盖新的停车或新按键。
+- 解决方案：将屏幕箭头/A/D 改成真正的 `button`，支持鼠标/触控按住持续控制；前端增加 `velocityRequestInFlight / velocityRequestPending` 背压，避免 HTTP 请求堆积；速度和停车请求增加 `seq` 序号，后端忽略过期速度/停车请求；心跳 fallback 超时从 `0.18s` 调为 `0.35s`，松键仍立即发送停车，轻微 HTTP 抖动不再让按住前进变成只动一下。
+- 验收方式：本轮已通过静态检查：`python3 -m py_compile scripts/vln_control_panel.py scripts/vln_control_panel_manual_velocity_unity_client.py`，以及 `bash -n scripts/start_vln_control_panel.sh scripts/run_control_panel_manual_velocity_unity_smoke_test.sh scripts/run_control_panel_manual_recording_smoke_test.sh`。已用备用端口短启动控制面板，确认页面包含“复制路径”、`manualLinearSpeed max="20.00"`、线速度 `+` 按钮 `data-step="0.50"`、角速度 `+` 按钮 `data-step="0.05"`，并确认向 `/api/velocity` 请求 `linear_speed=25` 时后端返回 `linear_x=20.0`。当前 8765 旧控制面板进程已重启为新版。尚未重新跑 Unity 联动和用户手工体感验收。
+- 状态：已做第一轮 UI/请求链路修复，待用户重新按手工流程验证。后续阶段 19 数据采集前，必须确认手动速度控制不再明显低于自动路线；否则继续停留在阶段 16 修控制面板。
+
+补充反馈与修复：用户随后指出导出路径不可复制、网页把线速度从 `0.55` 调高后仍不提速、速度步进按钮没有效果。根因是 `manualLinearSpeed` 前端曾被夹到 `0.55`，后端 `--manual-max-linear` 也会夹紧速度；同时速度模块没有独立 `+/-` 步进按钮，只有目标位置模块有步进按钮。已补充修复为：记录目录/最新导出文件路径旁新增“复制路径”按钮；线速度默认值仍为 `0.55m/s`，但前端、后端和 Unity wheel-ground 控制器可调上限放宽到 `20.0m/s`；线速度 `+/-` 步进为 `0.50m/s`，角速度 `+/-` 步进为 `0.05rad/s`，按钮会按输入框 min/max 夹紧，并在按键驾驶中立即重发新速度。该补丁不改自动路线默认速度，不改 CUDA/PyTorch/ROS2 环境。
+
+## 2026-08-18：Unity 菜单启动的后台终端关闭 Unity 后不自动清理
+
+- 现象：用户主要通过 Unity 顶部 `VLN` 菜单启动 endpoint、中文控制面板、相机/RViz 和路线脚本；关闭 Unity 后，这些外部终端仍在后台运行，下一次再点“启动中文控制面板”会因为旧进程占用 `127.0.0.1:8765` 报 `OSError: [Errno 98] Address already in use`。
+- 环境：`Assets/VLN/Editor/VlnManualDemoLauncherWindow.cs` 调用 `scripts/unity_menu_launch.sh`，后者用 `gnome-terminal` 等终端运行项目脚本。
+- 根因：Unity 菜单只是 fire-and-forget 启动外部终端，没有记录终端进程组，也没有在 Unity Editor 退出时执行清理；旧控制面板和 endpoint 因此可能继续占用端口。
+- 解决方案：新增 `scripts/unity_menu_terminal_session.sh` 作为菜单终端会话包装器，启动目标脚本前把当前终端进程组登记到 `.runtime/unity_menu/processes.tsv`；新增 `scripts/cleanup_unity_menu_processes.sh`，默认 `--tracked-only` 只清理登记过的菜单进程组，`--include-known` 额外清理历史残留的本项目控制面板/endpoint；面板和菜单新增“关闭 VLN 后台终端”手工清理入口。
+- 热修记录：第一版还加过外部 `unity_menu_watchdog.sh`，它会在菜单终端启动后监控 Unity PID；用户反馈“一打开就被关掉”后，已立即删除该外部 watchdog，并从 `unity_menu_terminal_session.sh` 中移除启动 watchdog 的逻辑。用户随后反馈仍然“一打开马上杀死”，说明 C# 侧 `[InitializeOnLoad]` / `EditorApplication.quitting` 自动清理 hook 仍有误杀风险；已删除 `VlnManualDemoLauncherCleanupHook`，彻底禁用 Unity 退出自动清理。
+- 验收方式：本轮先做静态和脚本级验证：`bash -n scripts/unity_menu_launch.sh scripts/unity_menu_terminal_session.sh scripts/cleanup_unity_menu_processes.sh` 通过；`scripts/unity_menu_launch.sh selftest` 通过；grep 确认代码中不再存在 `EditorApplication.quitting` 或 `InitializeOnLoad` 自动清理 hook。未启动 Unity batch，避免干扰用户当前 Editor。
+- 状态：当前有效方案是“登记 + 手动清理”，不再自动清理。后续如果 Unity 异常崩溃或端口残留，优先运行 `./scripts/cleanup_unity_menu_processes.sh --include-known`，不要手工乱杀无关 ROS2/rviz 进程；如果要恢复自动清理，必须另开小步方案并先做不会误杀新终端的验证。
+
+## 2026-08-18：Unity 菜单终端仍然一打开就关闭
+
+- 现象：用户按 `./scripts/open_unity_vln_project.sh` 打开 Unity 工程后，从顶部 `VLN -> 手工演示` 点击任意入口，终端会瞬间弹出并在约 1 秒后关闭。
+- 环境：`scripts/unity_menu_launch.sh` 通过 GNOME Terminal 启动 `scripts/unity_menu_terminal_session.sh`，再执行 endpoint、控制面板、RViz 或路线脚本；此时 C# 退出自动清理 hook 已删除，代码中不再订阅 `EditorApplication.quitting`。
+- 根因：终端包装器第一版为了方便按进程组清理使用了 `setsid` 重新隔离菜单终端会话，并且目标脚本退出后只用 `read` 等待用户回车。这个组合在 GNOME Terminal / Unity Process.Start 场景下不稳：一旦目标脚本很快退出或终端 stdin 状态异常，窗口会直接关闭，用户看不到真实错误。另一个问题是 `.runtime/unity_menu/processes.tsv` 会留下已退出会话的旧 PGID，手动清理时不应再对这些旧 PGID 发送信号。
+- 解决方案：`unity_menu_terminal_session.sh` 去掉 `setsid`，保留普通终端会话；每次启动创建 `.runtime/unity_menu/logs/<session>.log` 并用 `tee` 同步记录 stdout/stderr；目标脚本退出后，如果有 TTY 就 `exec bash --noprofile --norc` 保留窗口，用户可输入 `exit` 或直接关窗口。`cleanup_unity_menu_processes.sh` 改为只对仍活着的菜单会话 PID 执行进程组清理，跳过 stale record。
+- 验收方式：`bash -n scripts/unity_menu_launch.sh scripts/unity_menu_terminal_session.sh scripts/cleanup_unity_menu_processes.sh` 通过；`scripts/unity_menu_launch.sh selftest` 通过；用 `timeout` 直接跑包装器的失败目标，确认输出 `进程退出码：2` 后进入保留窗口逻辑；直接跑 endpoint 目标，确认能进入 `Starting server on 127.0.0.1:10000`，并产生 `.runtime/unity_menu/logs/debug_endpoint_*.log`。
+- 状态：已修复为“普通终端会话 + 落盘日志 + 退出后保留窗口”。下一步让用户重新从 Unity 菜单点击 endpoint 或控制面板；如果仍退出，直接查看 `.runtime/unity_menu/logs` 最新日志，不再靠瞬间弹窗猜。

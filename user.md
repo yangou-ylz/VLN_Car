@@ -52,6 +52,21 @@ Unity 顶部菜单打开：`VLN -> ROS2 手工演示面板`。
 
 这个面板只是帮你开新终端执行现有脚本，底层仍然是 ROS2 发布 `/vln/cmd_vel`，不是 Unity 内置导航。
 
+从这个 Unity 菜单启动的 endpoint、路线、相机、RViz 和中文控制面板都会被登记。当前为了避免“一打开就被误杀”，已经临时禁用 Unity 退出自动清理；需要关闭后台终端时手动点击面板里的 `关闭 VLN 后台终端`。
+
+菜单弹出的终端如果脚本报错，会保留窗口，不会再 1 秒自动关闭。对应日志在：
+
+```bash
+ls -lt /home/ubuntu22/VLN/.runtime/unity_menu/logs | head
+```
+
+如果 Unity 已经关了，或者下次启动控制面板遇到 `Address already in use`，就用：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/cleanup_unity_menu_processes.sh --include-known
+```
+
 ## 5. 终端 3：运行新增后段挑战路线演示
 
 ```bash
@@ -136,7 +151,17 @@ cd /home/ubuntu22/VLN
 
 ## 当前基线
 
-- 13 点自动路线当前通过 run id：`vln_scout_wheel_ground_route_20260817_183540`。
-- 16 点挑战路线当前通过 run id：`vln_scout_wheel_ground_challenge_route_20260817_182912`。
+- 13 点自动路线当前通过 run id：`vln_scout_wheel_ground_route_20260817_232310`。
+- 16 点挑战路线当前通过 run id：`vln_scout_wheel_ground_challenge_route_20260817_231723`。
 - 挑战区当前已归档三段截图：草地、青石路、沙地；自动回归会检查三段截图和视觉细节数量。
 - 关键约束：禁止隐藏托底、压平桥/坡、关闭碰撞、跳过卡点或放宽 gate 来掩盖失败。
+
+## 手动速度控制注意
+
+- 控制面板入口：`cd /home/ubuntu22/VLN && ./scripts/start_vln_control_panel.sh`。
+- 前提仍然是 Unity 已打开 `VLNOffroadScoutWheelGroundCandidate.unity`、endpoint 已启动、Unity 已点击 Play。
+- 速度控制模块支持两种操作：真实键盘按住 `↑/↓/←/→/A/D`，或者用鼠标按住网页里的箭头/A/D 屏幕按钮。
+- 如果只是单击一下屏幕按钮，小车只会短促动一下；要连续走，必须按住不松。
+- 线速度默认 `0.55m/s`，但可以用输入框或旁边 `+/-` 按钮调高，当前上限 `20.0m/s`，线速度按钮每次变化 `0.50m/s`；角速度默认 `0.42rad/s`，当前上限 `1.00rad/s`，角速度按钮每次变化 `0.05rad/s`。
+- 导出记录后，路径旁边有“复制路径”按钮；未导出前复制的是记录目录，导出后复制的是最新 JSON 文件路径。
+- 当前手动控制已经修过请求堆积和旧请求晚到问题，但体感仍以用户人工验收为准；如果它明显不如自动路线，不要继续进入阶段 19，先回到阶段 16 修手动控制。
