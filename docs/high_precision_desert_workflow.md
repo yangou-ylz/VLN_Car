@@ -5,9 +5,9 @@
 ## 当前定位
 
 - 阶段 20 已作为新主线回退基线冻结：Topgear 小车、四路相机、16 线 LiDAR、ROS2 topic/TF、手动控制和现有 13 点金标准路线均保持可恢复。
-- 阶段 21 不在旧低模挑战区继续小修小补，而是新建高精荒漠沙盒场景，再逐步接回 Topgear 小车和 ROS2 链路。
+- 阶段 21 不在旧低模挑战区继续小修小补，而是以用户已验收的 `Pure Nature 2 Mesa Desert 1.0` 完整场景为新底座，再逐步接回 Topgear 小车和 ROS2 链路。
 - 第一轮不切主工程渲染管线，不覆盖 `Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，不改 `config/topgear_sensor_pose_user_locked.json`，不改 `config/topgear_sensor_hierarchy_user_locked.json`，不改 `config/topgear_sensor_scene_locked/`。
-- 用户已把资产预算上限提高到 `100GB`；但当前执行目标已改为免费路线：Unity 官方 `Terrain Sample Asset Pack` 作为 Terrain 技术底座候选，Poly Haven/ambientCG 作为 CC0/PBR 资产来源，继续精修当前 `1km²` 自建高精荒漠沙盒。付费/账号大包只保留为备用候选池，不再作为当前下载目标。
+- 用户已把资产预算上限提高到 `100GB`；当前执行目标已从免费自建沙盒切换为本地 `Pure Nature 2 Mesa Desert 1.0` 完整大资产路线。旧 `1km²` 自建高精荒漠沙盒保留为回退和补充资产试验场，不再作为默认主线。
 
 ## 目录规则
 
@@ -17,7 +17,8 @@
 | 原始资产缓存 | `VLN_ASSETS_CACHE/high_precision_desert/raw_downloads/` | 原始 zip、glTF、FBX、贴图包 | 已忽略，不提交 |
 | 筛选子集 | `VLN_ASSETS_CACHE/high_precision_desert/selected_unity_subset/` | 2K/4K、小模型、LOD 子集 | 已忽略，不提交 |
 | 导入暂存 | `VLN_ASSETS_CACHE/high_precision_desert/import_staging/` | 解包和轴向/缩放检查 | 已忽略，不提交 |
-| Unity 沙盒场景 | `Assets/VLN/Scenes/VLNHighPrecisionDesertSandbox.unity` | 第一版高精荒漠 MVP | 后续小步创建 |
+| Unity 沙盒场景 | `Assets/VLN/Scenes/VLNHighPrecisionDesertSandbox.unity` | 第一版自建高精荒漠 MVP / 回退试验场 | 后续按需维护 |
+| Mesa 路线候选场景 | `Assets/VLN/Scenes/VLNMesaDesertRouteCandidate.unity` | 阶段 21 当前主工作场景，由 `Mesa_Demo.unity` 派生 | 保存在大资产副本工程，不提交大包内容 |
 | 大资产副本工程 | `UnityProjects/VLN_Offroad_LargeAssetSandbox/` | 只用于导入/验证 Asset Store/Fab 大场景包和 URP/HDRP | 已被 `UnityProjects/*` 默认忽略，不提交 |
 
 ## 阶段 0：冻结当前完美基线
@@ -64,14 +65,15 @@ cd /home/ubuntu22/VLN
 - 评估维度：授权清晰度、Unity 2022.3 兼容性、渲染管线、是否需要账号、包体、demo scene 完整度、能否迁移到 ROS2/Topgear 链路、是否有可用物理代理。
 - 如果整包明显优于当前自建沙盒且风险可控，就优先导入整包；否则继续在当前 1km² 自建沙盒上精修。
 
-当前执行目标：`Terrain Sample Asset Pack + Poly Haven/ambientCG self-built high precision desert sandbox`。也就是先继续把 `VLNHighPrecisionDesertSandbox.unity` 做大、做真实、做统一、做复杂：`1000m x 1000m` 室外尺度保持不变，地表、岩石、灌木、干河道、碎石带和路线周边细节要自然变化，不能机械重复。下载前排序表里的 `Coast & Dunes`、`Pure Nature 2 : Mojave Desert`、`Landscape Ground Pack 3` 等只保留为备用候选池和历史调研；除非用户再次明确选择并确认授权/购买，否则不作为当前下载目标。所有候选若以后重新启用，仍必须先在副本/沙盒中打开 demo scene 或扫描包内容，禁止直接污染主工程。
+当前执行目标：`Pure Nature 2 Mesa Desert 1.0 route candidate`。用户已经确认完整 Mesa 场景可用，当前从第三方 `Assets/BK/PureNature_MesaDesert/Scenes/Mesa_Demo.unity` 派生 VLN 自有工作场景 `Assets/VLN/Scenes/VLNMesaDesertRouteCandidate.unity`，并在该场景上增加不规则大石头、碎石、小树/仙人掌、草堆/灌木作为第一轮障碍丰富化。下载前排序表里的 `Coast & Dunes`、`Pure Nature 2 : Mojave Desert`、`Landscape Ground Pack 3` 等只保留为备用候选池和历史调研；后续若重新启用其它候选，仍必须先在副本/沙盒中打开 demo scene 或扫描包内容，禁止直接污染主工程。
 
-阶段 21 当前执行策略固定为“免费沙盒主线 + 大包备用池”：
+阶段 21 当前执行策略固定为“完整 Mesa 主线 + 自建沙盒回退 + 大包备用池”：
 
 | 路线 | 触发条件 | 下一步 |
 | --- | --- | --- |
-| 免费沙盒主线 | 当前默认路线 | 用官方 Terrain Sample、Poly Haven、ambientCG 和已有沙盒生成器继续增强 `1km²` 高精荒漠场景 |
-| 整包路线 | 用户以后重新选择完整 demo scene，且授权/购买/下载明确 | 只在 `VLN_Offroad_LargeAssetSandbox` 中接回 Topgear/ROS2，成为新荒漠主场景候选 |
+| Mesa 整包路线 | 当前默认路线 | 在 `VLN_Offroad_LargeAssetSandbox` 的 `VLNMesaDesertRouteCandidate.unity` 中继续丰富场景、接回 Topgear/ROS2 并建立新路线基线 |
+| 免费沙盒回退 | Mesa 路线出现不可接受风险或需要低成本试验 | 用官方 Terrain Sample、Poly Haven、ambientCG 和已有沙盒生成器继续维护 `1km²` 高精荒漠场景 |
+| 其它整包路线 | 用户以后重新选择其它完整 demo scene，且授权/购买/下载明确 | 只在 `VLN_Offroad_LargeAssetSandbox` 或新副本中验证，不能覆盖当前 Mesa 基线 |
 | 混合迁移 | 大包视觉资产强，但原 demo 路线、物理或管线不适合直接跑车 | 只迁移 TerrainLayer、岩石、植被、材质、天空和远景到当前 `1km²` 沙盒或新沙盒 |
 
 Fab/Unity 建筑、废土、遗迹、集市、工业前哨类完整场景可以作为大场景组织方式和模块化资产参考，但不替代自然荒漠越野主线。地形工具类资产可以在后续增强大场景生产效率，但不是第一轮完整场景下载目标。当前主工程是 Unity 2022.3.62f1；如果后续评估 Terrain Tools，应优先按 Unity 2022.3 对应的 5.0.x 版本，不要把 Unity 2023.1+ 的 Terrain Tools 5.1 当作当前工程安装目标。
@@ -131,7 +133,34 @@ cd /home/ubuntu22/VLN
 
 大资产进入 Unity 前必须执行判定协议：`VLN_REFERENCE_LIBRARY/high_precision_desert_research/large_asset_validation_protocol.md`。下载、扫描、副本导入、截图、迁移判断和 ROS2 回归分别对应 Gate 0 到 Gate 5，禁止跳过 Gate 0/1 直接导入主工程。
 
-### 当前免费沙盒验证入口
+### 当前 Mesa 路线候选验证入口
+
+构建并截图验证 Mesa 路线候选场景：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/run_pure_nature_mesa_desert_route_candidate_smoke_test.sh
+```
+
+希望看到 `VLN_PURE_NATURE_MESA_DESERT_ROUTE_CANDIDATE_SMOKE_TEST_PASS`。该脚本只在大资产副本工程中派生/刷新 VLN 自有场景、增加障碍、截图，不启动 ROS2，不改旧 Topgear 主场景。
+
+手工查看 Mesa 路线候选场景：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/open_pure_nature_mesa_desert_route_candidate.sh
+```
+
+兼容旧入口：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/open_pure_nature_mesa_desert_sandbox.sh
+```
+
+两个入口都会打开大资产副本工程中的 `Assets/VLN/Scenes/VLNMesaDesertRouteCandidate.unity`。第三方原始 `Assets/BK/PureNature_MesaDesert/Scenes/Mesa_Demo.unity` 不再作为默认工作场景，也不要直接覆盖它。
+
+### 免费沙盒回退验证入口
 
 构建并截图验证高精荒漠沙盒：
 

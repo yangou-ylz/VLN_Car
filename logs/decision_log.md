@@ -763,3 +763,11 @@
 - 执行：修正 `scripts/inspect_high_precision_large_asset_package.py` 对 `.unitypackage` 内部 `pathname` 的解析，避免只统计内部 preview 而误判；将包硬链接暂存到 `VLN_ASSETS_CACHE/high_precision_desert/raw_downloads/large_scene_packages/`；导入 `UnityProjects/VLN_Offroad_LargeAssetSandbox/` 副本工程；新增 `scripts/open_pure_nature_mesa_desert_sandbox.sh` 供用户手工打开 Mesa demo。
 - 验证：只读扫描分数 `86`，包含 2 个 scene、8 个 terrain 线索、86 个 prefab、83 个 model、236 个 texture、85 个 material/TerrainLayer，且无 ProjectSettings 风险。Unity 导入日志无 C# 编译错误，结尾 `Exiting batchmode successfully now!`。视觉加载 run id `vln_pure_nature_mesa_desert_20260822_005701` 通过：`terrain_count=1`、`renderer_count=21302`、`collider_count=16535`、`missing_material_slots=0`、`internal_error_materials=0`、`success=1`，截图已归档。
 - 风险控制：本轮只导入副本工程，不导入主工程；不改 `VLNOffroadScoutWheelGroundCandidate.unity`、Topgear 传感器锁定文件、13 点金标准路线、CUDA/PyTorch/ROS2 环境。物理建模、Topgear 接入和 ROS2 长链路等下一阶段必须等用户肉眼验收 Mesa 视觉后再做。
+
+## 2026-08-22：阶段 21 主线切换为 Mesa Desert 路线候选场景
+
+- 决策：用户已经肉眼确认 `Pure Nature 2 Mesa Desert 1.0` 完整场景可用，阶段 21 后续路线和精细化默认基于该完整场景推进；免费自建 `VLNHighPrecisionDesertSandbox.unity` 退为回退/试验场，不再是默认主线。
+- 场景策略：不覆盖第三方原始 `Assets/BK/PureNature_MesaDesert/Scenes/Mesa_Demo.unity`，而是在大资产副本工程中派生 VLN 自有场景 `Assets/VLN/Scenes/VLNMesaDesertRouteCandidate.unity`。旧入口 `scripts/open_pure_nature_mesa_desert_sandbox.sh` 改为兼容打开这份候选场景，新增明确入口 `scripts/open_pure_nature_mesa_desert_route_candidate.sh`。
+- 精细化：新增 `VlnPureNatureMesaDesertRouteCandidateBuilder.cs`，使用 Mesa 包自带 prefab，按固定随机种子不规则布置大石头、碎石、小树/仙人掌、草堆/灌木，并在场景中创建 `VLN_Mesa_ObstacleEnhancement` 和 `VLN_Mesa_RouteCandidate` 根节点，便于后续回滚和审计。
+- 验证：新增 `scripts/run_pure_nature_mesa_desert_route_candidate_smoke_test.sh`，最新 run id `vln_pure_nature_mesa_desert_route_candidate_20260822_013001` 通过：`route_waypoint_count=9`、`added_rock_count=130`、`added_rubble_count=50`、`added_tree_count=38`、`added_plant_count=265`、`missing_material_slots=0`、`internal_error_materials=0`，并生成 overview、route_start、route_middle、obstacle_closeup、top_layout 截图。
+- 风险控制：本轮只改大资产副本工程和文档/脚本；不把 Mesa 包导入 `UnityProjects/VLN_Offroad` 主工程，不改 Topgear 传感器锁定文件，不改旧 13 点金标准路线，不跑 ROS2 长链路。下一步应先让用户肉眼验收候选场景，再接入 Topgear/ROS2/物理路线并建立新的 Mesa 自动路线基线。

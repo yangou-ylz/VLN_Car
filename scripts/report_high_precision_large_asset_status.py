@@ -174,7 +174,20 @@ def dashboard() -> str:
         lines.append("- 当前没有真实大包扫描报告；已有 YOPO-Sim 只作为开源技术参考，不替代荒漠视觉大包。")
 
     target_name = str(target.get("name", "")) if target else ""
-    if target and "Pure Nature 2 Mesa Desert" in target_name:
+    target_gate = str(target.get("gate", "")) if target else ""
+    if target and "Pure Nature 2 Mesa Desert" in target_name and "Gate 3" in target_gate:
+        validation = target.get("validation_summary", {})
+        route_scene = validation.get("route_candidate_scene", "Assets/VLN/Scenes/VLNMesaDesertRouteCandidate.unity") if isinstance(validation, dict) else "Assets/VLN/Scenes/VLNMesaDesertRouteCandidate.unity"
+        lines.extend(
+            [
+                "- 当前活动路线已经切换为用户提供的本地 `Pure Nature 2 Mesa Desert 1.0` 完整场景，并已派生 VLN 自有路线候选场景。",
+                f"- 当前工作场景：`{route_scene}`；第三方原始 `Mesa_Demo.unity` 保持不覆盖。",
+                f"- 下载前候选排序只保留为备用候选池：{top_candidate_summary()}；当前不再按排序去下载其它包。",
+                "- 下一步是在该 Mesa 候选场景上做用户肉眼验收，然后接入 Topgear/ROS2/物理路线并建立新的 Mesa 自动路线基线。",
+                "",
+            ]
+        )
+    elif target and "Pure Nature 2 Mesa Desert" in target_name:
         lines.extend(
             [
                 "- 当前活动路线已切换为用户提供的本地 `Pure Nature 2 Mesa Desert 1.0` 包；它已经进入副本工程视觉加载验收阶段。",

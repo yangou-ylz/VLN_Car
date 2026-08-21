@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 
-# 打开阶段 21 大资产副本工程，并自动加载 Pure Nature 2 Mesa Desert 的 VLN 路线候选场景。
-# 该脚本名保留兼容；后续默认不再打开第三方原始 demo，而是打开 VLN 派生工作场景。
-# 不打开主工程、不接 ROS2、不改 Topgear 锁定场景。
+# 打开阶段 21 Pure Nature 2 Mesa Desert 的 VLN 路线候选场景。
+# 若候选场景尚不存在，会先从第三方 Mesa_Demo 派生一份，再打开给用户肉眼验收。
 
 set -eo pipefail
 
 VLN_ROOT="/home/ubuntu22/VLN"
 PROJECT_DIR="$VLN_ROOT/UnityProjects/VLN_Offroad_LargeAssetSandbox"
-SOURCE_SCENE_PATH="$PROJECT_DIR/Assets/BK/PureNature_MesaDesert/Scenes/Mesa_Demo.unity"
+SOURCE_SCENE="$PROJECT_DIR/Assets/BK/PureNature_MesaDesert/Scenes/Mesa_Demo.unity"
 
 if [ ! -d "$PROJECT_DIR" ]; then
   echo "未找到大资产副本工程：$PROJECT_DIR"
@@ -16,8 +15,8 @@ if [ ! -d "$PROJECT_DIR" ]; then
   exit 1
 fi
 
-if [ ! -f "$SOURCE_SCENE_PATH" ]; then
-  echo "未找到 Mesa demo scene：$SOURCE_SCENE_PATH"
+if [ ! -f "$SOURCE_SCENE" ]; then
+  echo "未找到 Mesa demo scene：$SOURCE_SCENE"
   echo "请先导入：$VLN_ROOT/VLN_ASSETS_CACHE/Pure Nature 2 Mesa Desert 1.0.unitypackage"
   exit 1
 fi

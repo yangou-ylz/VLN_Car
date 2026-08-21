@@ -248,9 +248,9 @@ cd /home/ubuntu22/VLN
 ./scripts/rank_high_precision_large_asset_candidates.py
 ```
 
-当前执行结论是：用户已取消当前付费 Mojave 路线，改为 Unity 官方免费 `Terrain Sample Asset Pack` + Poly Haven/ambientCG 继续精修自建 `1km²` 高精荒漠沙盒。`Coast & Dunes`、`Pure Nature 2 : Mojave Desert`、`Landscape Ground Pack 3` 等仍保留在候选排序里，但只作为备用调研池；除非用户重新明确选择并确认授权/购买，否则不要把它们作为当前下载目标。
+当前执行结论是：用户已经拿到并肉眼验收 `Pure Nature 2 Mesa Desert 1.0` 完整场景，阶段 21 默认主线切换为 Mesa Desert 路线候选场景。`Coast & Dunes`、`Pure Nature 2 : Mojave Desert`、`Landscape Ground Pack 3` 和免费 `Terrain Sample Asset Pack` 仍保留在候选排序里，但现在只作为备用调研池或回退方案；除非用户重新明确选择并确认授权/下载，否则不要把它们作为当前执行目标。
 
-当前判断：先按免费沙盒主线推进，不回到低模拼接，也不为了省事购买不确定的大包。当前重点是把现有 `VLNHighPrecisionDesertSandbox.unity` 做得更大、更真实、更统一、更复杂：地表、岩石、灌木、干河道、碎石带、路线边缘和远景都要自然变化，不能机械重复。
+当前判断：先按 Mesa Desert 完整资产主线推进，不再回到旧低模挑战区，也不把免费自建 `VLNHighPrecisionDesertSandbox.unity` 当默认主线。当前重点是把 `VLNMesaDesertRouteCandidate.unity` 做成新的高精荒漠路线底座：路线要自然，障碍要不规则，后续物理代理和 Topgear/ROS2 接入都基于它。
 
 当前规则：正式下载任何大资产前，必须先更新预算表；总下载硬上限 `100GB`。免费官方 Terrain 包或以后重新启用的大型完整荒漠/越野场景包都只能进入副本/沙盒验证，禁止直接覆盖主工程、Topgear 锁定场景或主工程 ProjectSettings。
 
@@ -290,7 +290,42 @@ cd /home/ubuntu22/VLN
 ./scripts/open_unity_large_asset_sandbox_project.sh
 ```
 
-后续如果重新启用 `Pure Nature 2 : Mojave Desert`、`Coast & Dunes` 这类 Asset Store/Fab 大包，只能导入这个副本工程，不要导入主工程 `UnityProjects/VLN_Offroad`。当前免费沙盒路线一般不需要打开副本工程，除非要验证官方 Terrain Sample 包或新的大包。
+后续如果重新启用 `Pure Nature 2 : Mojave Desert`、`Coast & Dunes` 这类 Asset Store/Fab 大包，只能导入这个副本工程，不要导入主工程 `UnityProjects/VLN_Offroad`。当前 Mesa Desert 主线也在这个副本工程内推进。
+
+## 阶段 21：Pure Nature 2 Mesa Desert 当前主工作场景
+
+现在高精荒漠主线已经切到你验收过的 `Pure Nature 2 Mesa Desert 1.0` 完整场景。默认工作场景不是第三方原始 `Mesa_Demo.unity`，而是 VLN 派生场景：
+
+```text
+UnityProjects/VLN_Offroad_LargeAssetSandbox/Assets/VLN/Scenes/VLNMesaDesertRouteCandidate.unity
+```
+
+手工打开给你看效果：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/open_pure_nature_mesa_desert_route_candidate.sh
+```
+
+兼容旧入口也会打开同一个 VLN 候选场景：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/open_pure_nature_mesa_desert_sandbox.sh
+```
+
+自动截图验收入口：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/run_pure_nature_mesa_desert_route_candidate_smoke_test.sh
+```
+
+希望看到 `VLN_PURE_NATURE_MESA_DESERT_ROUTE_CANDIDATE_SMOKE_TEST_PASS`。这一步只刷新 Mesa 候选场景、增加不规则石块/碎石/仙人掌/草灌木并截图，不启动 ROS2，不改旧 Topgear 主场景。
+
+当前最新通过：`vln_pure_nature_mesa_desert_route_candidate_20260822_013001`。场景里有 9 个候选路线点，新增 `130` 个石/碎石障碍、`38` 个树/仙人掌、`265` 个草堆/灌木，材质丢失和 InternalError shader 都为 `0`。
+
+注意：不要直接改第三方原始 `Assets/BK/PureNature_MesaDesert/Scenes/Mesa_Demo.unity`；后续所有路线、物理代理、Topgear/ROS2 接入都基于 `VLNMesaDesertRouteCandidate.unity`。
 
 如果浏览器或 Unity Asset Store 已把大场景包下载到本地，把原始 `.unitypackage`、`.zip`、`.tar` 或解包目录放到：
 
@@ -370,11 +405,11 @@ cd /home/ubuntu22/VLN
 
 在 Unity 里打开 `Assets/VLN/Scenes/VLNHighPrecisionDesertSandbox.unity`。这是阶段 21 的独立高精荒漠沙盒，不是旧 Topgear 主场景。
 
-## 阶段 21 免费沙盒下一步
+## 阶段 21 免费沙盒回退
 
-当前下载预算硬上限是 `100GB`，不是旧的 `1GB` 小样本限制。但本轮不再主动购买或下载 Mojave；当前执行顺序是：继续精修 `VLNHighPrecisionDesertSandbox.unity`，必要时通过 Unity 官方入口获取 `Terrain Sample Asset Pack`，再用 Poly Haven/ambientCG 继续补地表、岩石、灌木、干河道、碎石带、路线边缘和远近景融合。建筑/废土/遗迹/集市类 Fab 包只作为参考，不替代自然越野荒漠主线。
+当前下载预算硬上限是 `100GB`，不是旧的 `1GB` 小样本限制。免费沙盒现在不是默认主线，而是 Mesa Desert 路线出现风险、需要低成本试验，或需要补充资产/材质方法时使用的回退场。建筑/废土/遗迹/集市类 Fab 包只作为参考，不替代当前 Mesa Desert 自然越野荒漠主线。
 
-### 查看当前免费沙盒
+### 查看免费沙盒回退场景
 
 自动截图验收：
 
