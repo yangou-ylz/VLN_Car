@@ -547,3 +547,219 @@
 - 备选项：继续只打开前向 rqt；或把所有图像查看都放到外部终端；或把四路图像做成复杂控制面板。
 - 理由：当前演示重点是 Topgear 四路相机和 LiDAR，不再需要在 Unity 面板里保留旧 13 点路线按钮。用户需要低干扰查看画面：rqt 用于 ROS topic 级验证，Unity 内部小窗口用于快速看当前场景四个 Camera 视角。
 - 影响：新增 `VlnTopgearCameraPreviewWindow.cs` 和 `scripts/view_all_camera_images.sh`。内部预览不启动终端，不改 ROS2 topic；rqt 入口会打开四个 `rqt_image_view`。`全部相机` 打开时单路相机按钮禁用。
+
+## 2026-08-21：阶段 21 新开高精度荒漠环境主线
+
+- 决策：阶段 20 Topgear 小车、四路相机、16 线 LiDAR、ROS2 控制链路、手动控制链路和 13 点金标准路线冻结为“高精荒漠主线回退基线”；新主线命名为阶段 21：高精度荒漠环境视觉渲染 + 小车真实物理交互。
+- 备选项：继续在旧低模挑战区修补；直接下载大型完整荒漠包导入主工程；直接切 HDRP/URP 主工程；直接进入 VLN 算法训练。
+- 理由：用户已经验收阶段 20 主链路，继续在旧低模挑战区补丁式提升会越来越难维护。高精荒漠需要从授权、资产体积、渲染管线、物理代理和 ROS2 回归重新分阶段搭建，才能既提升视觉质量又保护现有可演示链路。
+- 影响：新增 `docs/high_precision_desert_workflow.md`、`scripts/check_high_precision_desert_phase0_baseline.sh`、`VLN_REFERENCE_LIBRARY/high_precision_desert_research/` 和 `VLN_ASSETS_CACHE/high_precision_desert/` 三层缓存目录。第一轮只做调研和预算，默认不下载大资产；总下载硬上限为 40GB，单资产预计超过 5GB 先暂停汇报。
+
+## 2026-08-21：高精荒漠资产优先使用 CC0/免登录来源
+
+- 决策：阶段 21 第一轮资产优先级为 Poly Haven 和 ambientCG，Fab/Quixel、Unity Asset Store 和其他第三方包只作为调研候选，不默认下载或导入主工程。
+- 备选项：直接使用 Fab/Quixel Megascans；购买或导入 Unity Asset Store 完整场景包；继续只用 Kenney/程序化几何。
+- 理由：Poly Haven/ambientCG 授权清晰、可脚本化记录来源，适合论文展示可追溯。Fab/Quixel 和 Asset Store 视觉质量可能更高，但账号、授权、包体和导入设置风险更大；Kenney 等轻量资产适合占位，视觉精度不足以作为本阶段主力。
+- 影响：本地调研表为 `VLN_REFERENCE_LIBRARY/high_precision_desert_research/high_precision_asset_candidates.md`，预算表为 `VLN_REFERENCE_LIBRARY/high_precision_desert_research/download_budget.md`。正式下载前必须补齐具体资产页、许可证、文件体积和 Unity 导入计划。
+
+## 2026-08-21：高精荒漠场景面积提升到固定室外规模
+
+- 决策：阶段 21 沙盒地形不再采用 80m/150m 小闭环表述，用户要求至少 `7000㎡`。第一版按 `120m x 120m = 14400㎡` 设计，后续可按性能和路线需要扩大。
+- 备选项：维持原 80m 到 150m 小闭环；直接做巨大开放世界；先做 120m x 120m 固定室外沙盒。
+- 理由：当前目标是固定室外荒漠仿真场景，面积过小会像室内/庭院，无法承载荒漠岩壁、砂地、碎石路、植被遮挡和完整演示路线；扩大场景面积必须同时使用 LOD、GPU Instancing、物理代理简化和近路线高精原则控制性能。
+- 影响：阶段 21 文档和后续 Unity 沙盒构建脚本都以 `120m x 120m` 为默认初版，不再按小院级场景设计。
+
+## 2026-08-21：第一批 Poly Haven 高精荒漠资产下载并导入沙盒
+
+- 决策：第一批只下载 Poly Haven CC0 小样本：3 组 4K PBR 地表/岩壁材质、2 个 4K HDRI、1 个 4K 岩石模型、2 个 2K 干旱植被模型；使用 JPG/HDR/FBX，避开 8K/16K 和大 EXR/PNG。
+- 理由：用户要求资产要高精且业内常用，但当前仍处于沙盒导入验证阶段，不能一开始把 8K/16K 大包和授权复杂资产导入工程。Poly Haven 质量、授权和可追溯性适合作为第一版专业资产基底。
+- 影响：下载通过本地代理 `127.0.0.1:7897` 完成，38 个文件约 `235.99MB`；生成 `VLNHighPrecisionDesertSandbox.unity`，地形面积 `14400㎡`，视觉 smoke test 通过。后续重点是远近景融合、路线自然化和物理代理一致性，而不是继续在旧低模挑战区补丁式修改。
+
+## 2026-08-21：阶段 21 预算上限提升并启动完整场景包调研
+
+- 决策：阶段 21 下载预算硬上限从 `40GB` 提高到 `100GB`；后续采用“大资产整包评估 + 当前 1km² 自建沙盒精修”的并行路线。
+- 备选项：继续只用小样本零散资产；直接把第三方完整场景导入主工程；先调研完整包并在副本/沙盒验证。
+- 理由：用户明确指出 1GB 小样本策略过保守，且成熟游戏环境包可能比逐个手工搭建更高效。直接导入主工程仍有风险，因为第三方场景可能改渲染管线、ProjectSettings、后处理和依赖，且不会自动满足 Topgear/ROS2/物理代理约束。
+- 影响：新增 `large_asset_scene_research.md`。当前整包首选候选为 `Pure Nature 2 : Mojave Desert`；免费技术底座候选为 Unity 官方 `Terrain Sample Asset Pack`；Fab `Realistic Desert Pack` 因 Unreal Engine 格式暂不作为 Unity 第一验证目标。
+
+## 2026-08-21：大资产整包候选重新排序
+
+- 决策：把 `Coast & Dunes` 提升为视觉真实度第一候选，把 `Pure Nature 2 : Mojave Desert` 保留为低风险荒漠整包候选，把 Unity 官方 `Terrain Sample Asset Pack` 保留为免费技术底座。大资产验证目录固定为 `VLN_ASSETS_CACHE/high_precision_desert/raw_downloads/large_scene_packages/`，扫描输出固定到 `VLN_REFERENCE_LIBRARY/high_precision_desert_research/large_asset_inspections/`。
+- 备选项：继续纯手工扩展当前沙盒；直接购买/导入 Mojave；先下载 Unreal/Fab 高质量包再迁移；直接把 URP/HDRP 大包导入主工程。
+- 理由：`Coast & Dunes` 页面和发布者资料显示它有 1km x 1km demo、扫描资产、4K 贴图、LOD、实例化植被和大量 prefab，最接近用户要求的专业游戏级真实场景；但它是付费且偏 URP/HDRP，因此只能在副本工程先验证。`Mojave Desert` 更贴近荒漠主题且 Unity 2022.3 风险更低，但视觉可能不如扫描资产路线。官方 Terrain 包不是整包场景，但可补当前 1km² 沙盒的地形工具和 PBR 工作流。
+- 影响：更新 `large_asset_scene_research.md`、`high_precision_asset_candidates.md`、`download_budget.md`、`source_index.md`、`user.md`、`workflow.md`、`PROJECT_MEMORY.md`；`scripts/inspect_high_precision_large_asset_package.py` 已通过语法检查并加执行权限。后续下载大包前仍要确认账号/购买/授权，但不再按 1GB 小样本策略限制推进。
+
+## 2026-08-21：大资产扫描入口完成
+
+- 决策：新增 `scripts/scan_high_precision_large_scene_packages.sh` 作为大包批量只读扫描入口；它扫描 `VLN_ASSETS_CACHE/high_precision_desert/raw_downloads/large_scene_packages/` 下的一层文件/目录，并把 JSON 报告写入 `VLN_REFERENCE_LIBRARY/high_precision_desert_research/large_asset_inspections/`。
+- 理由：用户要求后续可以直接开始大资产验证；单包扫描脚本已经有了，但下载多个包后逐个手动写 output 容易出错。批量入口能保证下载后马上形成统一报告，且不会导入 Unity 或改工程。
+- 验证：已运行 `./scripts/scan_high_precision_large_scene_packages.sh`，当前目录为空，正确输出 `VLN_HIGH_PRECISION_LARGE_ASSET_SCAN_NO_PACKAGES`；`bash -n` 通过，脚本已加执行权限。
+- 影响：更新 `CURRENT_STATE.md`、`workflow.md`、`docs/high_precision_desert_workflow.md` 和 `user.md`。下一步若用户已在 Unity 账号中购买/加入资产，只需下载后放入 `large_scene_packages/` 再运行该脚本。
+
+## 2026-08-21：高精荒漠沙盒地表材质混合修复
+
+- 决策：修正 `VlnHighPrecisionDesertSandboxProjectSetup.cs` 的 TerrainLayer 和 alphamap 逻辑，沙层真实使用 `aerial_sand` diffuse/normal；岩层和 cliff 层降低大块浅色权重；外圈视觉地形也改用沙地材质，避免俯视图出现突兀白色/黄色大块。
+- 理由：用户前序反馈过沙漠中出现白色/黄色突兀层。当前大资产包尚未下载，仍需把已有 1km² 自建沙盒作为稳定可控底座；这次修复只改阶段 21 独立沙盒，不碰旧 Topgear 主场景、ROS2 或传感器锁定。
+- 验证：已运行 `./scripts/run_high_precision_desert_sandbox_visual_smoke_test.sh`，通过 run id `vln_high_precision_desert_sandbox_20260821_185310`，`terrain_size_m=1000.0`、`terrain_area_m2=1000000`、`collider_count=522`、`success=1`。截图亮白像素比例接近 0，俯视图只剩自然黄褐沙色。
+- 影响：更新并保存 `Assets/VLN/Scenes/VLNHighPrecisionDesertSandbox.unity`、TerrainData 和 TerrainLayer 资产。后续大资产未下载前，继续以该沙盒作为自建精修底座。
+
+## 2026-08-21：大资产副本 Unity 工程准备完成
+
+- 决策：新增并运行 `scripts/prepare_high_precision_large_asset_sandbox_project.sh`，创建 `/home/ubuntu22/VLN/UnityProjects/VLN_Offroad_LargeAssetSandbox/`，用于导入/验证 Asset Store/Fab 大场景包和 URP/HDRP 管线。
+- 理由：当前主工程是已验收的 Unity-ROS2/Topgear 链路，不能让第三方大包修改主工程 `ProjectSettings`、渲染管线、Lighting、Quality 或 Packages。`Coast & Dunes` 明确不支持 Built-in，只能在副本工程验证。
+- 验证：脚本已执行成功，输出 `VLN_HIGH_PRECISION_LARGE_ASSET_SANDBOX_READY`；副本只复制 `Assets`、`Packages`、`ProjectSettings`，排除 `Library`、`Temp`、`Obj`、`Logs`、`Builds`、`UserSettings` 等生成目录。
+- 影响：更新 `CURRENT_STATE.md`、`docs/high_precision_desert_workflow.md` 和 `user.md`。后续下载大包后先扫描，再导入 `VLN_Offroad_LargeAssetSandbox`，不碰主工程。
+
+## 2026-08-21：大资产扫描评分与 Built-in 兼容候选补充
+
+- 决策：新增 `scripts/rank_high_precision_large_asset_inspections.py`，用于汇总 `inspect_high_precision_large_asset_package.py` 生成的 JSON 报告，按 scene、terrain、prefab、model、texture、pipeline、ProjectSettings 和 physics 线索输出 Markdown 排序报告。批量扫描脚本现在会生成 `large_asset_ranking.md`。
+- 补充候选：新增 Fab `Modular Post Apocalyptic Desert Environment / Unity Engine`，页面显示 Unity format、playable demo map，并兼容 HDRP/URP/Built-in；它不替代自然荒漠第一候选 `Coast & Dunes`，但作为当前 Built-in 工作流的低风险大包备选。
+- 理由：用户要求“综合评估后继续往下走”，不能只列资产名。下载后必须有可复用评分机制，先判断大包是否有 scene、terrain、prefab、物理/碰撞线索和工程污染风险，再决定是否导入副本工程。
+- 验证：`rank_high_precision_large_asset_inspections.py` 语法检查通过；当前无 inspection JSON 时能生成占位报告；`scan_high_precision_large_scene_packages.sh` 在空目录下输出 `VLN_HIGH_PRECISION_LARGE_ASSET_SCAN_NO_PACKAGES` 并生成 `large_asset_ranking.md`。另用 Python 临时目录构造带 `.unity` scene、terrainlayer、30 个模型、35 个贴图、22 个 prefab、ProjectSettings 和 physics 线索的模拟包，扫描评分为 `80`，建议为“优先导入副本工程：场景/物理线索较完整”。
+- 影响：更新 `large_asset_scene_research.md`、`high_precision_asset_candidates.md`、`source_index.md`、`download_budget.md`、`docs/high_precision_desert_workflow.md` 和 `user.md`。
+
+## 2026-08-21：大资产导入判定协议建立
+
+- 决策：新增 `VLN_REFERENCE_LIBRARY/high_precision_desert_research/large_asset_validation_protocol.md`，把大资产从下载到迁移分成 Gate 0 到 Gate 5：来源预算、只读扫描、副本工程导入、视觉/性能截图、迁移决策、物理与 ROS2 回归。
+- 理由：用户要求“仔细调研并综合评估后继续往下走”，因此不能下载后直接导入，也不能只凭截图决定。需要明确什么时候走整包路线、什么时候走混合迁移、什么时候继续自建精修。
+- 影响：后续任何大包都必须先过 Gate 0/1，再进入 `VLN_Offroad_LargeAssetSandbox`；只有 Gate 4 明确迁移后，才接 Topgear、ROS2 和新荒漠自动路线。
+
+## 2026-08-21：本地大包查找/暂存入口与免费 smoke-test 候选
+
+- 决策：新增 `scripts/find_high_precision_large_scene_packages.sh` 和 `scripts/stage_high_precision_large_scene_package.sh`。前者只读搜索 VLN 缓存、浏览器下载目录和 Unity 缓存中的 `.unitypackage/.zip/.tar` 等文件；后者把用户指定的资产包复制到 `VLN_ASSETS_CACHE/high_precision_desert/raw_downloads/large_scene_packages/`，并做 100GB 单包上限检查。
+- 补充候选：新增 `Poly Desert [FREE]` 和 `Low-Poly Desert Environment Pack` 作为免费低模 smoke-test 候选。它们适合验证下载、扫描和副本导入流程，但不满足高精主路线视觉质量。
+- 验证：已运行本地查找脚本，发现 `~/下载/robot_market.zip` 等压缩包；只读查看 `robot_market.zip` 后确认其主要内容为 mp4/json/parquet 数据集，不是 Unity 场景包，因此不纳入大资产验证。脚本已通过 `bash -n`，并已加执行权限。
+- 影响：更新 `large_asset_scene_research.md`、`high_precision_asset_candidates.md`、`source_index.md`、`docs/high_precision_desert_workflow.md` 和 `user.md`。后续用户下载大包后，不需要猜路径，可先运行 find 脚本定位。
+
+## 2026-08-21：YOPO-Sim 开源越野仿真参考扫描
+
+- 决策：通过本地代理浅克隆 `https://github.com/TJU-Aerial-Robotics/YOPO-Sim` 到 `VLN_REFERENCE_LIBRARY/high_precision_desert_research/open_source_simulators/YOPO-Sim/`，并用大资产扫描器评估其结构。
+- 理由：YOPO-Sim 是 Unity 2022.3+、Apache-2.0、多传感器越野环境仿真项目，包含 ROS Integration、UnitySensors、随机 terrain/vegetation 和 data generation，和本项目技术路线高度相关。它能提供路线和架构参考，而不只是视觉资产。
+- 验证：本地浅克隆约 `12MB`。扫描输出 `YOPO-Sim_inspection.json`：`scene_package_score=72`、`scene_count=30`、`terrain_asset_count=20`、`prefab_count=37`、`has_project_settings=1`、`has_pipeline_hint=1`、`has_physics_hint=1`；排序报告建议“优先导入副本工程：场景/物理线索较完整”。
+- 风险：YOPO-Sim README 要求额外导入 Vista 和 Unity Terrain URP Demo Scene 等免费 Asset Store 包；当前克隆体不是完整高精荒漠视觉资产包，因此不直接导入主工程，也不替代 `Coast & Dunes` / `Pure Nature 2` 的大资产路线。
+- 影响：更新 `large_asset_scene_research.md`、`high_precision_asset_candidates.md`、`source_index.md` 和 `CURRENT_STATE.md`。
+
+## 2026-08-21：确认阶段 21 先走完整大资产验证路线
+
+- 决策：阶段 21 不再以 `1GB` 小样本策略推进；`1GB` 只保留为第一批 Poly Haven 链路测试历史。后续优先寻找和验证成熟完整 Unity 荒漠/越野场景包，下载总硬上限保持 `100GB`。
+- 路线：大包先过 Gate 0/1，再进入 `UnityProjects/VLN_Offroad_LargeAssetSandbox/`；通过视觉/性能截图后再决定整包路线、混合迁移或继续自建精修。
+- 理由：用户明确要求固定室外大场景和游戏/业内常用级别资产。成熟 demo scene 如果有 Terrain、PBR、LOD、植被、岩石、光照和远近景融合，通常比继续零散手工搭建更高效。
+- 风险控制：第三方大包可能改 Render Pipeline、ProjectSettings、Lighting、Quality、Packages 和 shader；因此禁止直接导入主工程，禁止覆盖 Topgear 传感器锁定、旧主场景和 13 点金标准路线。
+- 本地状态：已通过本地代理保存 `Coast & Dunes` 和 `Terrain Sample Asset Pack` 的网页快照；Fab 页面命令行抓取受 403/SSL 限制，后续以浏览器账号页面和下载包扫描为准。再次扫描确认 `large_scene_packages/` 当前为空，没有可导入的大包。
+- 影响：更新 `large_asset_scene_research.md`、`high_precision_asset_candidates.md`、`download_budget.md`、`source_index.md` 和 `CURRENT_STATE.md`。
+
+## 2026-08-21：补充 Fab/Asset Store 完整场景与岩石包候选
+
+- 决策：新增 `Western Desert Town Environment / Unity` 作为 Fab Unity 格式完整 demo-map 备选；新增 `Desert Rocks Pack` 作为混合迁移路线的岩石/峡谷/石山补充资产候选。
+- 理由：用户要求继续调研成熟游戏/业内常用大资产。`Western Desert Town` 页面线索显示 Unity format、playable demo map 和 HDRP/URP/Built-in 兼容，适合验证大包导入流程；`Desert Rocks Pack` 有 LOD/collider/demo scene 线索，适合增强当前 1km² 沙盒的路边岩石、峡谷和物理代理。
+- 限制：两个新增候选不改变当前主优先级。自然荒漠视觉上限仍优先 `Coast & Dunes`，低风险自然荒漠整包仍优先 `Pure Nature 2 : Mojave Desert`；Western/城镇/废土/遗迹类包只作为副本验证或结构参考，不能直接替代自然越野荒漠路线。
+- 影响：更新 `large_asset_scene_research.md`、`high_precision_asset_candidates.md` 和 `source_index.md`。
+
+## 2026-08-21：建立下载前候选加权评分矩阵
+
+- 决策：新增 `large_asset_candidate_matrix.json` 和 `scripts/rank_high_precision_large_asset_candidates.py`，生成 `large_asset_candidate_ranking.md`，把在线候选按视觉真实度、自然越野贴合、完整 demo scene、Unity 2022 适配、Built-in 风险、物理迁移价值和下载可得性加权排序。
+- 结果：当前加权排序为 `Coast & Dunes` 第一、`Pure Nature 2 : Mojave Desert` 第二、`Terrain Sample Asset Pack` 第三、`Modular Post Apocalyptic Desert Environment / Unity Engine` 和 `Western Desert Town Environment / Unity` 并列第二梯队。
+- 解释：`Terrain Sample Asset Pack` 排名高是因为免费、低风险、官方技术底座价值高，但它不是完整荒漠场景，不能替代 `Coast & Dunes` 或 `Mojave Desert` 的整包验证路线。
+- 影响：更新 `large_asset_acquisition_shortlist.md`、`CURRENT_STATE.md` 和 `source_index.md`。后续每次新增候选先更新 JSON 矩阵，再重算 Markdown 排序。
+
+## 2026-08-21：增强本地大包查找脚本
+
+- 决策：`scripts/find_high_precision_large_scene_packages.sh` 增加 `~/Unity/Asset Store-5.x`、Unity Hub Snap/Flatpak 等潜在缓存目录，并支持 `VLN_LARGE_ASSET_MIN_MB` 控制最小显示体积。
+- 验证：默认 `1MB` 阈值能显示下载目录中的候选压缩包；`VLN_LARGE_ASSET_MIN_MB=100` 能过滤小杂项，只保留 100MB 以上候选。当前仍未发现真正 Unity 荒漠大场景包。
+- 影响：更新 `large_asset_acquisition_shortlist.md`，下载目录混杂时建议用 `VLN_LARGE_ASSET_MIN_MB=100 ./scripts/find_high_precision_large_scene_packages.sh`。
+
+## 2026-08-21：开源 terrain 仓库验证未采纳
+
+- 决策：尝试浅克隆 `TheWizardsCode/Terrains` 作为免费开源 terrain/heightmap 技术底座候选，但不纳入阶段 21 大资产候选。
+- 验证：`git ls-remote` 可访问远端 HEAD；随后通过代理浅克隆和 blob 过滤时在约 120 秒后因 `GnuTLS recv error` / `unexpected disconnect` 中断。残留目录约 `30MB`，`git status` 显示大量缺失文件和 `.git/index.lock`。
+- 处理：残留目录已改名为 `VLN_REFERENCE_LIBRARY/high_precision_desert_research/open_source_terrain_assets/Terrains.partial_20260821_203123`，并新增 `open_source_terrain_assets/README.md` 标记禁止导入/评分。
+- 结论：该路线当前不如成熟 Unity/Fab/Asset Store 场景包可靠；主线仍优先 `Coast & Dunes` / `Pure Nature 2 : Mojave Desert` / 官方 `Terrain Sample Asset Pack`。
+
+## 2026-08-21：建立阶段 21 大资产状态面板
+
+- 决策：新增 `scripts/report_high_precision_large_asset_status.py`，生成 `VLN_REFERENCE_LIBRARY/high_precision_desert_research/large_asset_status_report.md`，把下载前候选排序、本地暂存大包、inspection 扫描报告和下一步命令合并到一个面板。
+- 理由：阶段 21 文档和脚本较多，后续每次继续时不应反复手工翻 `candidate_ranking`、`large_scene_packages`、`large_asset_inspections` 和短名单。状态面板提供一个低成本、可复算的入口。
+- 验证：脚本已运行成功，报告显示当前 `large_scene_packages/` 为空、真实大包扫描报告为空、YOPO-Sim 仅为开源技术参考，候选排序前 3 为 `Coast & Dunes`、`Pure Nature 2 : Mojave Desert`、`Terrain Sample Asset Pack`。
+- 影响：更新 `CURRENT_STATE.md` 和 `source_index.md`。后续每次大资产下载/扫描后先运行 `./scripts/report_high_precision_large_asset_status.py` 刷新状态。
+
+## 2026-08-21：建立大资产 Gate 0 预算/授权检查
+
+- 决策：新增 `scripts/check_high_precision_large_asset_gate0.py`，生成 `VLN_REFERENCE_LIBRARY/high_precision_desert_research/large_asset_gate0_report.md`，用于检查来源、授权/账号状态、预留预算和 100GB 硬上限。
+- 验证：脚本已运行成功，当前 `raw_downloads` 占用约 `0.23GB`，`large_scene_packages` 为 `0.00GB`，候选预留预算合计约 `49.36GB`，未超过 `100GB` 硬上限。`Terrain Sample Asset Pack` 被正确标记为“可优先下载验证”，付费/Fab/Asset Store 候选仍需账号/授权确认。
+- 结论：Gate 0 已证明预算和来源/授权风险可控；但还不能进入 Gate 1，原因是本机仍没有真实 Unity/Fab/Asset Store 大场景包。
+- 影响：更新 `CURRENT_STATE.md`、`user.md` 和 `source_index.md`。后续下载前/下载后都应运行该脚本刷新预算状态。
+
+## 2026-08-21：阶段 21 二次调研后选择“完整大资产优先验证”
+
+- 决策：阶段 21 下一步先按成熟完整 Unity/Fab/Asset Store 荒漠/越野大场景包验证推进，而不是继续只靠零散 Poly Haven/ambientCG 手工拼接；当前自建 `1km²` 沙盒保留为可控 ROS2/物理接入底座和回退路线。
+- 备选项：继续精修当前自建沙盒；直接把付费大包导入主工程；先拿完整大包进入缓存/副本工程验证后再决定整包迁移或混合迁移。
+- 理由：用户要求的是固定室外大场景和游戏/业内常用级资产，成熟 demo scene 若包含 Terrain、PBR、LOD、植被、岩石、光照和远近景融合，效率和视觉上限通常高于继续手工堆资产。直接导入主工程风险过高，因为第三方大包可能修改 Render Pipeline、ProjectSettings、Lighting、Quality、Packages 和 shader。
+- 验证：候选矩阵新增 `Desert Environment - Town & Palace | CITADEL` 作为成熟大场景结构参考；重算 `large_asset_candidate_ranking.md`、`large_asset_gate0_report.md` 和 `large_asset_status_report.md` 后，排序仍为 `Coast & Dunes` 第一、`Pure Nature 2 : Mojave Desert` 第二、`Terrain Sample Asset Pack` 第三，候选预留预算约 `55.96GB`，没有超过 `100GB`。
+- 影响：更新 `CURRENT_STATE.md`、`PROJECT_MEMORY.md`、`user.md`、`source_index.md`、`large_asset_scene_research.md`、`large_asset_acquisition_shortlist.md` 和候选评分矩阵。当前 `large_scene_packages/` 仍为空，不能伪造导入验证；真实大包下载后必须先走 Gate 1 只读扫描，再进 `UnityProjects/VLN_Offroad_LargeAssetSandbox/`。
+
+## 2026-08-21：扩展 Pure Nature 系列和车辆路线/材质补强候选
+
+- 决策：在候选矩阵中新增 `Pure Nature 2 : Mesa Desert`、`Pure Nature 2 : Oasis Desert`、`Desert Race Track: High-Speed Car Racing Environment` 和 `80+ Realistic Desert Environment Textures - Sand, Rocks & More`；`Desert Industrial Outpost` 因 Fab 命令行抓取只返回 Cloudflare 安全检查，暂不进入主排序。
+- 理由：用户要求找“市面上或业内常用、精度高、渲染能力强”的完整荒漠/越野场景，不能只停留在已有候选。Pure Nature 同系列能形成自然荒漠整包备选池；Race Track 对车辆路线验证有价值；80+ Textures 能补当前沙盒近景地表，但不能替代完整场景。
+- 结果：重算下载前排序后，前四名为 `Coast & Dunes`、`Pure Nature 2 : Mojave Desert`、`Pure Nature 2 : Mesa Desert`、`Pure Nature 2 : Oasis Desert`。`Terrain Sample Asset Pack` 退到第五，但仍是免费技术底座首选。`Desert Race Track` 排第六，定位为车辆路线验证备选。`80+ Textures` 排在补强类，明确不是完整场景。
+- 预算：Gate 0 候选预留预算更新为约 `71.63GB`，仍低于 `100GB` 硬上限；真实下载前仍必须确认账号/授权，下载后先只读扫描。
+- 影响：更新 `large_asset_candidate_matrix.json`、`large_asset_candidate_ranking.md`、`large_asset_gate0_report.md`、`large_asset_status_report.md`、`high_precision_asset_candidates.md`、`large_asset_scene_research.md`、`large_asset_acquisition_shortlist.md` 和 `source_index.md`。
+
+## 2026-08-21：第三轮大资产调研加入可平铺荒漠候选和老牌峡谷参考
+
+- 决策：新增 `Desert Terrain - Sand Storm and Dune Environment` 作为 Fab 可平铺荒漠/沙丘第二路线候选；新增 `PDG Canyon Terrain Vol1` 作为低优先级老牌峡谷地形参考；状态面板候选排序显示范围从前 8 扩到前 12，便于看到第二梯队候选。
+- 理由：用户要求不要只保守地一块块拼，而要继续寻找更接近游戏/业内常用的大场景资产。可平铺荒漠包可能比手工铺沙丘更高效；老峡谷包可作为地形形态参考，但版本太旧，不能压过自然荒漠第一梯队。
+- 风险控制：Fab 命令行快照仍是 Cloudflare 安全检查页，不能当授权、包体或 demo scene 证据；必须等浏览器/账号页面或真实下载包扫描。`PDG Canyon Terrain Vol1` 虽然 Asset Store 快照可提取约 `0.86GB`、146 assets 和付费状态，但只能作为低优先级参考。
+- 验证：`python3 -m json.tool` 检查候选矩阵通过；`python3 -m py_compile` 检查相关 Python 脚本通过；`bash -n` 检查大资产 shell 脚本通过；重算排序/Gate 0/状态面板后候选预留预算约 `83.49GB`，仍低于 `100GB`，`scan_high_precision_large_scene_packages.sh` 仍正确报告 `VLN_HIGH_PRECISION_LARGE_ASSET_SCAN_NO_PACKAGES`。
+- 影响：更新 `large_asset_candidate_matrix.json`、`large_asset_candidate_ranking.md`、`large_asset_gate0_report.md`、`large_asset_status_report.md`、`large_asset_scene_research.md`、`large_asset_acquisition_shortlist.md`、`download_budget.md`、`source_index.md`、`CURRENT_STATE.md` 和 `PROJECT_MEMORY.md`。主工程、Topgear 锁定文件、13 点金标准路线均未改动。
+
+## 2026-08-21：低模免费包只保留为 smoke-test，不进入高精主线
+
+- 决策：新增 `large_asset_download_attempts.md` 记录实际下载尝试。itch `Poly Desert [FREE]` 页面可通过本地代理访问，CSRF/cookie POST 可拿到临时下载页 URL，但最终 zip 请求被重定向回商品页；不继续绕 itch 前端/会话机制。
+- 理由：该包是 1.9MB 低模 CC0 Unity package，只适合测试下载/扫描/副本导入链路，视觉精度和场景规模都不满足高精荒漠主线。继续在低模包自动下载上消耗时间，会偏离用户要求的成熟完整大资产路线。
+- 影响：`Poly Desert [FREE]` 和 `Low-Poly Desert Environment Pack` 保留为浏览器/Unity 官方入口的 smoke-test 候选；阶段 21 主优先级仍是 `Coast & Dunes`、`Pure Nature 2` 系列、官方 `Terrain Sample Asset Pack` 和 Fab/Unity 格式完整 demo-map 备选。`100GB` 预算硬上限保持有效，主工程、Topgear 锁定文件和 13 点金标准路线均未改动。
+
+## 2026-08-21：同步大资产第四轮排序和 100GB 预算面板
+
+- 决策：重算并同步 `large_asset_candidate_ranking.md`、`large_asset_gate0_report.md` 和 `large_asset_status_report.md`。当前下载前排序前三为 `Coast & Dunes`、`Pure Nature 2 : Mojave Desert`、`Landscape Ground Pack 3 (Desert Dry Land Beach Sea Islands Coast)`。
+- 理由：状态面板旧输出仍显示旧排序，容易让后续继续按 `Terrain Sample Asset Pack` 第三的旧口径推进。`Landscape Ground Pack 3` 与 `Coast & Dunes` 同源，作为扫描地表/terrain/material demo base，对远近景融合和地表真实度有高价值，但不是完整车辆路线包。
+- 预算：Gate 0 候选预留预算约 `84.22GB`，低于用户允许的 `100GB` 硬上限；当前 `raw_downloads` 约 `0.23GB`，`large_scene_packages` 仍为空。
+- 风险控制：状态面板默认显示候选范围从前 12 扩到前 20，避免截断；真实大包仍必须先进入 `VLN_ASSETS_CACHE/high_precision_desert/raw_downloads/large_scene_packages/`，只读扫描后再导入 `UnityProjects/VLN_Offroad_LargeAssetSandbox/`。
+- 影响：更新 `CURRENT_STATE.md`、`PROJECT_MEMORY.md`、`workflow.md`、`user.md`、`docs/high_precision_desert_workflow.md`、`large_asset_acquisition_shortlist.md`、`large_asset_scene_research.md`、`download_budget.md` 和 `source_index.md`。本轮未下载真实大包、未导入 Unity、未改主工程、Topgear 锁定文件或 13 点金标准路线。
+
+## 2026-08-21：阶段 21 确认按完整大资产 Gate 1 验证推进
+
+- 决策：预算硬上限保持 `100GB`，阶段 21 下一步优先获取并验证成熟完整荒漠/越野大场景包，而不是继续只靠 Poly Haven/ambientCG 零散手工拼接。
+- 最新排序：`Coast & Dunes` 第一，用于验证视觉真实度上限；`Pure Nature 2 : Mojave Desert` 第二，用于验证自然荒漠低风险整包；`Landscape Ground Pack 3` 第三，用于验证扫描地表/terrain/material 底座和混合迁移价值。
+- 三路线：真实包体下载后先 Gate 1 只读扫描，再导入 `UnityProjects/VLN_Offroad_LargeAssetSandbox/` 截图验证；通过后按“整包路线 / 混合迁移 / 自建精修”择优。建筑、废土、遗迹、工业和集市类大包只作为结构参考或兼容性备选，不替代自然越野荒漠主线。
+- 验证：重算 `large_asset_candidate_ranking.md`、`large_asset_gate0_report.md` 和 `large_asset_status_report.md` 通过；Gate 0 候选预留预算约 `89.32GB`，低于 `100GB`；当前 `raw_downloads` 约 `0.23GB`，`large_scene_packages` 仍为 `0.00GB`。`scan_high_precision_large_scene_packages.sh` 输出 `VLN_HIGH_PRECISION_LARGE_ASSET_SCAN_NO_PACKAGES`，说明本机还没有可进入 Gate 1 的真实大包。
+- 来源处理：已通过本地代理刷新 `Coast & Dunes` 发布者页和 Unity Terrain Tools 5.1 文档快照；Fab `Modular Post Apocalyptic Desert` 与 `Desert Industrial Outpost` 仍返回 Cloudflare challenge，不能作为授权、体积或 demo scene 证据。
+- 风险控制：本轮只更新文档、预算、状态面板和来源索引；未下载真实大包、未导入 Unity、未改主工程、Topgear 锁定文件、13 点金标准路线、CUDA/PyTorch/ROS2 环境。
+
+## 2026-08-21：用户选择 Mojave 作为当前 Gate 1 目标
+
+- 决策：用户明确选择 `Pure Nature 2 : Mojave Desert` 作为本轮第一个真实大包验证目标。
+- 执行顺序：当前先获取 Mojave 包体，再暂存、只读扫描和副本工程导入验证；`Coast & Dunes` 保留为后续视觉上限备选，`Landscape Ground Pack 3` 保留为地表/terrain/material 混合迁移底座。
+- 本地状态：再次查找本机大包缓存和下载目录，`large_scene_packages/` 仍为空；`~/下载/IsaacGym_Preview_4_Package.tar.gz` 与 `~/下载/robot_market.zip` 不是 Unity 荒漠场景包。
+- 风险控制：Mojave 是 Unity Asset Store 付费/账号资产，必须通过用户 Unity 账号合法获取；没有真实包体前不伪造导入、截图或通过状态。下载后仍禁止直接导入主工程，只能走 `VLN_ASSETS_CACHE` 暂存和 `UnityProjects/VLN_Offroad_LargeAssetSandbox/` 副本工程验证。
+
+## 2026-08-21：Mojave 目标页刷新和副本工程打开入口
+
+- 决策：新增 `scripts/open_unity_large_asset_sandbox_project.sh`，专门打开 `UnityProjects/VLN_Offroad_LargeAssetSandbox/`，用于 Asset Store/Fab 大包下载、导入和截图验证，避免误导入主工程。
+- 来源：通过本地代理 `127.0.0.1:7897` 刷新保存 `Pure Nature 2 : Mojave Desert` 页面快照到 `VLN_REFERENCE_LIBRARY/high_precision_desert_research/web_snapshots/pure_nature_2_mojave_desert_assetstore_refresh3.html`；页面显示 File size 1.2GB、Latest version 1.1、Latest release date Jul 31, 2026、Original Unity version 2022.3.10。
+- 验证：`bash -n scripts/open_unity_large_asset_sandbox_project.sh`、`scripts/find_high_precision_large_scene_packages.sh`、`scripts/stage_high_precision_large_scene_package.sh` 通过；批处理打开副本工程最终正常退出，日志结尾为 `Exiting batchmode successfully now!`。`find_high_precision_large_scene_packages.sh` 已补充搜索项目内 `.unity_user/cache`、`.unity_user/config`、`.unity_user/data`，避免用副本工程下载后找不到包体；`stage_high_precision_large_scene_package.sh` 已支持文件和解包目录两种暂存输入。本机 `large_scene_packages/` 仍为空，说明 Mojave 真实包体尚未下载。
+- 风险控制：本轮未导入 Mojave、未改主工程、未改 Topgear 传感器锁定文件、未跑 13 点/16 点长路线；下一步仍是用户账号合法下载后 Gate 1 只读扫描。
+
+## 2026-08-21：阶段 21 切换为免费 Terrain + CC0/PBR 高精沙盒路线
+
+- 决策：用户看到 `Pure Nature 2 : Mojave Desert` 页面显示付费价格后，明确要求改为 Unity 官方免费 `Terrain Sample Asset Pack` + Poly Haven/ambientCG 继续做高精荒漠沙盒。当前活动目标写入 `active_large_asset_target.json`，付费/账号资产不再作为当前下载目标。
+- 理由：当前主需求是“场景大、真实、精度高、风格统一、复杂且自然”，而不是立即购买不确定的大包。免费 Terrain 技术底座 + 已下载 CC0/PBR 资产可以继续增强现有 `1km²` 沙盒，同时保留可控性、ROS2 接入边界和 Topgear 基线安全。
+- 执行状态：沙盒生成器已增强非机械重复布局，包括岩石簇、碎石带、干河道、路线碎石细节和更随机的灌木/树分布；最新视觉 smoke test `vln_high_precision_desert_sandbox_20260822_001123` 通过，`terrain_area_m2=1000000`、`rock_cluster_count=236`、`pebble_count=370`、`dry_shrub_count=520`、`quiver_tree_count=72`、`collider_count=402`。
+- 风险控制：`Coast & Dunes`、`Pure Nature 2` 系列、`Landscape Ground Pack 3` 等保留为备用候选池和历史调研；若以后重新启用，仍只能进 `VLN_ASSETS_CACHE` 或 `UnityProjects/VLN_Offroad_LargeAssetSandbox/`，禁止直接覆盖主工程、Topgear 锁定文件或 13 点金标准路线。
+
+## 2026-08-22：Pure Nature 2 Mesa Desert 1.0 本地包导入副本工程通过
+
+- 决策：用户已拿到 `/home/ubuntu22/VLN/VLN_ASSETS_CACHE/Pure Nature 2 Mesa Desert 1.0.unitypackage`，当前阶段 21 活动目标切换为 Mesa Desert 视觉加载验收；只有用户肉眼验收通过后，才进入 Topgear/ROS2/路线迁移。
+- 执行：修正 `scripts/inspect_high_precision_large_asset_package.py` 对 `.unitypackage` 内部 `pathname` 的解析，避免只统计内部 preview 而误判；将包硬链接暂存到 `VLN_ASSETS_CACHE/high_precision_desert/raw_downloads/large_scene_packages/`；导入 `UnityProjects/VLN_Offroad_LargeAssetSandbox/` 副本工程；新增 `scripts/open_pure_nature_mesa_desert_sandbox.sh` 供用户手工打开 Mesa demo。
+- 验证：只读扫描分数 `86`，包含 2 个 scene、8 个 terrain 线索、86 个 prefab、83 个 model、236 个 texture、85 个 material/TerrainLayer，且无 ProjectSettings 风险。Unity 导入日志无 C# 编译错误，结尾 `Exiting batchmode successfully now!`。视觉加载 run id `vln_pure_nature_mesa_desert_20260822_005701` 通过：`terrain_count=1`、`renderer_count=21302`、`collider_count=16535`、`missing_material_slots=0`、`internal_error_materials=0`、`success=1`，截图已归档。
+- 风险控制：本轮只导入副本工程，不导入主工程；不改 `VLNOffroadScoutWheelGroundCandidate.unity`、Topgear 传感器锁定文件、13 点金标准路线、CUDA/PyTorch/ROS2 环境。物理建模、Topgear 接入和 ROS2 长链路等下一阶段必须等用户肉眼验收 Mesa 视觉后再做。

@@ -2,7 +2,7 @@
 
 本文件是每次继续工作的第一层短上下文，用来替代过去每次全量阅读长日志的低效流程。它不取代 `AGENTS.md`、`PROJECT_MEMORY.md`、`workflow.md`、`env.md` 或 `logs/issue_log.md`；它只负责把当前阶段、不可破坏的基线和下一步读取策略压缩到一个短文件里。
 
-更新时间：2026-08-20
+更新时间：2026-08-21
 
 ## 启动读取策略
 
@@ -32,6 +32,43 @@
 - 新增真实性硬约束：挑战区后续必须做“视觉-物理一致”的材质交互。草地、沙地、青石/石板路不能只是视觉贴图；主要接触形状必须有简化物理代理、材质摩擦/阻尼或接触逻辑，允许简化但不能脱离真实材质特性。
 
 ## 当前主线
+
+2026-08-21 起进入阶段 21：高精度荒漠环境视觉渲染 + 小车真实物理交互。阶段 20 Topgear 小车、四路相机、16 线 LiDAR、ROS2 控制链路、手动控制链路和 13 点金标准路线被定义为本新主线的完美完成回退基线。阶段 21 第一轮只做基线冻结、资产/授权/预算调研和独立沙盒准备；不覆盖现有主场景，不改 Topgear 传感器锁定文件，不跑会重建主场景的旧脚本。
+
+阶段 21 当前产物：
+
+- 工作流文档：`docs/high_precision_desert_workflow.md`。
+- 只读基线检查：`scripts/check_high_precision_desert_phase0_baseline.sh`。
+- 受控资产下载器：`scripts/download_high_precision_desert_sample_assets.py`。
+- 沙盒视觉验收：`scripts/run_high_precision_desert_sandbox_visual_smoke_test.sh`。
+- Unity 沙盒场景：`UnityProjects/VLN_Offroad/Assets/VLN/Scenes/VLNHighPrecisionDesertSandbox.unity`，当前已推进为 `1000m x 1000m = 1,000,000㎡`。
+- 大资产副本工程：`UnityProjects/VLN_Offroad_LargeAssetSandbox/`，由 `scripts/prepare_high_precision_large_asset_sandbox_project.sh` 创建，只用于导入/验证 Asset Store/Fab 大场景包和 URP/HDRP，不作为主工程。
+- 调研库：`VLN_REFERENCE_LIBRARY/high_precision_desert_research/`。
+- 资产候选表：`VLN_REFERENCE_LIBRARY/high_precision_desert_research/high_precision_asset_candidates.md`。
+- 下载预算表：`VLN_REFERENCE_LIBRARY/high_precision_desert_research/download_budget.md`。
+- 大资产下载前短名单：`VLN_REFERENCE_LIBRARY/high_precision_desert_research/large_asset_acquisition_shortlist.md`。
+- 大资产实际下载尝试记录：`VLN_REFERENCE_LIBRARY/high_precision_desert_research/large_asset_download_attempts.md`。
+- 大资产候选评分：`VLN_REFERENCE_LIBRARY/high_precision_desert_research/large_asset_candidate_matrix.json`、`large_asset_candidate_ranking.md`，重算脚本为 `scripts/rank_high_precision_large_asset_candidates.py`。
+- 大资产状态面板：`VLN_REFERENCE_LIBRARY/high_precision_desert_research/large_asset_status_report.md`，生成脚本为 `scripts/report_high_precision_large_asset_status.py`。
+- 大资产 Gate 0 检查：`VLN_REFERENCE_LIBRARY/high_precision_desert_research/large_asset_gate0_report.md`，生成脚本为 `scripts/check_high_precision_large_asset_gate0.py`。
+- 大资产验证协议：`VLN_REFERENCE_LIBRARY/high_precision_desert_research/large_asset_validation_protocol.md`。
+- 资产缓存三层目录：`VLN_ASSETS_CACHE/high_precision_desert/raw_downloads/`、`selected_unity_subset/`、`import_staging/`。
+
+阶段 21 当前进展：Poly Haven 第一批 CC0 高精资产已通过本地代理 `127.0.0.1:7897` 下载，38 个文件，总量约 `235.99MB`；包含 `aerial_sand`、`aerial_ground_rock`、`cliff_side`、`goegap/goegap_road`、`boulder_01`、`didelta_spinosa`、`quiver_tree_01`。沙盒视觉 smoke test 已通过，生成 6 张固定机位截图；当前仅代表 Built-in 视觉导入/MVP，不代表最终论文展示质量。2026-08-21 已修正地表材质混合：沙层改用 `aerial_sand` diffuse/normal，岩层/悬崖降低大块高亮权重，外圈视觉地形改用沙地材质；随后继续增强为 `1000m x 1000m = 1,000,000㎡` 的高精荒漠沙盒，加入非机械重复的岩石簇、碎石带、干河道、路线碎石细节、随机灌木/树分布和更多碰撞代理。最新沙盒视觉 smoke test `vln_high_precision_desert_sandbox_20260822_001123` 通过：`terrain_area_m2=1000000`、`polyhaven_texture_count=35`、`polyhaven_model_count=3`、`boulder_count=132`、`rock_ridge_count=90`、`rock_cluster_count=236`、`pebble_count=370`、`dry_shrub_count=520`、`quiver_tree_count=72`、`collider_count=402`。
+
+阶段 21 当前执行路线：用户已提供本地 `Pure Nature 2 Mesa Desert 1.0.unitypackage`，当前活动目标切换为 Mesa Desert 大资产 Gate 2 视觉加载验收。该包已暂存到 `VLN_ASSETS_CACHE/high_precision_desert/raw_downloads/large_scene_packages/Pure Nature 2 Mesa Desert 1.0.unitypackage`，只读扫描分数 `86`，包含 2 个 Unity scene、1 个 Terrain、86 个 prefab、83 个 FBX、236 个贴图、85 个材质/TerrainLayer，未发现 ProjectSettings 风险。包已导入 `UnityProjects/VLN_Offroad_LargeAssetSandbox/` 副本工程，`Mesa_Demo.unity` 已 batch 打开并截图验收通过，run id `vln_pure_nature_mesa_desert_20260822_005701`；统计为 `terrain_count=1`、`renderer_count=21302`、`collider_count=16535`、`missing_material_slots=0`、`internal_error_materials=0`。当前等待用户肉眼验收，用户确认后再把阶段 21 路线转换为 Mesa Desert 场景。
+
+当前活动目标：用户运行 `scripts/open_pure_nature_mesa_desert_sandbox.sh` 打开大资产副本工程中的 `Assets/BK/PureNature_MesaDesert/Scenes/Mesa_Demo.unity` 进行肉眼验收。验收通过前禁止把主路线转换为 Mesa，禁止把 Mesa 包直接导入 `UnityProjects/VLN_Offroad` 主工程，禁止覆盖 Topgear 传感器锁定文件或 13 点金标准路线。本阶段先不做物理建模和 ROS2 长链路，只确认场景加载/视觉是否可用。
+
+大资产只读扫描入口：把 `.unitypackage`、`.zip`、`.tar` 或解包目录放到 `VLN_ASSETS_CACHE/high_precision_desert/raw_downloads/large_scene_packages/`，再运行 `scripts/scan_high_precision_large_scene_packages.sh` 批量扫描，或运行 `scripts/inspect_high_precision_large_asset_package.py <path> --output VLN_REFERENCE_LIBRARY/high_precision_desert_research/large_asset_inspections/<name>_inspection.json` 扫描单个包。扫描只统计内容，不导入 Unity，不改工程；当前空目录检查输出 `VLN_HIGH_PRECISION_LARGE_ASSET_SCAN_NO_PACKAGES`。排序报告由 `scripts/rank_high_precision_large_asset_inspections.py` 生成到 `VLN_REFERENCE_LIBRARY/high_precision_desert_research/large_asset_inspections/large_asset_ranking.md`。
+
+大包下载后定位/暂存入口：如果不知道浏览器或 Unity 下载到了哪里，先运行 `scripts/find_high_precision_large_scene_packages.sh`；找到目标包后运行 `scripts/stage_high_precision_large_scene_package.sh '<资产包完整路径>'` 复制到 VLN 大资产缓存目录，再运行扫描。2026-08-21 已确认 `~/下载/robot_market.zip` 是 mp4/json/parquet 数据集，不是 Unity 场景包。
+
+开源参考：已通过本地代理浅克隆 `YOPO-Sim` 到 `VLN_REFERENCE_LIBRARY/high_precision_desert_research/open_source_simulators/YOPO-Sim/`，它是 Apache-2.0、Unity 2022.3+、多传感器越野机器人仿真参考。扫描报告 `YOPO-Sim_inspection.json` 分数为 `72`，包含 30 个 scene、TerrainData、Prefabs、ProjectSettings、pipeline/physics 线索；但它依赖 Vista 和 Unity Terrain URP Demo Scene 等额外 Asset Store 包，不作为直接替换高精荒漠视觉的大资产。
+
+大资产副本工程入口：`scripts/prepare_high_precision_large_asset_sandbox_project.sh` 已运行并创建 `UnityProjects/VLN_Offroad_LargeAssetSandbox/`。打开副本工程使用 `scripts/open_unity_large_asset_sandbox_project.sh`，它复用 Unity 2022.3.62f1、项目内 Unity 缓存和本地代理 `127.0.0.1:7897`。后续如重新启用 `Coast & Dunes`、`Pure Nature 2` 或其他 Asset Store/Fab 大包，只能导入该副本工程，禁止直接导入 `UnityProjects/VLN_Offroad/` 主工程。当前免费路线不要求打开副本工程，除非要验证官方 Terrain Sample 包或新的大包。
+
+## 已完成基础主线
 
 项目当前不是完整 VLN 算法阶段，而是 Unity3D 越野仿真环境 + ROS2 感知/控制链路阶段。已经跑通：
 

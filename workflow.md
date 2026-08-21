@@ -24,7 +24,10 @@
 18. Scout wheel-ground 后段挑战场地扩展：在旧桥/坡基线后追加草地、青石路、沙地和低矮可越障碍，仍使用自主路线演示并保持旧 13 点金标准可回归。
 19. Topgear V2 上装视觉替换/叠加：把师兄提供的涂装上装 mesh 正确安装到 Scout 车身上方，只替换视觉上装，不改底盘物理、轮地动力学、ROS2 topic/TF 和已有传感器链路。
 20. Topgear 传感器挂载/标定：在已确认的 Topgear 上装上安装 1 个 16 线 LiDAR 和 4 个 RGB 相机，输出标准 ROS2 Image、CameraInfo、PointCloud2 和 TF；传感器视觉件不参与车体物理。
-21. 进入 VLN 感知层数据集/训练/算法对接。
+21. 高精度荒漠环境视觉渲染 + 小车真实物理交互：冻结阶段 20 Topgear 完美基线，新建独立高精荒漠沙盒场景，先做资产/授权/预算调研，再导入小样本资产和物理代理，最后接回 Topgear 小车、四路相机、16 线 LiDAR 和 ROS2 控制链路。
+22. 进入 VLN 感知层数据集/训练/算法对接。
+
+阶段 21 的最新执行口径：不再按 `100m x 100m` 或 `1GB` 小样本思路推进；当前沙盒面积按 `1000m x 1000m` 室外场景执行，下载预算硬上限为 `100GB`。用户已明确取消当前付费 Mojave 路线，改为 Unity 官方免费 `Terrain Sample Asset Pack` + Poly Haven/ambientCG 的 CC0/PBR 资产继续精修自建高精荒漠沙盒。付费/账号大包只保留为备用候选池；除非用户再次明确选择并确认授权/购买，否则不作为当前下载目标。所有大包必须先进 `VLN_ASSETS_CACHE` 或 `UnityProjects/VLN_Offroad_LargeAssetSandbox/`，禁止直接导入或覆盖阶段 20 Topgear 主场景、传感器锁定文件和 13 点金标准路线。
 
 ## 阶段 0：项目约束与记忆机制
 
@@ -716,6 +719,46 @@ TF status=0
 阶段 20 完成定义：Unity 中能看到官方 VLP-16 DAE 和官方 D405 STL 安装在 Topgear 上装对应位置；ROS2 能收到 4 路 Image、4 路 CameraInfo、1 路 PointCloud2 和完整 TF；传感器视觉件保持 `topgear_sensor_collider_count=0`、`topgear_sensor_rigidbody_count=0`；旧自建外观残留计数必须为 0；13 点金标准路线不退化。当前完成后交给用户按手工流程亲自查看，不默认继续跑 16 点挑战自动回归。
 
 Unity 手工演示面板更新：`VLN -> ROS2 手工演示面板` 删除 13 点自动路线入口；相机查看改为右侧选项栏。`rqt` 入口调用 `scripts/view_all_camera_images.sh` 打开四路 `rqt_image_view`；`全部相机/前相机/后相机/左相机/右相机` 使用 Unity Editor 内部相机预览窗口直接显示当前 Camera 画面，不弹终端。打开 `全部相机` 时单路相机入口禁用，关闭全部窗口后恢复。
+
+## 阶段 21：高精度荒漠环境视觉渲染 + 小车真实物理交互
+
+- 目标：不再继续在旧低模挑战区上小修小补，而是新建独立高精荒漠沙盒场景，逐步实现真实荒漠视觉、合理物理代理、Topgear 小车和 ROS2 感知/控制闭环。
+- 回退基线：阶段 20 已冻结为高精荒漠主线的回退点。Topgear 小车、四路相机、16 线 LiDAR、ROS2 topic/TF、手动控制、13 点金标准路线和三重传感器锁定文件必须保持可恢复。
+- 禁止默认改动：`Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`、`config/topgear_sensor_pose_user_locked.json`、`config/topgear_sensor_hierarchy_user_locked.json`、`config/topgear_sensor_scene_locked/` 和阶段 20 传感器外观/位姿。
+- 新文档：`docs/high_precision_desert_workflow.md`。
+- 调研库：`VLN_REFERENCE_LIBRARY/high_precision_desert_research/`。
+- 资产缓存：`VLN_ASSETS_CACHE/high_precision_desert/`，分 `raw_downloads/`、`selected_unity_subset/`、`import_staging/` 三层。
+- 下载预算：总下载硬上限 `100GB`；100GB 以内的完整 Unity 荒漠/越野场景包可以进入副本/沙盒验证。大包必须先记录授权、价格/账号、Unity 版本、渲染管线、包体、是否带 demo scene、是否可能改 ProjectSettings，再下载或导入；禁止直接覆盖主工程和 Topgear 锁定状态。
+- 当前执行倾向：用户已取消当前付费 Mojave 路线，改为 Unity 官方免费 `Terrain Sample Asset Pack` + Poly Haven/ambientCG 继续精修当前 `1km²` 高精荒漠沙盒。成熟完整大场景包保留为备用候选池；除非用户再次明确选择并确认授权/购买，否则不作为当前下载目标。不要在没有真实大包的情况下伪造导入结果，也不要用低模或机械重复布局冒充高精荒漠主线。
+
+阶段 21 分段：
+
+1. 阶段 0 冻结当前完美基线：运行只读脚本确认锁定文件、主场景、最近通过记录和恢复入口存在。
+2. 阶段 1 资产与工作流调研清单：记录 Poly Haven、ambientCG、Fab/Quixel、Unity Asset Store、Kenney/GitHub/MCP 工具候选，不下载大资产。
+3. 阶段 2 渲染管线沙盒验证：Built-in 先行，URP 只在副本沙盒评估，HDRP 暂不作为第一轮默认。
+4. 阶段 3 荒漠场景 MVP：创建 `VLNHighPrecisionDesertSandbox.unity`，用 Terrain/高度图和外部 PBR/模型建立固定室外荒漠路线；当前沙盒已推进到 `1000m x 1000m = 1,000,000㎡`，后续按 1km² 室外场景继续精修，不能再按小院级场景设计。
+5. 阶段 4 物理代理与材质一致性：TerrainCollider + 简化 Collider + Physic Material/接触分类；禁止隐藏托底。
+6. 阶段 5 接入 Topgear 小车与传感器：topic/frame 保持阶段 20 命名和频率，先不提高图像/点云负载。
+7. 阶段 6 高精荒漠自动演示路线：新建荒漠路线，沿用 ROS2 外部控制链路，不复用旧 13 点路线本体。
+8. 阶段 7 性能与论文展示质量优化：LOD、GPU Instancing、剔除、纹理压缩、固定截图和性能记录。
+
+阶段 21 当前已完成：阶段 0/1 的文档骨架、调研目录、资产候选表和下载预算表已建立；Poly Haven 第一批 CC0 小样本资产已通过本地代理下载并镜像到 Unity 工程；`VLNHighPrecisionDesertSandbox.unity` 已推进为 `1000m x 1000m = 1,000,000㎡`。沙盒生成器已增强非机械重复布局，包括岩石簇、碎石带、干河道、路线碎石细节和更随机的灌木/树分布；最新视觉 smoke test `vln_high_precision_desert_sandbox_20260822_001123` 已通过。下一步按免费沙盒主线继续精修，重点是远近景融合、更自然荒漠路线、视觉-物理一致的 Terrain/碰撞/材质代理，以及用户肉眼确认。`Coast & Dunes`、`Pure Nature 2`、`Landscape Ground Pack 3` 等只作为备用候选池；如果以后重新启用，真实大包下载后仍按“整包路线 / 混合迁移 / 自建精修”判定推进。
+
+只读基线检查入口：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/check_high_precision_desert_phase0_baseline.sh
+```
+
+沙盒视觉验收入口：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/run_high_precision_desert_sandbox_visual_smoke_test.sh
+```
+
+阶段 21 完成定义：用户肉眼确认荒漠场景达到游戏级/论文展示级视觉基础；小车车轮与可见路面接触一致；沙地、硬土、碎石、岩坡、植被有合理物理代理和材质交互；四路 Image/CameraInfo、LiDAR PointCloud2、TF、odom、cmd_vel 保持稳定；自动荒漠路线无 stall、无穿模、无隐藏托底；所有资产来源和许可可追溯。
 
 ## 工作流管理规则
 

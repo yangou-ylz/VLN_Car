@@ -196,3 +196,271 @@ cd /home/ubuntu22/VLN
 - 线速度默认 `0.55m/s`，但可以用输入框或旁边 `+/-` 按钮调高，当前上限 `20.0m/s`，线速度按钮每次变化 `0.50m/s`；角速度默认 `0.42rad/s`，当前上限 `1.00rad/s`，角速度按钮每次变化 `0.05rad/s`。
 - 导出记录后，路径旁边有“复制路径”按钮；未导出前复制的是记录目录，导出后复制的是最新 JSON 文件路径。
 - 当前手动控制已经修过请求堆积和旧请求晚到问题，但体感仍以用户人工验收为准；如果它明显不如自动路线，不要继续进入阶段 19，先回到阶段 16 修手动控制。
+
+## 阶段 21：高精荒漠主线入口
+
+阶段 21 先做高精荒漠环境，不覆盖旧主场景，不改 Topgear 传感器锁定文件。
+
+只读确认阶段 20 回退基线：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/check_high_precision_desert_phase0_baseline.sh
+```
+
+查看阶段 21 工作流：
+
+```bash
+cd /home/ubuntu22/VLN
+less docs/high_precision_desert_workflow.md
+```
+
+查看资产候选和下载预算：
+
+```bash
+cd /home/ubuntu22/VLN
+less VLN_REFERENCE_LIBRARY/high_precision_desert_research/high_precision_asset_candidates.md
+less VLN_REFERENCE_LIBRARY/high_precision_desert_research/download_budget.md
+```
+
+查看当前大资产阶段状态面板：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/report_high_precision_large_asset_status.py
+```
+
+它会汇总：下载前候选排序、本地是否已有大包、扫描报告、下一步命令。当前没有真实大包时会明确显示 `large_scene_packages/` 为空。
+
+检查 Gate 0 来源/授权/预算是否满足：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/check_high_precision_large_asset_gate0.py
+```
+
+它会显示当前 100GB 总预算、已下载体积、候选预留预算、每个候选是否需要账号/授权确认。当前免费技术底座 `Terrain Sample Asset Pack` 会显示为“可优先下载验证”，但仍不能直接导入主工程。
+
+重算下载前候选评分：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/rank_high_precision_large_asset_candidates.py
+```
+
+当前执行结论是：用户已取消当前付费 Mojave 路线，改为 Unity 官方免费 `Terrain Sample Asset Pack` + Poly Haven/ambientCG 继续精修自建 `1km²` 高精荒漠沙盒。`Coast & Dunes`、`Pure Nature 2 : Mojave Desert`、`Landscape Ground Pack 3` 等仍保留在候选排序里，但只作为备用调研池；除非用户重新明确选择并确认授权/购买，否则不要把它们作为当前下载目标。
+
+当前判断：先按免费沙盒主线推进，不回到低模拼接，也不为了省事购买不确定的大包。当前重点是把现有 `VLNHighPrecisionDesertSandbox.unity` 做得更大、更真实、更统一、更复杂：地表、岩石、灌木、干河道、碎石带、路线边缘和远景都要自然变化，不能机械重复。
+
+当前规则：正式下载任何大资产前，必须先更新预算表；总下载硬上限 `100GB`。免费官方 Terrain 包或以后重新启用的大型完整荒漠/越野场景包都只能进入副本/沙盒验证，禁止直接覆盖主工程、Topgear 锁定场景或主工程 ProjectSettings。
+
+下载/校验第一批 Poly Haven 高精荒漠小样本资产：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/download_high_precision_desert_sample_assets.py --max-gb 10.0 --proxy http://127.0.0.1:7897/ --timeout 90
+```
+
+这一步会走本地代理，下载约 236MB 的 CC0 资产，写入 `VLN_ASSETS_CACHE/high_precision_desert/`，并镜像到 Unity 工程的 `Assets/VLN/ExternalAssets/HighPrecisionDesert/PolyHaven/`。
+
+大资产整包验证入口：
+
+```bash
+cd /home/ubuntu22/VLN
+less VLN_REFERENCE_LIBRARY/high_precision_desert_research/large_asset_scene_research.md
+```
+
+准备大资产副本工程：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/prepare_high_precision_large_asset_sandbox_project.sh
+```
+
+当前副本工程路径是：
+
+```bash
+/home/ubuntu22/VLN/UnityProjects/VLN_Offroad_LargeAssetSandbox
+```
+
+打开大资产副本工程：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/open_unity_large_asset_sandbox_project.sh
+```
+
+后续如果重新启用 `Pure Nature 2 : Mojave Desert`、`Coast & Dunes` 这类 Asset Store/Fab 大包，只能导入这个副本工程，不要导入主工程 `UnityProjects/VLN_Offroad`。当前免费沙盒路线一般不需要打开副本工程，除非要验证官方 Terrain Sample 包或新的大包。
+
+如果浏览器或 Unity Asset Store 已把大场景包下载到本地，把原始 `.unitypackage`、`.zip`、`.tar` 或解包目录放到：
+
+```bash
+/home/ubuntu22/VLN/VLN_ASSETS_CACHE/high_precision_desert/raw_downloads/large_scene_packages/
+```
+
+然后只读扫描包内容：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/inspect_high_precision_large_asset_package.py \
+  VLN_ASSETS_CACHE/high_precision_desert/raw_downloads/large_scene_packages/<资产包文件或目录> \
+  --output VLN_REFERENCE_LIBRARY/high_precision_desert_research/large_asset_inspections/<资产名>_inspection.json
+```
+
+这一步只统计场景、模型、贴图、材质、shader、prefab、Terrain、ProjectSettings 和 collider/physics 关键词，不导入 Unity，不改工程。
+
+如果目录里放了多个大包，直接批量扫描：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/scan_high_precision_large_scene_packages.sh
+```
+
+当前如果还没下载大包，会看到 `VLN_HIGH_PRECISION_LARGE_ASSET_SCAN_NO_PACKAGES`，这是正常状态。扫描后会生成排序报告：
+
+```bash
+/home/ubuntu22/VLN/VLN_REFERENCE_LIBRARY/high_precision_desert_research/large_asset_inspections/large_asset_ranking.md
+```
+
+如果不知道下载到了哪里，先查找本机可疑包：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/find_high_precision_large_scene_packages.sh
+```
+
+如果下载目录里杂项很多，只显示 100MB 以上候选：
+
+```bash
+cd /home/ubuntu22/VLN
+VLN_LARGE_ASSET_MIN_MB=100 ./scripts/find_high_precision_large_scene_packages.sh
+```
+
+如果上面找到了目标资产包，把它暂存到 VLN 大资产目录：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/stage_high_precision_large_scene_package.sh '<资产包完整路径>'
+```
+
+然后再运行扫描：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/scan_high_precision_large_scene_packages.sh
+```
+
+注意：`Poly Desert [FREE]`、`Low-Poly Desert Environment Pack` 这类低模免费包只用于下载/扫描 smoke test，不是高精荒漠主线。2026-08-21 已确认 itch `Poly Desert [FREE]` 命令行只能拿到临时下载页，最终 zip 会重定向回商品页；如果以后确实要用它做 smoke test，请直接在浏览器点击免费下载，再按上面的暂存/扫描流程处理。
+
+构建并截图验证高精荒漠沙盒：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/run_high_precision_desert_sandbox_visual_smoke_test.sh
+```
+
+希望看到 `VLN_HIGH_PRECISION_DESERT_SANDBOX_VISUAL_SMOKE_TEST_PASS`。该脚本只做视觉导入和截图，不启动 ROS2，不改旧 Topgear 主场景。
+
+手工查看沙盒：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/open_unity_vln_project.sh
+```
+
+在 Unity 里打开 `Assets/VLN/Scenes/VLNHighPrecisionDesertSandbox.unity`。这是阶段 21 的独立高精荒漠沙盒，不是旧 Topgear 主场景。
+
+## 阶段 21 免费沙盒下一步
+
+当前下载预算硬上限是 `100GB`，不是旧的 `1GB` 小样本限制。但本轮不再主动购买或下载 Mojave；当前执行顺序是：继续精修 `VLNHighPrecisionDesertSandbox.unity`，必要时通过 Unity 官方入口获取 `Terrain Sample Asset Pack`，再用 Poly Haven/ambientCG 继续补地表、岩石、灌木、干河道、碎石带、路线边缘和远近景融合。建筑/废土/遗迹/集市类 Fab 包只作为参考，不替代自然越野荒漠主线。
+
+### 查看当前免费沙盒
+
+自动截图验收：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/run_high_precision_desert_sandbox_visual_smoke_test.sh
+```
+
+希望看到：`VLN_HIGH_PRECISION_DESERT_SANDBOX_VISUAL_SMOKE_TEST_PASS`。该脚本只做视觉导入和截图，不启动 ROS2，不改旧 Topgear 主场景。
+
+手工打开 Unity 查看：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/open_unity_vln_project.sh
+```
+
+在 Unity 里打开：
+
+```text
+Assets/VLN/Scenes/VLNHighPrecisionDesertSandbox.unity
+```
+
+### 获取官方 Terrain Sample 包时
+
+通过浏览器或 Unity Asset Store / Package Manager 打开 Unity 官方 `Terrain Sample Asset Pack` 页面，用合法 Unity 账号加入/下载。下载完成后不要直接导入主工程；先让我或你在终端运行下面的定位命令。
+
+先看当前状态：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/report_high_precision_large_asset_status.py
+./scripts/check_high_precision_large_asset_gate0.py
+```
+
+希望看到：预算低于 `100GB`，并且 `large_scene_packages/` 为空或显示你刚下载的官方 Terrain 包。
+
+下载官方包或以后重新启用的大包时，都要走浏览器、Unity Asset Store、Fab 或 Unity Package Manager 的合法账号入口。下载完后，不要直接导入主工程；先让脚本找包：
+
+```bash
+cd /home/ubuntu22/VLN
+VLN_LARGE_ASSET_MIN_MB=100 ./scripts/find_high_precision_large_scene_packages.sh
+```
+
+找到目标 `.unitypackage`、`.zip`、`.tar` 或解包目录后，先暂存：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/stage_high_precision_large_scene_package.sh '<资产包完整路径>'
+```
+
+然后只读扫描：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/scan_high_precision_large_scene_packages.sh
+./scripts/report_high_precision_large_asset_status.py
+```
+
+只有扫描确认 scene、terrain、prefab、材质、LOD、ProjectSettings 和 physics/collider 线索后，才导入副本工程：
+
+```text
+/home/ubuntu22/VLN/UnityProjects/VLN_Offroad_LargeAssetSandbox
+```
+
+禁止直接导入主工程：
+
+```text
+/home/ubuntu22/VLN/UnityProjects/VLN_Offroad
+```
+
+导入副本工程后再判断：官方 Terrain 包能提供有价值的 TerrainLayer、细节对象、地形笔刷或 demo 结构，就把可控子集迁移到当前 `1km²` 沙盒；如果只是参考资料，则继续保留为资料库/备用资产，不覆盖主工程。
+
+## Pure Nature 2 Mesa Desert 1.0 手工验收
+
+当前 Mesa 包已经导入大资产副本工程，不在主工程里。你要肉眼验收时运行：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/open_pure_nature_mesa_desert_sandbox.sh
+```
+
+希望看到：Unity 打开的是副本工程 `UnityProjects/VLN_Offroad_LargeAssetSandbox`，并自动加载：
+
+```text
+Assets/BK/PureNature_MesaDesert/Scenes/Mesa_Demo.unity
+```
+
+当前自动加载验收已经通过：`vln_pure_nature_mesa_desert_20260822_005701`，`terrain_count=1`、`renderer_count=21302`、`collider_count=16535`、`missing_material_slots=0`、`internal_error_materials=0`。如果你肉眼确认场景效果可以，再进入下一步：把 Topgear 小车、四路相机、LiDAR 和 ROS2 控制链路迁移到 Mesa 场景。
