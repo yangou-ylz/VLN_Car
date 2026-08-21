@@ -771,3 +771,33 @@
 - 精细化：新增 `VlnPureNatureMesaDesertRouteCandidateBuilder.cs`，使用 Mesa 包自带 prefab，按固定随机种子不规则布置大石头、碎石、小树/仙人掌、草堆/灌木，并在场景中创建 `VLN_Mesa_ObstacleEnhancement` 和 `VLN_Mesa_RouteCandidate` 根节点，便于后续回滚和审计。
 - 验证：新增 `scripts/run_pure_nature_mesa_desert_route_candidate_smoke_test.sh`，最新 run id `vln_pure_nature_mesa_desert_route_candidate_20260822_013001` 通过：`route_waypoint_count=9`、`added_rock_count=130`、`added_rubble_count=50`、`added_tree_count=38`、`added_plant_count=265`、`missing_material_slots=0`、`internal_error_materials=0`，并生成 overview、route_start、route_middle、obstacle_closeup、top_layout 截图。
 - 风险控制：本轮只改大资产副本工程和文档/脚本；不把 Mesa 包导入 `UnityProjects/VLN_Offroad` 主工程，不改 Topgear 传感器锁定文件，不改旧 13 点金标准路线，不跑 ROS2 长链路。下一步应先让用户肉眼验收候选场景，再接入 Topgear/ROS2/物理路线并建立新的 Mesa 自动路线基线。
+
+## 2026-08-22：阶段 21 升级为 Mesa+Oasis 拼接完整场景
+
+- 决策：用户已提供 `/home/ubuntu22/VLN/VLN_ASSETS_CACHE/Pure Nature 2 Oasis Desert Unity2022.unitypackage`，当前高精荒漠主工作场景从单 Mesa 升级为 Mesa+Oasis 拼接场景 `Assets/VLN/Scenes/VLNMesaOasisStitchedRouteCandidate.unity`。
+- 场景策略：保留第三方原始 `Mesa_Demo.unity` 和 `Scene_Oasis_Day.unity` 不覆盖；在大资产副本工程内生成 VLN 派生拼接场景。两张完整地图使用原资产沙地边界重叠衔接，不额外铺一条手工假沙路。
+- 开口策略：根据用户在俯视图红线标注的位置，在 Oasis 山体环入口处删除挡路的大型山体 mesh/collider，形成进入绿洲地图的山口；Terrain 沙地本身不被替换。
+- 验证：最新 smoke test `vln_pure_nature_mesa_oasis_stitched_20260822_022523` 通过，`success=1`、`terrain_count=2`、`scene_bounds_size=5508.92,1037.79,7728.40`、`seam_height_delta_m=-0.192`、`seam_profile_mean_delta_m=4.006`、`oasis_gate_removed_obstacle_count=1`、`mountain_gate_removed_renderer_count=375`、`mountain_gate_removed_collider_count=29`、`missing_material_slots=0`、`internal_error_materials=0`；截图显示接缝无蓝色空缝，山口已打开。
+- 风险控制：本轮只改大资产副本工程、拼接构建器、入口脚本和文档；未导入主工程，未改 Topgear 传感器锁定文件，未改旧 13 点金标准路线，未启动 ROS2 长链路。下一步应让用户肉眼验收 Mesa+Oasis 拼接场景，再接入 Topgear/ROS2/物理代理和新的荒漠自动路线。
+## 2026-08-22：Mesa+Oasis 完整场景拼接成为阶段 21 当前主线
+
+- 决策：阶段 21 当前默认高精荒漠场景从单 `Pure Nature 2 Mesa Desert 1.0` 升级为 `Pure Nature 2 Mesa Desert 1.0` + `Pure Nature 2 Oasis Desert Unity2022` 拼接场景，工作场景为大资产副本工程内的 `Assets/VLN/Scenes/VLNMesaOasisStitchedRouteCandidate.unity`。
+- 拼接方式：不手工铺假沙路、不新建沙条过渡；用两张完整地图自带 Terrain 的沙地边界进行有控制的重叠贴合，并按用户标红示意在 Oasis 外圈山体环开入口，删除挡路的大型山体 mesh/collider。
+- 验证：最新视觉 smoke test `vln_pure_nature_mesa_oasis_stitched_20260822_022523` 通过，`terrain_count=2`、`seam_height_delta_m=-0.192`、`seam_profile_mean_delta_m=4.006`、`seam_profile_max_delta_m=10.115`、`oasis_gate_removed_obstacle_count=1`、`mountain_gate_removed_renderer_count=375`、`mountain_gate_removed_collider_count=29`、`missing_material_slots=0`、`internal_error_materials=0`。
+- 风险控制：第三方原始 `Mesa_Demo.unity` 和 `Scene_Oasis_Day.unity` 均不覆盖；Mesa 单场景 `VLNMesaDesertRouteCandidate.unity` 保留为来源/回退；暂不接入 Topgear/ROS2，先让用户肉眼验收拼接视觉和山口连通性。
+
+## 2026-08-22：新增 Mesa+Oasis 世界模型手工保存与防覆盖机制
+
+- 决策：在大资产副本工程 Unity 顶部菜单新增 `VLN -> 更改世界模型 -> 保存本次世界`，把用户在 Scene 视图中手工拖动、删除、添加后的 `VLNMesaOasisStitchedRouteCandidate.unity` 作为当前主世界保存。
+- 保存校验：保存时写入 `VLN_WorldManualSaveMarker_*` 场景 marker，调用 `EditorSceneManager.SaveScene` 保存 `.unity` 文件，再写入 `config/world_model_current_save.json`，记录 scene path、marker、文件大小和 SHA256；只有 marker 出现在场景文件且 JSON 校验通过时才报告成功。
+- 防覆盖：`open_pure_nature_mesa_oasis_stitched_scene.sh` 只打开已保存场景；`run_pure_nature_mesa_oasis_stitched_smoke_test.sh` 遇到保存记录时默认跳过重建，仅做只读截图检查；拼接构建器的普通重建入口会阻止覆盖，除非用户在 Unity 对话框里确认强制重建，或显式设置 `VLN_FORCE_REBUILD_STITCHED_WORLD=1`。
+- 验证：`bash -n` 检查新增/修改 shell 脚本通过；Unity 大资产副本工程 batch 编译检查正常退出，日志结尾 `Exiting batchmode successfully now!`；新增 `scripts/check_world_model_manual_save_state.sh`，当前未保存状态会明确提示缺少 `config/world_model_current_save.json`，不会假报成功。
+- 风险控制：本轮不运行 ROS2，不跑 13 点或 16 点路线，不改主工程、Topgear 锁定文件、第三方原始 Mesa/Oasis 场景；用户后续精修世界以后，以保存记录和 `.unity` 场景本身为最高优先级。
+
+## 2026-08-22：拆分第一套/第二套世界并新增统一打开脚本
+
+- 决策：为了后续分别把 Topgear 小车导入不同世界，新增统一入口 `scripts/open_high_precision_world_model.sh <world>`，通过参数打开世界模型，而不是维护多套互相分叉的打开脚本。
+- 场景拆分：`first`/`mesa`/`第一套` 打开 Mesa 独立 VLN 场景 `Assets/VLN/Scenes/VLNMesaDesertRouteCandidate.unity`；`second`/`oasis`/`第二套` 打开新建 Oasis 独立 VLN 场景 `Assets/VLN/Scenes/VLNOasisDesertRouteCandidate.unity`；`stitched`/`fusion`/`融合版` 保留打开原 Mesa+Oasis 融合场景 `Assets/VLN/Scenes/VLNMesaOasisStitchedRouteCandidate.unity`。
+- 兼容性：旧入口 `open_pure_nature_mesa_desert_route_candidate.sh`、`open_pure_nature_mesa_desert_sandbox.sh`、`open_pure_nature_mesa_oasis_stitched_scene.sh` 仍保留，但底层改为调用统一入口；新增 `open_pure_nature_oasis_desert_route_candidate.sh` 作为第二套兼容入口。
+- 验证：`bash -n` 检查所有打开脚本通过；Unity batch 顺序验证 `first`、`second`、`stitched` 三个参数均正常打开，日志分别出现 `VLN_MESA_ROUTE_CANDIDATE_OPENED_FOR_MANUAL_REVIEW`、`VLN_OASIS_ROUTE_CANDIDATE_OPENED_FOR_MANUAL_REVIEW`、`VLN_MESA_OASIS_STITCHED_OPENED_FOR_MANUAL_REVIEW`；`VLNOasisDesertRouteCandidate.unity` 已实际生成。
+- 风险控制：本轮只改大资产副本工程和脚本/文档，不打开 ROS2、不跑路线、不改主工程、Topgear 锁定文件或第三方原始 `Mesa_Demo.unity` / `Scene_Oasis_Day.unity`。

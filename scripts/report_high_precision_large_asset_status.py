@@ -159,8 +159,14 @@ def dashboard() -> str:
         "## 当前结论",
         "",
     ]
+    target_name = str(target.get("name", "")) if target else ""
+    target_gate = str(target.get("gate", "")) if target else ""
+
     if staged:
-        lines.append(f"- 已发现 `{len(staged)}` 个暂存大资产包/目录，下一步应运行扫描和副本工程导入验证。")
+        if target and "Gate 4" in target_gate:
+            lines.append(f"- 已发现 `{len(staged)}` 个暂存大资产包/目录，当前 Mesa/Oasis 包均已有扫描和副本工程导入记录。")
+        else:
+            lines.append(f"- 已发现 `{len(staged)}` 个暂存大资产包/目录，下一步应运行扫描和副本工程导入验证。")
     else:
         lines.append("- 当前 `large_scene_packages/` 为空，还没有可导入验证的真实 Unity/Fab/Asset Store 大场景包。")
 
@@ -173,9 +179,23 @@ def dashboard() -> str:
     else:
         lines.append("- 当前没有真实大包扫描报告；已有 YOPO-Sim 只作为开源技术参考，不替代荒漠视觉大包。")
 
-    target_name = str(target.get("name", "")) if target else ""
-    target_gate = str(target.get("gate", "")) if target else ""
-    if target and "Pure Nature 2 Mesa Desert" in target_name and "Gate 3" in target_gate:
+    if target and "Pure Nature 2 Mesa Desert" in target_name and "Oasis" in target_name and "Gate 4" in target_gate:
+        validation = target.get("validation_summary", {})
+        route_scene = validation.get("scene_path", target.get("stitched_scene", "Assets/VLN/Scenes/VLNMesaOasisStitchedRouteCandidate.unity")) if isinstance(validation, dict) else "Assets/VLN/Scenes/VLNMesaOasisStitchedRouteCandidate.unity"
+        run_id = validation.get("stitched_smoke_run_id", "未记录") if isinstance(validation, dict) else "未记录"
+        seam_delta = validation.get("seam_height_delta_m", "未记录") if isinstance(validation, dict) else "未记录"
+        lines.extend(
+            [
+                "- 当前活动路线已经升级为 `Pure Nature 2 Mesa Desert 1.0` + `Pure Nature 2 Oasis Desert Unity2022` 拼接完整场景。",
+                f"- 当前工作场景：`{route_scene}`；Mesa/Oasis 第三方原始 demo scene 均保持不覆盖。",
+                f"- 最新拼接视觉验收 run id：`{run_id}`，seam 高度差 `{seam_delta}m`，入口山体已按用户标注方向开口。",
+                "- 拼接策略：两张完整地图用原资产沙地边界重叠衔接，不额外手工铺假沙路。",
+                f"- 下载前候选排序只保留为备用候选池：{top_candidate_summary()}；当前不再按排序去下载其它包。",
+                "- 下一步是用户肉眼验收拼接场景；通过后再接入 Topgear/ROS2/物理路线并建立新的荒漠自动路线基线。",
+                "",
+            ]
+        )
+    elif target and "Pure Nature 2 Mesa Desert" in target_name and "Gate 3" in target_gate:
         validation = target.get("validation_summary", {})
         route_scene = validation.get("route_candidate_scene", "Assets/VLN/Scenes/VLNMesaDesertRouteCandidate.unity") if isinstance(validation, dict) else "Assets/VLN/Scenes/VLNMesaDesertRouteCandidate.unity"
         lines.extend(

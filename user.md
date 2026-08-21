@@ -248,9 +248,9 @@ cd /home/ubuntu22/VLN
 ./scripts/rank_high_precision_large_asset_candidates.py
 ```
 
-当前执行结论是：用户已经拿到并肉眼验收 `Pure Nature 2 Mesa Desert 1.0` 完整场景，阶段 21 默认主线切换为 Mesa Desert 路线候选场景。`Coast & Dunes`、`Pure Nature 2 : Mojave Desert`、`Landscape Ground Pack 3` 和免费 `Terrain Sample Asset Pack` 仍保留在候选排序里，但现在只作为备用调研池或回退方案；除非用户重新明确选择并确认授权/下载，否则不要把它们作为当前执行目标。
+当前执行结论是：用户已经拿到并肉眼验收 `Pure Nature 2 Mesa Desert 1.0`，并继续提供 `Pure Nature 2 Oasis Desert Unity2022`。阶段 21 默认主线已经升级为 Mesa+Oasis 拼接场景 `VLNMesaOasisStitchedRouteCandidate.unity`。`Coast & Dunes`、`Pure Nature 2 : Mojave Desert`、`Landscape Ground Pack 3` 和免费 `Terrain Sample Asset Pack` 仍保留在候选排序里，但现在只作为备用调研池或回退方案；除非用户重新明确选择并确认授权/下载，否则不要把它们作为当前执行目标。
 
-当前判断：先按 Mesa Desert 完整资产主线推进，不再回到旧低模挑战区，也不把免费自建 `VLNHighPrecisionDesertSandbox.unity` 当默认主线。当前重点是把 `VLNMesaDesertRouteCandidate.unity` 做成新的高精荒漠路线底座：路线要自然，障碍要不规则，后续物理代理和 Topgear/ROS2 接入都基于它。
+当前判断：先按 Mesa+Oasis 完整资产拼接主线推进，不再回到旧低模挑战区，也不把免费自建 `VLNHighPrecisionDesertSandbox.unity` 当默认主线。当前重点是把 `VLNMesaOasisStitchedRouteCandidate.unity` 做成新的高精荒漠路线底座：路线要自然，障碍要不规则，后续物理代理和 Topgear/ROS2 接入都基于它。
 
 当前规则：正式下载任何大资产前，必须先更新预算表；总下载硬上限 `100GB`。免费官方 Terrain 包或以后重新启用的大型完整荒漠/越野场景包都只能进入副本/沙盒验证，禁止直接覆盖主工程、Topgear 锁定场景或主工程 ProjectSettings。
 
@@ -290,11 +290,100 @@ cd /home/ubuntu22/VLN
 ./scripts/open_unity_large_asset_sandbox_project.sh
 ```
 
-后续如果重新启用 `Pure Nature 2 : Mojave Desert`、`Coast & Dunes` 这类 Asset Store/Fab 大包，只能导入这个副本工程，不要导入主工程 `UnityProjects/VLN_Offroad`。当前 Mesa Desert 主线也在这个副本工程内推进。
+后续如果重新启用 `Pure Nature 2 : Mojave Desert`、`Coast & Dunes` 这类 Asset Store/Fab 大包，只能导入这个副本工程，不要导入主工程 `UnityProjects/VLN_Offroad`。当前 Mesa+Oasis 拼接主线也在这个副本工程内推进。
 
-## 阶段 21：Pure Nature 2 Mesa Desert 当前主工作场景
+## 阶段 21：Pure Nature 2 Mesa+Oasis 当前主工作场景
 
-现在高精荒漠主线已经切到你验收过的 `Pure Nature 2 Mesa Desert 1.0` 完整场景。默认工作场景不是第三方原始 `Mesa_Demo.unity`，而是 VLN 派生场景：
+现在高精荒漠世界统一用一个脚本打开，只改后面的世界参数：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/open_high_precision_world_model.sh first
+```
+
+`first` 打开第一套 Mesa Desert 独立场景，适合先单独把小车导入 Mesa 世界：
+
+```text
+UnityProjects/VLN_Offroad_LargeAssetSandbox/Assets/VLN/Scenes/VLNMesaDesertRouteCandidate.unity
+```
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/open_high_precision_world_model.sh second
+```
+
+`second` 打开第二套 Oasis Desert 独立场景，适合单独把小车导入 Oasis 世界：
+
+```text
+UnityProjects/VLN_Offroad_LargeAssetSandbox/Assets/VLN/Scenes/VLNOasisDesertRouteCandidate.unity
+```
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/open_high_precision_world_model.sh stitched
+```
+
+`stitched` 打开原来的 Mesa+Oasis 融合场景，先保留作为参考和回退：
+
+```text
+UnityProjects/VLN_Offroad_LargeAssetSandbox/Assets/VLN/Scenes/VLNMesaOasisStitchedRouteCandidate.unity
+```
+
+可用别名：`first / 1 / mesa / 第一套`，`second / 2 / oasis / 第二套`，`stitched / 3 / fusion / 融合版`。
+
+旧脚本仍保留兼容，但底层已经改成调用统一入口：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/open_pure_nature_mesa_oasis_stitched_scene.sh
+```
+
+如果你要自己精修世界模型，打开场景后先不要点 Play，直接在 Unity 的 Scene 视图里拖动、删除或添加物体。改完后点击 Unity 顶部菜单：
+
+```text
+VLN -> 更改世界模型 -> 保存本次世界
+```
+
+保存成功后会写入：
+
+```text
+/home/ubuntu22/VLN/config/world_model_current_save.json
+```
+
+这个保存不是假按钮：Unity 会先真实保存 `VLNMesaOasisStitchedRouteCandidate.unity`，再检查场景文件里的本次保存 marker 和 SHA256。只有都对上才会提示成功。
+
+下次仍然用同一个命令打开：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/open_pure_nature_mesa_oasis_stitched_scene.sh
+```
+
+如果已经有保存记录，它会直接加载你保存后的世界，不会重新生成旧拼接场景覆盖。需要终端确认时运行：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/check_world_model_manual_save_state.sh
+```
+
+希望看到 `VLN_WORLD_MODEL_MANUAL_SAVE_CHECK_PASS`。如果还没点过保存按钮，会提示“未找到保存记录”，这是正常的。
+
+自动截图验收入口：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/run_pure_nature_mesa_oasis_stitched_smoke_test.sh
+```
+
+希望看到 `VLN_PURE_NATURE_MESA_OASIS_STITCHED_SMOKE_TEST_PASS`。当前最新通过：`vln_pure_nature_mesa_oasis_stitched_20260822_022523`。如果还没有手工保存世界，这一步会重建/刷新 Mesa+Oasis 拼接场景、开 Oasis 山体入口并截图；如果已经手工保存世界，它默认只打开已保存场景做只读截图检查，不会覆盖你的修改。不启动 ROS2，不改旧 Topgear 主场景。
+
+当前拼接策略：两张完整地图用沙地边界重叠衔接；按你截图标出的入口方向，删除 Oasis 山体环上挡路的大型山体 mesh/collider，留下进山口；不额外手工铺一条假沙路。最新指标：`terrain_count=2`、`seam_height_delta_m=-0.192`、`seam_profile_mean_delta_m=4.006`、`seam_profile_max_delta_m=10.115`、`oasis_gate_removed_obstacle_count=1`、`mountain_gate_removed_renderer_count=375`、`mountain_gate_removed_collider_count=29`、材质错误为 `0`。
+
+注意：不要直接改第三方原始 `Assets/BK/PureNature_MesaDesert/Scenes/Mesa_Demo.unity` 和 `Assets/BK/PureNature_Oasis/Scenes/Scene_Oasis_Day.unity`；后续所有路线、物理代理、Topgear/ROS2 接入默认基于 `VLNMesaOasisStitchedRouteCandidate.unity`。单 Mesa 场景只作为来源/回退。
+
+## 阶段 21：Pure Nature 2 Mesa Desert 单场景回退
+
+单 Mesa 场景现在保留为 Mesa+Oasis 拼接场景的来源和回退。它不是当前默认主工作场景；如果需要单独回看 Mesa，可以打开 VLN 派生场景：
 
 ```text
 UnityProjects/VLN_Offroad_LargeAssetSandbox/Assets/VLN/Scenes/VLNMesaDesertRouteCandidate.unity
