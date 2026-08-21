@@ -17,7 +17,34 @@ def parse_args():
     parser.add_argument("--min-base-delta", type=float, default=0.0)
     parser.add_argument("--max-base-delta", type=float, default=None)
     parser.add_argument("--stable-observe-seconds", type=float, default=5.0)
+    parser.add_argument(
+        "--required-edge",
+        action="append",
+        default=None,
+        help="额外或自定义 TF 边，格式 parent:child。若提供，则替代默认三条边；可重复。",
+    )
     return parser.parse_args()
+
+
+def parse_required_edges(values):
+    if not values:
+        return {
+            ("map", "base_link"),
+            ("base_link", "front_camera_optical_frame"),
+            ("base_link", "lidar_link"),
+        }
+
+    edges = set()
+    for value in values:
+        if ":" not in value:
+            raise ValueError(f"required-edge 格式错误：{value}，应为 parent:child")
+        parent, child = value.split(":", 1)
+        parent = parent.strip()
+        child = child.strip()
+        if not parent or not child:
+            raise ValueError(f"required-edge 格式错误：{value}，parent/child 不能为空")
+        edges.add((parent, child))
+    return edges
 
 
 def norm_delta(a, b):
@@ -27,11 +54,11 @@ def norm_delta(a, b):
 def main():
     args = parse_args()
     deadline = time.monotonic() + args.timeout
-    required_edges = {
-        ("map", "base_link"),
-        ("base_link", "front_camera_optical_frame"),
-        ("base_link", "lidar_link"),
-    }
+    try:
+        required_edges = parse_required_edges(args.required_edge)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
     seen_edges = set()
     first_base_position = None
     last_base_position = None

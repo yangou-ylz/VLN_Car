@@ -705,3 +705,50 @@
 - 解决方案：`unity_menu_terminal_session.sh` 去掉 `setsid`，保留普通终端会话；每次启动创建 `.runtime/unity_menu/logs/<session>.log` 并用 `tee` 同步记录 stdout/stderr；目标脚本退出后，如果有 TTY 就 `exec bash --noprofile --norc` 保留窗口，用户可输入 `exit` 或直接关窗口。`cleanup_unity_menu_processes.sh` 改为只对仍活着的菜单会话 PID 执行进程组清理，跳过 stale record。
 - 验收方式：`bash -n scripts/unity_menu_launch.sh scripts/unity_menu_terminal_session.sh scripts/cleanup_unity_menu_processes.sh` 通过；`scripts/unity_menu_launch.sh selftest` 通过；用 `timeout` 直接跑包装器的失败目标，确认输出 `进程退出码：2` 后进入保留窗口逻辑；直接跑 endpoint 目标，确认能进入 `Starting server on 127.0.0.1:10000`，并产生 `.runtime/unity_menu/logs/debug_endpoint_*.log`。
 - 状态：已修复为“普通终端会话 + 落盘日志 + 退出后保留窗口”。下一步让用户重新从 Unity 菜单点击 endpoint 或控制面板；如果仍退出，直接查看 `.runtime/unity_menu/logs` 最新日志，不再靠瞬间弹窗猜。
+
+## 2026-08-20：Topgear V2 上装渲染成功但安装姿态和位置错误
+
+- 现象：用户截图和描述显示 `topgear_v2.dae` 已经在 Unity 中渲染出来，但黑色上装箱体没有正确落在 Scout 车身顶部，存在悬空、侧躺/下转 90°、前后方向疑似反转的问题；白色 GPS/无线信号器跑到不符合参考图的位置。
+- 环境：`Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，Topgear V2 资产路径 `Assets/VLN/ExternalAssets/TopgearV2Visual/Models/topgear_v2.dae`，挂载函数 `VlnOffroadScoutWheelGroundCandidateProjectSetup.AttachTopgearV2Visual()`。
+- 根因：`topgear_v2.dae` 是 Blender/COLLADA 文件，`asset/up_axis=Z_UP`，原始 bbox 约 `0.335m x 0.4315m x 0.437m`；首次直接挂到 Scout 视觉根下并只做 yaw 翻转，没有把 DAE 的 Z-up 转成 Unity/Scout 的 Y-up，也没有把底部高度对齐到车身顶部平台，导致视觉上侧躺和悬空。
+- 解决方案：只修 Topgear 视觉挂载，不改 Scout 物理和控制。将挂载姿态改为 DAE `+Z -> Scout local +Y`、DAE `+Y -> Scout local +Z`，并用 `AlignRendererBoundsToLocalFrame()` 把渲染 bbox 底部对齐到车身顶部平台附近；保留 `RemovePhysicsComponents(instance)`，确保上装 mesh 只渲染、不参与碰撞或动力学。
+- 验收方式：专项视觉对齐 `./scripts/run_topgear_visual_alignment_smoke_test.sh` 通过，run id `vln_topgear_visual_alignment_20260820_171033`，生成 front/rear/left/right/top 五个视角截图，材质 bbox 显示 GPS 在 Scout 局部 `+Z` 车头侧，Topgear bbox 底部落在车身平台上方；短动回归 `./scripts/run_scout_wheel_ground_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_20260820_171049`，相机、CameraInfo、LiDAR、TF、odom、cmd_vel 均通过，`topgear_visual_present=1`、`topgear_visual_collider_count=0`、`topgear_visual_rigidbody_count=0`；13 点金标准路线 `./scripts/run_scout_wheel_ground_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_route_20260820_171934`，`reached_count=13/13`、`total_forward_progress=52.448m`、`max_abs_lateral_offset=0.078m`、`stall_count=0`、`skipped_count=0`；16 点挑战路线 `./scripts/run_scout_wheel_ground_challenge_route_smoke_test.sh` 通过，run id `vln_scout_wheel_ground_challenge_route_20260820_172504`，`reached_count=16/16`、`total_forward_progress=70.416m`、`sand_contact_steps=13811`、`stall_count=0`、`skipped_count=0`。
+- 状态：已完成本轮修复。Topgear 上装现在作为纯视觉件正确坐到 Scout 车身顶部，未引入新的物理组件，原 wheel-ground 物理和 ROS2 链路不退化。后续已单独进入阶段 20 完成 16 线雷达和四相机传感器挂载；阶段 19 本身不要补加 collider/rigidbody 或硬改底盘物理。
+
+补充修复：用户确认姿态/朝向正确后，指出上装仍没有贴到车身顶板，存在明显空隙。已只做 Y 向贴合微调：`AttachTopgearV2Visual()` 的底部对齐目标先从 `0.205f` 改为 `0.125f`，并同步 `VLNOffroadScoutWheelGroundCandidate.unity` 中当前 prefab 实例的 `m_LocalPosition.y=0.125`；不改旋转、X/Z 位置、物理组件、控制器和路线。专项验收脚本新增 `topgear_visual_bottom_to_scout_visual_top_gap_m` 诊断；`./scripts/run_topgear_visual_alignment_smoke_test.sh` 通过 run id `vln_topgear_visual_alignment_20260820_175959`，显示 Scout 顶板到上装底部间隙约 `0.009m`，且 `topgear_visual_collider_count=0`、`topgear_visual_rigidbody_count=0`。后续按用户肉眼反馈做过 1cm 级微调，最终源码常量和主场景实例冻结为 `AlignRendererBoundsToLocalFrame(... new Vector3(0f, 0.115f, 0.045f))` / `m_LocalPosition.y=0.115`；用户已确认安装位置完成，后续不要再改。
+
+## 2026-08-20：Topgear LiDAR 第一帧空点云可能误判为通过
+
+- 现象：阶段 20 验收时，UnitySensors LiDAR 初始化阶段可能先发布结构正确但实际有效点数为 0 的 `PointCloud2`。旧的 `ros2_wait_for_pointcloud2_once.py` 只检查字段、宽高、`data_len` 等结构，容易把这种初始化空帧误判为 LiDAR 数据已经正常。
+- 环境：`scripts/run_topgear_sensor_suite_smoke_test.sh`，topic `/vln/lidar/points`，frame `lidar_link`，VLP-16 7200 点/帧。
+- 根因：PointCloud2 消息结构正确不等于空间点云有效；传感器刚启动或场景未稳定时，数据缓冲里可能还没有非零坐标点。只看 `width=7200` 和 `data_len=115200` 不足以证明能看到场景。
+- 解决方案：修改 `scripts/ros2_wait_for_pointcloud2_once.py`，增加非零点统计，等待满足最小有效非零点数后才输出成功；`scripts/run_topgear_sensor_suite_smoke_test.sh` 使用该逻辑验证 Topgear LiDAR。
+- 验收方式：Topgear 传感器专项 `./scripts/run_topgear_sensor_suite_smoke_test.sh` 通过 run id `vln_topgear_sensor_suite_20260820_190104`，`ros2_lidar_pointcloud2_once.log` 显示 `/vln/lidar/points`、`frame_id=lidar_link`、`width=7200`、`point_step=16`、`data_len=115200`、`nonzero_points=3291`，并输出 `VLN_UNITYSENSORS_POINTCLOUD2_MSG_OK`。
+- 状态：已修复。后续新增 LiDAR 或调整扫描参数时，不能只检查 PointCloud2 结构；必须继续检查有效非零点或可视化截图，避免空帧假通过。
+
+## 2026-08-20：阶段 20 传感器挂载后无需重复跑 16 点挑战路线
+
+- 现象：阶段 20 传感器专项已通过，13 点金标准路线也已通过；继续跑 16 点挑战路线会增加等待时间，且本轮没有改挑战区、障碍物或路线控制。
+- 环境：Topgear 传感器挂载第一版，`Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，新增 4 路相机和 1 路 LiDAR。
+- 根因：过去为了保护桥/坡/挑战区，经常在每次改动后全量跑 13 点和 16 点；但本轮传感器视觉件不参与物理，13 点已能证明主链路、车体、ROS2 和基础路线没有退化。继续跑 16 点属于冗余验证。
+- 解决方案：按用户明确要求更新工作流和状态文档：传感器专项通过后，只补跑 13 点金标准路线；13 点成功后停止自动验收，把四路图像、LiDAR 和 Unity 视觉效果交给用户按手工流程亲自查看。
+- 验收方式：传感器专项通过 run id `vln_topgear_sensor_suite_20260820_190104`；13 点路线通过 run id `vln_scout_wheel_ground_route_20260820_190253`，`reached_count=13/13`、`total_forward_progress=52.441m`、`max_abs_lateral_offset=0.035m`、`stall_count=0`、`skipped_count=0`。
+- 状态：已记录。后续只有新增障碍、挑战区变化、路线风险或用户明确要求时，再跑 16 点挑战路线。
+
+## 2026-08-20：Topgear 传感器视觉安装位置严重错误
+
+- 现象：用户指出阶段 20 的传感器视觉模型不合格：LiDAR 没有压在顶部圆盘中心，曾出现横倒/偏离感；四个相机没有安装到 LiDAR 下方小方盒四个圆孔里，而是散在一起或落到下方黑色大箱体附近；相机形态也不应使用长条相机，应改为方形 D405 风格双目相机。
+- 环境：`Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，挂载代码 `VlnOffroadScoutWheelGroundCandidateProjectSetup.CreateTopgearSensorSuite()`，专项脚本 `./scripts/run_topgear_sensor_suite_smoke_test.sh`。
+- 根因：旧版只用粗略材质包围盒估计上层传感器安装区域，把 `topgear_v2.dae` 中 GPS/大黑箱相关区域的 `z≈0.078..0.184` 误当成 LiDAR 下方小方盒中心；同时 VLP-16 视觉子模型存在轴向处理不稳定，D405 STL 也不能直接作为 Unity prefab 加载，导致视觉件位置和方向虽有 ROS2 数据链路但肉眼安装不合格。
+- 解决方案：小范围修阶段 20，不改 Topgear 上装本体、不改 Scout 物理、不改路线。先隔离旧重复 `VLP16` Unity 资产目录，避免 Unity 同时导入两套雷达网格；从 `topgear_v2.dae` 连接几何重新提取真实安装基准：顶部圆盘中心约 `x=0,z=0.004`，四相机小方盒孔位约为 front `z=0.056`、rear `z=-0.046`、left/right `x=±0.051`、共同 `y=0.733`。LiDAR 改为竖直对圆盘中心，D405 改为 42mm 级方形双目视觉件，并保留 Unity 菜单 `VLN -> Topgear 传感器手动微调`，可把用户肉眼确认后的五个传感器位姿保存到 `config/topgear_sensor_pose_overrides.json`。
+- 验收方式：传感器专项 `./scripts/run_topgear_sensor_suite_smoke_test.sh` 通过 run id `vln_topgear_sensor_suite_20260820_231756`，`topgear_sensor_camera_count=4`、`topgear_sensor_lidar_count=1`、`topgear_sensor_renderer_count=96`、`topgear_sensor_collider_count=0`、`topgear_sensor_rigidbody_count=0`，4 路 Image、4 路 CameraInfo、LiDAR PointCloud2 和 TF 均通过。已查看 `vln_offroad_scout_wheel_ground_topgear_sensor_suite_screenshot_top/front/left/right/rear.png`，LiDAR 已竖直居中到顶部圆盘，四个 D405 风格相机已回到上层小方盒四面。
+- 状态：本轮已修复到可交给用户肉眼验收。后续如果用户仍认为某一面偏差明显，不要再改上装本体或底盘物理，优先用手动微调工具保存用户确认位姿，再把 JSON 中的数值固化回代码常量。
+
+## 2026-08-20：Topgear 传感器外观不能用自建模型兜底
+
+- 现象：用户明确指出阶段 20 的相机和雷达外观必须使用官方/外部真实模型，不能继续用程序化圆柱、方块、螺丝、小条、玻璃片等自建外观。旧实现里虽然接入了 VLP-16/D405 资产，但仍叠加了 `VLP16_OfficialMesh_*`、`RealSense_D405_*` 等程序化外观细节，造成“16 个小方块/薯条”和自建相机面板残留。
+- 环境：`Assets/VLN/Editor/VlnOffroadScoutWheelGroundCandidateProjectSetup.cs`，主场景 `Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`，专项脚本 `./scripts/run_topgear_sensor_suite_smoke_test.sh`。
+- 根因：此前把“视觉更清楚”错误理解成可以在官方模型外叠加程序化细节；这违反了用户要求的官方模型路线，也容易让截图看起来像自建模型而不是师兄可接受的真实资产。
+- 解决方案：删除 `CreateTopgearVlp16ReadableAccents()`、`CreateTopgearD405ReadableFace()` 及传感器创建段里的全部 `CreateVisualPrimitive` 自建细节；删除该构建文件中已经不用的 `CreateVisualPrimitive()` 工具函数。当前 LiDAR 只加载 Velodyne VLP-16 DAE mesh，四个相机只加载 RealSense D405 STL mesh；官方模型加载失败时直接报错，不允许 fallback 到自建形状。
+- 验收方式：重新运行 `./scripts/run_topgear_sensor_suite_smoke_test.sh`，最终通过 run id `vln_topgear_sensor_suite_20260820_234909`。关键字段：`topgear_sensor_vlp16_official_mesh_count=1`、`topgear_sensor_d405_official_stl_count=4`、`topgear_sensor_procedural_vlp16_rib_count=0`、`topgear_sensor_procedural_d405_screw_count=0`、`topgear_sensor_collider_count=0`、`topgear_sensor_rigidbody_count=0`。`rg` 扫描源码和主场景均不再发现旧自建传感器对象名。
+- 状态：已修复并写入 `AGENTS.md` 硬约束。后续任何 Topgear 传感器外观改动都必须优先修官方资产导入、轴向、缩放和挂载位置，不能再自建相机/雷达外观骗过验收。

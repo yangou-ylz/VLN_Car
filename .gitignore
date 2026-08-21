@@ -116,6 +116,9 @@ VLN_RECORDINGS/
 VLN_REFERENCE_LIBRARY_DUPLICATE_*/
 _moved_from_home/
 
+# User-provided source drop already copied into reviewed Unity asset folder
+/topgear_v2.dae
+
 # Unity project source is trackable; generated project/cache dirs stay ignored
 UnityProjects/*
 !UnityProjects/VLN_Offroad/
@@ -171,6 +174,9 @@ UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/**
 !UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/Reference/scout_v2.xacro.meta
 !UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/Reference/package.xml
 !UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/ScoutUrdfPhysics/Reference/package.xml.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/TopgearV2Visual.meta
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/TopgearV2Visual/
+!UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/TopgearV2Visual/**
 !UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/PBRMaterials.meta
 !UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/PBRMaterials/
 !UnityProjects/VLN_Offroad/Assets/VLN/ExternalAssets/PBRMaterials/AmbientCG.meta

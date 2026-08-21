@@ -87,7 +87,7 @@ source /home/ubuntu22/VLN/unity_ros2_ws/install/setup.bash
 ros2 topic list -t | grep -E '/vln|/tf'
 ```
 
-希望看到 `/vln/front/image_raw`、`/vln/front/camera_info`、`/vln/lidar/points`、`/vln/cmd_vel`、`/vln/odom`、`/tf`。
+希望看到 `/vln/front/image_raw`、`/vln/front/camera_info`、`/vln/rear/image_raw`、`/vln/rear/camera_info`、`/vln/left/image_raw`、`/vln/left/camera_info`、`/vln/right/image_raw`、`/vln/right/camera_info`、`/vln/lidar/points`、`/vln/cmd_vel`、`/vln/odom`、`/tf`。
 
 ## 7. 终端 5：看相机图像
 
@@ -98,6 +98,17 @@ cd /home/ubuntu22/VLN
 
 用于打开 rqt 图像窗口。希望能看到 Unity 相机画面；如果没有自动选中 topic，就手动选择 `/vln/front/image_raw`。
 
+现在 Topgear 上装已经有 4 路相机。也可以直接打开指定 topic：
+
+```bash
+cd /home/ubuntu22/VLN
+ros2env
+source /home/ubuntu22/VLN/unity_ros2_ws/install/setup.bash
+ros2 run rqt_image_view rqt_image_view /vln/front/image_raw
+```
+
+把最后一个 topic 换成 `/vln/rear/image_raw`、`/vln/left/image_raw`、`/vln/right/image_raw`，就能分别看后向、左向、右向相机。
+
 ## 8. 终端 6：看 LiDAR 点云
 
 ```bash
@@ -106,6 +117,8 @@ cd /home/ubuntu22/VLN
 ```
 
 用于打开 RViz。希望能看到 `/vln/lidar/points` 点云，Fixed Frame 使用 `map`，TF 不报错。
+
+当前 LiDAR 仍沿用原来的 `/vln/lidar/points`，frame 是 `lidar_link`；Topgear 阶段只是把 LiDAR 挂到了上装顶部并补齐 TF，没有改原 RViz 查看入口。
 
 ## 9. 可选：启动中文控制面板
 
@@ -140,6 +153,15 @@ cd /home/ubuntu22/VLN
 
 这是 13 点路线自动回归，会自己打开 batch Unity、启动 endpoint、检查图像/点云/odom/路线指标。希望最后看到 `VLN_SCOUT_WHEEL_GROUND_ROUTE_SMOKE_TEST_PASS`。
 
+Topgear 传感器专项自动验收入口：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/run_topgear_sensor_suite_smoke_test.sh
+```
+
+这是 16 线 LiDAR + 4 路相机 + TF 的专项回归。希望最后看到 `VLN_TOPGEAR_SENSOR_SUITE_SMOKE_TEST_PASS`。
+
 ```bash
 cd /home/ubuntu22/VLN
 ./scripts/run_scout_wheel_ground_challenge_route_smoke_test.sh
@@ -147,12 +169,15 @@ cd /home/ubuntu22/VLN
 
 这是 16 点后段挑战路线自动回归。希望最后同时看到 `VLN_SCOUT_WHEEL_GROUND_ROUTE_SMOKE_TEST_PASS` 和 `VLN_SCOUT_WHEEL_GROUND_CHALLENGE_ROUTE_SMOKE_TEST_PASS`。
 
-注意：如果 Unity Editor 已经手工打开，先不要跑这两个 `run_*_smoke_test.sh`，因为同一工程不能同时被两个 Unity Editor 实例打开。你手工看效果时，用第 4/5 步的 `drive_*_demo.sh`。
+注意：如果 Unity Editor 已经手工打开，先不要跑这些 `run_*_smoke_test.sh`，因为同一工程不能同时被两个 Unity Editor 实例打开。你手工看效果时，用第 4/5 步的 `drive_*_demo.sh` 和第 7/8 步的相机/RViz 查看入口。
+
+当前约定：如果 13 点链路已经验证成功，本轮不需要再继续跑 16 点挑战自动回归；16 点只在新增障碍、挑战区变化或你明确要求时再跑。
 
 ## 当前基线
 
-- 13 点自动路线当前通过 run id：`vln_scout_wheel_ground_route_20260817_232310`。
-- 16 点挑战路线当前通过 run id：`vln_scout_wheel_ground_challenge_route_20260817_231723`。
+- Topgear 传感器专项当前通过 run id：`vln_topgear_sensor_suite_20260820_190104`，包含 4 路 Image、4 路 CameraInfo、LiDAR PointCloud2 和 6 条 TF 边。
+- 13 点自动路线当前通过 run id：`vln_scout_wheel_ground_route_20260820_190253`。
+- 16 点挑战路线保留最近已知通过 run id：`vln_scout_wheel_ground_challenge_route_20260820_172504`；阶段 20 后未继续重复跑，按你的要求交给你手工验证。
 - 挑战区当前已归档三段截图：草地、青石路、沙地；自动回归会检查三段截图和视觉细节数量。
 - 关键约束：禁止隐藏托底、压平桥/坡、关闭碰撞、跳过卡点或放宽 gate 来掩盖失败。
 

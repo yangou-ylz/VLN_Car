@@ -10,6 +10,8 @@ namespace VLN.ROS2
     {
         const string PhysicsRootName = "ScoutWheelGround_PhysicsRoot";
         const string VisualRootName = "ScoutWheelGround_VisualUrdf";
+        const string TopgearVisualRootName = "ScoutWheelGround_TopgearV2Visual";
+        const string TopgearSensorRootName = "ScoutWheelGround_TopgearSensorSuite";
 
         [SerializeField] string m_RosIp = "127.0.0.1";
         [SerializeField] int m_RosPort = 10000;
@@ -20,12 +22,23 @@ namespace VLN.ROS2
         [SerializeField] string m_OdomTopic = "/vln/odom";
         [SerializeField] string m_CameraFrameId = "front_camera_optical_frame";
         [SerializeField] string m_LidarFrameId = "lidar_link";
+        [SerializeField] string m_RearImageTopic = "/vln/rear/image_raw";
+        [SerializeField] string m_RearCameraInfoTopic = "/vln/rear/camera_info";
+        [SerializeField] string m_LeftImageTopic = "/vln/left/image_raw";
+        [SerializeField] string m_LeftCameraInfoTopic = "/vln/left/camera_info";
+        [SerializeField] string m_RightImageTopic = "/vln/right/image_raw";
+        [SerializeField] string m_RightCameraInfoTopic = "/vln/right/camera_info";
+        [SerializeField] string m_RearCameraFrameId = "rear_camera_optical_frame";
+        [SerializeField] string m_LeftCameraFrameId = "left_camera_optical_frame";
+        [SerializeField] string m_RightCameraFrameId = "right_camera_optical_frame";
         [SerializeField] float m_BatchModeAutoExitAfterSeconds = 38f;
 
         float m_StartRealtime;
         string m_ResultPath;
         Vector3 m_InitialPosition;
         bool m_ScreenshotRequested;
+        bool m_TopgearScreenshotRequested;
+        bool m_TopgearSensorScreenshotRequested;
         bool m_BridgeScreenshotRequested;
         bool m_ShortRampScreenshotRequested;
         bool m_ChallengeScreenshotRequested;
@@ -61,16 +74,26 @@ namespace VLN.ROS2
                 "urdf_articulation_candidate_preserved_in_separate_scene=VLNOffroadScoutUrdfCandidate.unity\n" +
                 $"image_topic={m_ImageTopic}\n" +
                 $"camera_info_topic={m_CameraInfoTopic}\n" +
+                $"rear_image_topic={m_RearImageTopic}\n" +
+                $"rear_camera_info_topic={m_RearCameraInfoTopic}\n" +
+                $"left_image_topic={m_LeftImageTopic}\n" +
+                $"left_camera_info_topic={m_LeftCameraInfoTopic}\n" +
+                $"right_image_topic={m_RightImageTopic}\n" +
+                $"right_camera_info_topic={m_RightCameraInfoTopic}\n" +
                 $"pointcloud_topic={m_PointCloudTopic}\n" +
                 $"cmd_vel_topic={m_CmdVelTopic}\n" +
                 $"odom_topic={m_OdomTopic}\n" +
                 $"camera_frame_id={m_CameraFrameId}\n" +
+                $"rear_camera_frame_id={m_RearCameraFrameId}\n" +
+                $"left_camera_frame_id={m_LeftCameraFrameId}\n" +
+                $"right_camera_frame_id={m_RightCameraFrameId}\n" +
                 $"lidar_frame_id={m_LidarFrameId}\n" +
                 "tf_topic=/tf\n" +
-                "tf_tree=map->base_link->front_camera_optical_frame,lidar_link\n" +
+                "tf_tree=map->base_link->front_camera_optical_frame,rear_camera_optical_frame,left_camera_optical_frame,right_camera_optical_frame,lidar_link\n" +
                 "odom_type=nav_msgs/msg/Odometry\n" +
                 "cmd_vel_type=geometry_msgs/msg/Twist\n" +
                 "image_resolution=640x480\n" +
+                "camera_count=4\n" +
                 "lidar_scan_pattern=VLP-16\n" +
                 "lidar_points_per_scan=7200\n" +
                 "terrain_geometry_policy=visible_local_physics_no_flattening_no_hidden_bypass\n" +
@@ -101,6 +124,24 @@ namespace VLN.ROS2
                 SaveViewerCameraScreenshot(screenshotPath);
                 File.AppendAllText(m_ResultPath, $"screenshot={screenshotPath}\n");
                 Debug.Log($"VLN_OFFROAD_SCOUT_WHEEL_GROUND_CANDIDATE_SCREENSHOT {screenshotPath}");
+            }
+
+            if (!m_TopgearScreenshotRequested && elapsed >= 5.2f)
+            {
+                m_TopgearScreenshotRequested = true;
+                string topgearScreenshotPath = Path.Combine(Application.dataPath, "../Logs/vln_offroad_scout_wheel_ground_topgear_visual_screenshot.png");
+                SaveTopgearVisualScreenshot(topgearScreenshotPath);
+                File.AppendAllText(m_ResultPath, $"topgear_visual_screenshot={topgearScreenshotPath}\n");
+                Debug.Log($"VLN_OFFROAD_SCOUT_WHEEL_GROUND_TOPGEAR_VISUAL_SCREENSHOT {topgearScreenshotPath}");
+            }
+
+            if (!m_TopgearSensorScreenshotRequested && elapsed >= 5.4f)
+            {
+                m_TopgearSensorScreenshotRequested = true;
+                string topgearSensorScreenshotPath = Path.Combine(Application.dataPath, "../Logs/vln_offroad_scout_wheel_ground_topgear_sensor_suite_screenshot.png");
+                SaveTopgearSensorSuiteScreenshot(topgearSensorScreenshotPath);
+                File.AppendAllText(m_ResultPath, $"topgear_sensor_suite_screenshot={topgearSensorScreenshotPath}\n");
+                Debug.Log($"VLN_OFFROAD_SCOUT_WHEEL_GROUND_TOPGEAR_SENSOR_SUITE_SCREENSHOT {topgearSensorScreenshotPath}");
             }
 
             var physicsRoot = GameObject.Find(PhysicsRootName);
@@ -279,7 +320,92 @@ namespace VLN.ROS2
                 $"visual_renderer_count={(visualRoot != null ? visualRoot.GetComponentsInChildren<Renderer>(true).Length : 0)}\n" +
                 $"visual_collider_count={(visualRoot != null ? visualRoot.GetComponentsInChildren<Collider>(true).Length : 0)}\n" +
                 $"visual_articulation_body_count={(visualRoot != null ? visualRoot.GetComponentsInChildren<ArticulationBody>(true).Length : 0)}\n" +
+                BuildTopgearVisualSummary() +
+                BuildTopgearSensorSuiteSummary() +
                 $"rigidbody_mass_kg={(body != null ? body.mass.ToString("F2") : "missing")}\n";
+        }
+
+        static string BuildTopgearVisualSummary()
+        {
+            var topgear = GameObject.Find(TopgearVisualRootName);
+            if (topgear == null)
+            {
+                return
+                    "topgear_visual_present=0\n" +
+                    "topgear_visual_renderer_count=0\n" +
+                    "topgear_visual_collider_count=0\n" +
+                    "topgear_visual_rigidbody_count=0\n" +
+                    "topgear_visual_bounds_size_m=missing\n";
+            }
+
+            var bounds = CalculateRendererBounds(topgear);
+            return
+                "topgear_visual_present=1\n" +
+                $"topgear_visual_renderer_count={topgear.GetComponentsInChildren<Renderer>(true).Length}\n" +
+                $"topgear_visual_collider_count={topgear.GetComponentsInChildren<Collider>(true).Length}\n" +
+                $"topgear_visual_rigidbody_count={topgear.GetComponentsInChildren<Rigidbody>(true).Length}\n" +
+                $"topgear_visual_bounds_center_m={FormatVector(bounds.center)}\n" +
+                $"topgear_visual_bounds_size_m={FormatVector(bounds.size)}\n";
+        }
+
+        static string BuildTopgearSensorSuiteSummary()
+        {
+            var root = GameObject.Find(TopgearSensorRootName);
+            if (root == null)
+            {
+                return
+                    "topgear_sensor_suite_present=0\n" +
+                    "topgear_sensor_camera_count=0\n" +
+                    "topgear_sensor_lidar_count=0\n" +
+                    "topgear_sensor_renderer_count=0\n" +
+                    "topgear_sensor_collider_count=0\n" +
+                    "topgear_sensor_rigidbody_count=0\n";
+            }
+
+            var bounds = CalculateRendererBounds(root);
+            return
+                "topgear_sensor_suite_present=1\n" +
+                $"topgear_sensor_camera_count={CountChildrenByNameContains(root, "RGBCamera")}\n" +
+                $"topgear_sensor_lidar_count={CountChildrenByNameContains(root, "LiDAR")}\n" +
+                $"topgear_sensor_renderer_count={root.GetComponentsInChildren<Renderer>(true).Length}\n" +
+                $"topgear_sensor_vlp16_official_mesh_count={CountChildrenByNameContains(root, "Velodyne_VLP16_OfficialMesh")}\n" +
+                $"topgear_sensor_d405_official_stl_count={CountChildrenByNameContains(root, "RealSense_D405_OfficialStlBody")}\n" +
+                $"topgear_sensor_procedural_vlp16_rib_count={CountChildrenByNameContains(root, "VLP16_VerticalRib")}\n" +
+                $"topgear_sensor_procedural_d405_screw_count={CountChildrenByNameContains(root, "D405_Screw")}\n" +
+                $"topgear_sensor_collider_count={root.GetComponentsInChildren<Collider>(true).Length}\n" +
+                $"topgear_sensor_rigidbody_count={root.GetComponentsInChildren<Rigidbody>(true).Length}\n" +
+                $"topgear_sensor_bounds_center_m={FormatVector(bounds.center)}\n" +
+                $"topgear_sensor_bounds_size_m={FormatVector(bounds.size)}\n";
+        }
+
+        static int CountChildrenByNameContains(GameObject root, string token)
+        {
+            int count = 0;
+            foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+            {
+                if (child.name.Contains(token, StringComparison.Ordinal))
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        static Bounds CalculateRendererBounds(GameObject root)
+        {
+            var renderers = root.GetComponentsInChildren<Renderer>(true);
+            if (renderers.Length == 0)
+            {
+                return new Bounds(root.transform.position, Vector3.zero);
+            }
+
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+            {
+                bounds.Encapsulate(renderers[i].bounds);
+            }
+
+            return bounds;
         }
 
         static int CountGameObjectsByPrefix(string prefix)
@@ -514,6 +640,108 @@ namespace VLN.ROS2
             }
 
             RenderCameraToPng(camera, path, 1280, 720);
+        }
+
+        static void SaveTopgearVisualScreenshot(string path)
+        {
+            var physicsRoot = GameObject.Find(PhysicsRootName);
+            var topgear = GameObject.Find(TopgearVisualRootName);
+            if (physicsRoot == null || topgear == null)
+            {
+                SaveViewerCameraScreenshot(path);
+                return;
+            }
+
+            var bounds = CalculateRendererBounds(topgear);
+            var cameraObject = new GameObject("ScoutWheelGroundCandidate_TopgearVisualScreenshotCamera");
+            try
+            {
+                var camera = cameraObject.AddComponent<Camera>();
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0.56f, 0.66f, 0.76f);
+                camera.nearClipPlane = 0.02f;
+                camera.farClipPlane = 20f;
+                camera.fieldOfView = 32f;
+
+                var focus = bounds.center + Vector3.up * 0.02f;
+                var frontRight = physicsRoot.transform.TransformDirection(new Vector3(1.35f, 0.65f, 1.65f));
+                cameraObject.transform.position = focus + frontRight;
+                cameraObject.transform.LookAt(focus);
+                RenderCameraToPng(camera, path, 1280, 720);
+            }
+            finally
+            {
+                Destroy(cameraObject);
+            }
+        }
+
+        static void SaveTopgearSensorSuiteScreenshot(string path)
+        {
+            var physicsRoot = GameObject.Find(PhysicsRootName);
+            var topgear = GameObject.Find(TopgearVisualRootName);
+            var sensors = GameObject.Find(TopgearSensorRootName);
+            if (physicsRoot == null || topgear == null || sensors == null)
+            {
+                SaveTopgearVisualScreenshot(path);
+                return;
+            }
+
+            var bounds = CalculateRendererBounds(topgear);
+            var sensorBounds = CalculateRendererBounds(sensors);
+            bounds.Encapsulate(sensorBounds.min);
+            bounds.Encapsulate(sensorBounds.max);
+
+            var cameraObject = new GameObject("ScoutWheelGroundCandidate_TopgearSensorSuiteScreenshotCamera");
+            try
+            {
+                var camera = cameraObject.AddComponent<Camera>();
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0.56f, 0.66f, 0.76f);
+                camera.nearClipPlane = 0.02f;
+                camera.farClipPlane = 20f;
+                camera.fieldOfView = 30f;
+
+                var focus = bounds.center + Vector3.up * 0.06f;
+                var frontRight = physicsRoot.transform.TransformDirection(new Vector3(1.28f, 0.72f, 1.42f));
+                cameraObject.transform.position = focus + frontRight;
+                cameraObject.transform.LookAt(focus);
+                RenderCameraToPng(camera, path, 1280, 720);
+            }
+            finally
+            {
+                Destroy(cameraObject);
+            }
+
+            string directory = Path.GetDirectoryName(path);
+            string stem = Path.GetFileNameWithoutExtension(path);
+            SaveTopgearSensorSuiteView(Path.Combine(directory, stem + "_front.png"), physicsRoot.transform, bounds, new Vector3(0f, 0.70f, 1.35f), 28f);
+            SaveTopgearSensorSuiteView(Path.Combine(directory, stem + "_rear.png"), physicsRoot.transform, bounds, new Vector3(0f, 0.70f, -1.35f), 28f);
+            SaveTopgearSensorSuiteView(Path.Combine(directory, stem + "_left.png"), physicsRoot.transform, bounds, new Vector3(-1.35f, 0.70f, 0f), 28f);
+            SaveTopgearSensorSuiteView(Path.Combine(directory, stem + "_right.png"), physicsRoot.transform, bounds, new Vector3(1.35f, 0.70f, 0f), 28f);
+            SaveTopgearSensorSuiteView(Path.Combine(directory, stem + "_top.png"), physicsRoot.transform, bounds, new Vector3(0.12f, 1.65f, 0.12f), 24f);
+        }
+
+        static void SaveTopgearSensorSuiteView(string path, Transform vehicleFrame, Bounds focusBounds, Vector3 localOffset, float fieldOfView)
+        {
+            var cameraObject = new GameObject("ScoutWheelGroundCandidate_TopgearSensorSuiteViewCamera");
+            try
+            {
+                var camera = cameraObject.AddComponent<Camera>();
+                camera.clearFlags = CameraClearFlags.SolidColor;
+                camera.backgroundColor = new Color(0.56f, 0.66f, 0.76f);
+                camera.nearClipPlane = 0.02f;
+                camera.farClipPlane = 20f;
+                camera.fieldOfView = fieldOfView;
+
+                var focus = focusBounds.center + Vector3.up * 0.05f;
+                cameraObject.transform.position = focus + vehicleFrame.TransformDirection(localOffset);
+                cameraObject.transform.LookAt(focus);
+                RenderCameraToPng(camera, path, 1280, 720);
+            }
+            finally
+            {
+                Destroy(cameraObject);
+            }
         }
 
         void SaveNamedScreenshot(string resultKey, string fileName, string logMarker)

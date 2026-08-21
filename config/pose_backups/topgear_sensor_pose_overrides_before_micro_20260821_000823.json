@@ -1,0 +1,94 @@
+{
+    "sensors": [
+        {
+            "name": "Topgear_VLP16_RaycastLiDAR_UnitySensorsROS",
+            "localPosition": {
+                "x": 0.004900000058114529,
+                "y": 0.8420000076293945,
+                "z": 0.004600000102072954
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "name": "Topgear_Front_RGBCamera_UnitySensorsROS",
+            "localPosition": {
+                "x": 0.02199999988079071,
+                "y": 0.8489000201225281,
+                "z": 0.30000001192092898
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "name": "Topgear_Rear_RGBCamera_UnitySensorsROS",
+            "localPosition": {
+                "x": 0.0,
+                "y": 0.7229999899864197,
+                "z": -0.04100000113248825
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 180.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "name": "Topgear_Left_RGBCamera_UnitySensorsROS",
+            "localPosition": {
+                "x": -0.05000000074505806,
+                "y": 0.7229999899864197,
+                "z": 0.07699999958276749
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 270.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "name": "Topgear_Right_RGBCamera_UnitySensorsROS",
+            "localPosition": {
+                "x": 0.05000000074505806,
+                "y": 0.7229999899864197,
+                "z": 0.07699999958276749
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 90.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        }
+    ]
+}

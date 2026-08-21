@@ -5,7 +5,13 @@ using Unity.Robotics.UrdfImporter;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnitySensors.DataType.LiDAR;
+using UnitySensors.Sensor.Camera;
+using UnitySensors.Sensor.LiDAR;
 using VLN.ROS2;
+using CameraInfoMsgPublisher = UnitySensors.ROS.Publisher.Camera.CameraInfoMsgPublisher;
+using ImageMsgPublisher = UnitySensors.ROS.Publisher.Sensor.ImageMsgPublisher;
+using LiDARPointCloud2MsgPublisher = UnitySensors.ROS.Publisher.Sensor.LiDARPointCloud2MsgPublisher;
 
 namespace VLN.Editor
 {
@@ -14,6 +20,39 @@ namespace VLN.Editor
         public const string ScenePath = "Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity";
         const string UrdfAssetPath = "Assets/VLN/ExternalAssets/ScoutUrdfPhysics/scout_v2_unity_import.urdf";
         const string ScoutAssetRoot = "Assets/VLN/ExternalAssets/ScoutUrdfPhysics";
+        const string TopgearVisualAssetRoot = "Assets/VLN/ExternalAssets/TopgearV2Visual";
+        const string TopgearVisualAssetPath = TopgearVisualAssetRoot + "/Models/topgear_v2.dae";
+        const string TopgearSensorModelAssetRoot = "Assets/VLN/ExternalAssets/TopgearSensorModels";
+        const string Vlp16Base1AssetPath = TopgearSensorModelAssetRoot + "/VelodyneVLP16/VLP16_base_1.dae";
+        const string Vlp16Base2AssetPath = TopgearSensorModelAssetRoot + "/VelodyneVLP16/VLP16_base_2.dae";
+        const string Vlp16ScanAssetPath = TopgearSensorModelAssetRoot + "/VelodyneVLP16/VLP16_scan.dae";
+        const string RealSenseD405AssetPath = TopgearSensorModelAssetRoot + "/RealSenseD405/d405.stl";
+        const string TopgearVisualRootName = "ScoutWheelGround_TopgearV2Visual";
+        const string TopgearSensorRootName = "ScoutWheelGround_TopgearSensorSuite";
+        const string TopgearLidarName = "Topgear_VLP16_RaycastLiDAR_UnitySensorsROS";
+        const string TopgearFrontCameraName = "Topgear_Front_RGBCamera_UnitySensorsROS";
+        const string TopgearRearCameraName = "Topgear_Rear_RGBCamera_UnitySensorsROS";
+        const string TopgearLeftCameraName = "Topgear_Left_RGBCamera_UnitySensorsROS";
+        const string TopgearRightCameraName = "Topgear_Right_RGBCamera_UnitySensorsROS";
+        const string FrontImageTopic = "/vln/front/image_raw";
+        const string FrontCameraInfoTopic = "/vln/front/camera_info";
+        const string RearImageTopic = "/vln/rear/image_raw";
+        const string RearCameraInfoTopic = "/vln/rear/camera_info";
+        const string LeftImageTopic = "/vln/left/image_raw";
+        const string LeftCameraInfoTopic = "/vln/left/camera_info";
+        const string RightImageTopic = "/vln/right/image_raw";
+        const string RightCameraInfoTopic = "/vln/right/camera_info";
+        const string PointCloudTopic = "/vln/lidar/points";
+        const string FrontCameraFrameId = "front_camera_optical_frame";
+        const string RearCameraFrameId = "rear_camera_optical_frame";
+        const string LeftCameraFrameId = "left_camera_optical_frame";
+        const string RightCameraFrameId = "right_camera_optical_frame";
+        const string LidarFrameId = "lidar_link";
+        const float SensorFrequencyHz = 5f;
+        const int LidarPointsPerScan = 7200;
+        const float LidarMinRange = 0.4f;
+        const float LidarMaxRange = 45f;
+        static readonly Vector2Int TopgearCameraResolution = new(640, 480);
         const string PbrMaterialRoot = "Assets/VLN/ExternalAssets/PBRMaterials/AmbientCG";
         const string StoneAlbedoTexturePath = PbrMaterialRoot + "/PavingStones151_1K-JPG/PavingStones151_1K-JPG_Color.jpg";
         const string StoneNormalTexturePath = PbrMaterialRoot + "/PavingStones151_1K-JPG/PavingStones151_1K-JPG_NormalGL.jpg";
@@ -75,6 +114,8 @@ namespace VLN.Editor
             EnsureScoutAssetsExist();
             VlnOffroadAssetCandidateProjectSetup.BuildAssetCandidateScene();
             AssetDatabase.ImportAsset(ScoutAssetRoot, ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceUpdate);
+            AssetDatabase.ImportAsset(TopgearVisualAssetRoot, ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceUpdate);
+            AssetDatabase.ImportAsset(TopgearSensorModelAssetRoot, ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceUpdate);
             ImportPbrTextureFolderIfPresent();
             AssetDatabase.Refresh();
 
@@ -157,6 +198,8 @@ namespace VLN.Editor
             var visualRoot = ImportScoutVisualOnly(physicsRoot.transform);
             ConfigureController(physicsRoot, visualRoot);
             ConfigureRigToFollowPhysics(rig, physicsRoot.transform);
+            var topgearSensors = CreateTopgearSensorSuite(rig.transform);
+            ConfigureTopgearSensorTf(rig, topgearSensors);
             ConfigureScoutWheelGroundCamera(rig.transform);
 
             var controller = new GameObject("VLN_OffroadScoutWheelGroundCandidate_SmokeTestController");
@@ -175,6 +218,11 @@ namespace VLN.Editor
                 UrdfAssetPath,
                 "Assets/VLN/ExternalAssets/ScoutUrdfPhysics/meshes/base_link.dae",
                 "Assets/VLN/ExternalAssets/ScoutUrdfPhysics/meshes/wheel_type1.dae",
+                TopgearVisualAssetPath,
+                Vlp16Base1AssetPath,
+                Vlp16Base2AssetPath,
+                Vlp16ScanAssetPath,
+                RealSenseD405AssetPath,
             };
 
             foreach (string assetPath in requiredAssets)
@@ -269,9 +317,64 @@ namespace VLN.Editor
 
             RemovePhysicsComponents(imported);
             AlignVisualBottomToLocalY(imported, 0.02f);
+            AttachTopgearV2Visual(imported.transform);
             SetLayerRecursively(imported, 0);
             Debug.Log(BuildVisualImportSummary(imported));
             return imported;
+        }
+
+        static void AttachTopgearV2Visual(Transform visualRoot)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(TopgearVisualAssetPath);
+            if (prefab == null)
+            {
+                throw new FileNotFoundException($"Missing Topgear V2 visual asset: {TopgearVisualAssetPath}", ProjectRelativeToFullPath(TopgearVisualAssetPath));
+            }
+
+            var instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+            if (instance == null)
+            {
+                instance = UnityEngine.Object.Instantiate(prefab);
+            }
+
+            instance.name = TopgearVisualRootName;
+            instance.transform.SetParent(visualRoot, false);
+            instance.transform.localPosition = Vector3.zero;
+            // topgear_v2.dae is authored as Blender Z-up with +Y as the visual front.
+            // Mount it on the Scout visual frame where +Y is up and +Z is vehicle-forward.
+            instance.transform.localRotation = Quaternion.Euler(0f, 180f, 0f) * Quaternion.Euler(-90f, 0f, 0f);
+            instance.transform.localScale = Vector3.one;
+            RemovePhysicsComponents(instance);
+            // Keep the topgear assembly visually seated on the Scout top deck.
+            AlignRendererBoundsToLocalFrame(instance, visualRoot, new Vector3(0f, 0.115f, 0.045f));
+
+            Debug.Log(BuildTopgearVisualSummary(instance, visualRoot));
+        }
+
+        static void AlignRendererBoundsToLocalFrame(GameObject root, Transform localFrame, Vector3 targetLocalCenterXBottomYCenterZ)
+        {
+            Bounds localBounds = CalculateRendererBoundsInLocalFrame(root, localFrame);
+            var localDelta = new Vector3(
+                targetLocalCenterXBottomYCenterZ.x - localBounds.center.x,
+                targetLocalCenterXBottomYCenterZ.y - localBounds.min.y,
+                targetLocalCenterXBottomYCenterZ.z - localBounds.center.z);
+            root.transform.localPosition += localDelta;
+        }
+
+        static string BuildTopgearVisualSummary(GameObject topgearRoot, Transform localFrame)
+        {
+            Bounds localBounds = CalculateRendererBoundsInLocalFrame(topgearRoot, localFrame);
+            return string.Format(
+                "VLN_SCOUT_WHEEL_GROUND_TOPGEAR_VISUAL_ATTACHED renderers={0} colliders={1} rigidbodies={2} local_bounds_min={3:F3},{4:F3},{5:F3} local_bounds_size={6:F3},{7:F3},{8:F3}",
+                topgearRoot.GetComponentsInChildren<Renderer>(true).Length,
+                topgearRoot.GetComponentsInChildren<Collider>(true).Length,
+                topgearRoot.GetComponentsInChildren<Rigidbody>(true).Length,
+                localBounds.min.x,
+                localBounds.min.y,
+                localBounds.min.z,
+                localBounds.size.x,
+                localBounds.size.y,
+                localBounds.size.z);
         }
 
         static GameObject ImportScoutUrdf()
@@ -449,6 +552,620 @@ namespace VLN.Editor
                 follower = rig.AddComponent<VlnFollowTransformPose>();
             }
             follower.Configure(physicsRoot, Vector3.zero, true);
+        }
+
+        sealed class TopgearSensorSuiteHandles
+        {
+            public Transform Root;
+            public Transform FrontCamera;
+            public Transform RearCamera;
+            public Transform LeftCamera;
+            public Transform RightCamera;
+            public Transform Lidar;
+        }
+
+        static TopgearSensorSuiteHandles CreateTopgearSensorSuite(Transform rig)
+        {
+            DestroyChildIfExists(rig, "Front_RGBCamera_UnitySensorsROS");
+            DestroyChildIfExists(rig, "VLP16_RaycastLiDAR_UnitySensorsROS");
+            DestroyChildIfExists(rig, TopgearSensorRootName);
+
+            var root = new GameObject(TopgearSensorRootName);
+            root.transform.SetParent(rig, false);
+            root.transform.localPosition = Vector3.zero;
+            root.transform.localRotation = Quaternion.identity;
+            root.transform.localScale = Vector3.one;
+
+            var bodyMaterial = EnsureSurfaceMaterial("Assets/VLN/Materials/TopgearSensorSuite_DarkBody.mat", new Color(0.155f, 0.165f, 0.170f));
+            var ringMaterial = EnsureSurfaceMaterial("Assets/VLN/Materials/TopgearSensorSuite_SatinBlackRing.mat", new Color(0.285f, 0.295f, 0.305f));
+            var glassMaterial = EnsureSurfaceMaterial("Assets/VLN/Materials/TopgearSensorSuite_Glass.mat", new Color(0.02f, 0.48f, 0.58f));
+            var metalMaterial = EnsureSurfaceMaterial("Assets/VLN/Materials/TopgearSensorSuite_BoltMetal.mat", new Color(0.80f, 0.84f, 0.86f));
+            var lidarAccentMaterial = EnsureSurfaceMaterial("Assets/VLN/Materials/TopgearSensorSuite_LidarAccent.mat", new Color(0.08f, 0.34f, 0.42f));
+
+            ConfigureSensorMaterial(bodyMaterial, 0.02f, 0.20f);
+            ConfigureSensorMaterial(ringMaterial, 0.00f, 0.35f);
+            ConfigureSensorMaterial(glassMaterial, 0.00f, 0.70f);
+            ConfigureSensorMaterial(metalMaterial, 0.65f, 0.52f);
+            ConfigureSensorMaterial(lidarAccentMaterial, 0.05f, 0.42f);
+
+            ScanPattern scanPattern = LoadVlp16ScanPattern();
+
+            Transform lidar = CreateTopgearLidar(root.transform, scanPattern, bodyMaterial, ringMaterial, glassMaterial, metalMaterial, lidarAccentMaterial);
+
+            // Topgear upper sensor-box anchors are derived from topgear_v2.dae after the mounted
+            // Z-up -> Y-up transform: the LiDAR disk center is x=0,z=0.004 at y~=0.805, and the
+            // camera box material spans x=-0.045..0.045, y=0.660..0.805, z=-0.041..0.196.
+            // Put each camera root on the outer face center; the D405 official STL body extends along
+            // local -Z, so the lens plane is flush with the circular cutout and the body goes inward.
+            const float cameraCenterY = 0.723f;
+            const float cameraBoxCenterZ = 0.077f;
+            const float cameraBoxSideX = 0.050f;
+            const float cameraBoxFrontZ = 0.196f;
+            const float cameraBoxRearZ = -0.041f;
+            Transform front = CreateTopgearCamera(root.transform, TopgearFrontCameraName, new Vector3(0f, cameraCenterY, cameraBoxFrontZ), Quaternion.identity, FrontImageTopic, FrontCameraInfoTopic, FrontCameraFrameId, bodyMaterial, ringMaterial, glassMaterial, metalMaterial);
+            Transform rear = CreateTopgearCamera(root.transform, TopgearRearCameraName, new Vector3(0f, cameraCenterY, cameraBoxRearZ), Quaternion.Euler(0f, 180f, 0f), RearImageTopic, RearCameraInfoTopic, RearCameraFrameId, bodyMaterial, ringMaterial, glassMaterial, metalMaterial);
+            Transform left = CreateTopgearCamera(root.transform, TopgearLeftCameraName, new Vector3(-cameraBoxSideX, cameraCenterY, cameraBoxCenterZ), Quaternion.Euler(0f, -90f, 0f), LeftImageTopic, LeftCameraInfoTopic, LeftCameraFrameId, bodyMaterial, ringMaterial, glassMaterial, metalMaterial);
+            Transform right = CreateTopgearCamera(root.transform, TopgearRightCameraName, new Vector3(cameraBoxSideX, cameraCenterY, cameraBoxCenterZ), Quaternion.Euler(0f, 90f, 0f), RightImageTopic, RightCameraInfoTopic, RightCameraFrameId, bodyMaterial, ringMaterial, glassMaterial, metalMaterial);
+            ApplyTopgearSensorPoseOverrides(root.transform);
+
+            Debug.Log("VLN_TOPGEAR_SENSOR_SUITE_ATTACHED lidar=1 cameras=4 parent=rig topics=/vln/front,/vln/rear,/vln/left,/vln/right,/vln/lidar");
+            return new TopgearSensorSuiteHandles
+            {
+                Root = root.transform,
+                FrontCamera = front,
+                RearCamera = rear,
+                LeftCamera = left,
+                RightCamera = right,
+                Lidar = lidar,
+            };
+        }
+
+        static Transform CreateTopgearLidar(Transform parent, ScanPattern scanPattern, Material bodyMaterial, Material ringMaterial, Material glassMaterial, Material metalMaterial, Material accentMaterial)
+        {
+            var lidarObject = new GameObject(TopgearLidarName);
+            lidarObject.transform.SetParent(parent, false);
+            // The topgear upper disk top is around local y=0.805. The LiDAR visual is fitted to 74 mm
+            // height around this root, so y=0.842 seats its lower shell on the disk center.
+            lidarObject.transform.localPosition = new Vector3(0f, 0.842f, 0.004f);
+            lidarObject.transform.localRotation = Quaternion.identity;
+            lidarObject.transform.localScale = Vector3.one;
+            lidarObject.layer = 0;
+
+            CreateTopgearVlp16Visual(lidarObject.transform, bodyMaterial, ringMaterial, glassMaterial, metalMaterial, accentMaterial);
+
+            var lidarSensor = lidarObject.AddComponent<RaycastLiDARSensor>();
+            ConfigureLidarSensor(lidarSensor, scanPattern);
+
+            var pointCloudPublisher = lidarObject.AddComponent<LiDARPointCloud2MsgPublisher>();
+            ConfigurePointCloudPublisher(pointCloudPublisher, lidarSensor, PointCloudTopic, LidarFrameId);
+            return lidarObject.transform;
+        }
+
+        static Transform CreateTopgearCamera(Transform parent, string name, Vector3 localPosition, Quaternion localRotation, string imageTopic, string cameraInfoTopic, string frameId, Material bodyMaterial, Material ringMaterial, Material glassMaterial, Material metalMaterial)
+        {
+            var cameraObject = new GameObject(name);
+            cameraObject.transform.SetParent(parent, false);
+            cameraObject.transform.localPosition = localPosition;
+            cameraObject.transform.localRotation = localRotation;
+            cameraObject.transform.localScale = Vector3.one;
+            cameraObject.layer = 0;
+
+            var camera = cameraObject.AddComponent<UnityEngine.Camera>();
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = new Color(0.56f, 0.66f, 0.76f);
+            camera.nearClipPlane = 0.035f;
+            camera.farClipPlane = 90f;
+            camera.fieldOfView = 78f;
+            camera.depth = -20f;
+
+            var rgbSensor = cameraObject.AddComponent<RGBCameraSensor>();
+            ConfigureRgbSensor(rgbSensor);
+
+            var imagePublisher = cameraObject.AddComponent<ImageMsgPublisher>();
+            ConfigureImagePublisher(imagePublisher, rgbSensor, imageTopic, frameId);
+
+            var cameraInfoPublisher = cameraObject.AddComponent<CameraInfoMsgPublisher>();
+            ConfigureCameraInfoPublisher(cameraInfoPublisher, rgbSensor, cameraInfoTopic, frameId);
+
+            CreateTopgearD405Visual(cameraObject.transform, bodyMaterial, ringMaterial, glassMaterial, metalMaterial);
+
+            return cameraObject.transform;
+        }
+
+        static void CreateTopgearVlp16Visual(Transform parent, Material bodyMaterial, Material ringMaterial, Material glassMaterial, Material metalMaterial, Material accentMaterial)
+        {
+            var visual = InstantiateImportedSensorModel(
+                parent,
+                "Velodyne_VLP16_OfficialMesh",
+                new[] { Vlp16Base1AssetPath, Vlp16ScanAssetPath, Vlp16Base2AssetPath },
+                Vector3.zero,
+                // The VLP-16 DAE files declare Y_UP, but their mesh bounds show the cylindrical height
+                // along source Z. Rotate source Z into Unity/vehicle Y so the official mesh stands upright.
+                Quaternion.Euler(-90f, 0f, 0f),
+                new Vector3(0.112f, 0.074f, 0.112f),
+                Vector3.zero,
+                bodyMaterial);
+            TintImportedRenderersByName(visual, bodyMaterial, ringMaterial, glassMaterial, accentMaterial);
+        }
+
+        static void CreateTopgearD405Visual(Transform parent, Material bodyMaterial, Material ringMaterial, Material glassMaterial, Material metalMaterial)
+        {
+            var root = new GameObject("RealSense_D405_SquareStereoVisual");
+            root.transform.SetParent(parent, false);
+            root.transform.localPosition = Vector3.zero;
+            root.transform.localRotation = Quaternion.identity;
+            root.transform.localScale = Vector3.one;
+            root.layer = 0;
+
+            if (!TryCreateBinaryStlMeshVisual(root.transform, RealSenseD405AssetPath, "RealSense_D405_OfficialStlBody", bodyMaterial))
+            {
+                throw new FileNotFoundException($"Missing or invalid official RealSense D405 STL mesh: {RealSenseD405AssetPath}", ProjectRelativeToFullPath(RealSenseD405AssetPath));
+            }
+        }
+
+        static bool TryCreateBinaryStlMeshVisual(Transform parent, string assetPath, string name, Material material)
+        {
+            string fullPath = ProjectRelativeToFullPath(assetPath);
+            if (!File.Exists(fullPath))
+            {
+                return false;
+            }
+
+            byte[] data = File.ReadAllBytes(fullPath);
+            if (data.Length < 84)
+            {
+                return false;
+            }
+
+            int triangleCount = checked((int)BitConverter.ToUInt32(data, 80));
+            long expectedLength = 84L + triangleCount * 50L;
+            if (triangleCount == 0 || expectedLength > data.Length)
+            {
+                return false;
+            }
+
+            float unitScale = EstimateStlUnitScale(data, triangleCount);
+            var vertices = new Vector3[triangleCount * 3];
+            var normals = new Vector3[triangleCount * 3];
+            var indices = new int[triangleCount * 3];
+
+            int vertexIndex = 0;
+            for (int i = 0; i < triangleCount; i++)
+            {
+                int offset = 84 + i * 50;
+                Vector3 normal = new Vector3(
+                    BitConverter.ToSingle(data, offset),
+                    BitConverter.ToSingle(data, offset + 4),
+                    BitConverter.ToSingle(data, offset + 8));
+                if (normal.sqrMagnitude < 1e-8f)
+                {
+                    normal = Vector3.forward;
+                }
+                normal.Normalize();
+
+                for (int j = 0; j < 3; j++)
+                {
+                    int vertexOffset = offset + 12 + j * 12;
+                    vertices[vertexIndex] = new Vector3(
+                        BitConverter.ToSingle(data, vertexOffset) * unitScale,
+                        BitConverter.ToSingle(data, vertexOffset + 4) * unitScale,
+                        BitConverter.ToSingle(data, vertexOffset + 8) * unitScale);
+                    normals[vertexIndex] = normal;
+                    indices[vertexIndex] = vertexIndex;
+                    vertexIndex++;
+                }
+            }
+
+            var mesh = new Mesh
+            {
+                name = name + "Mesh",
+                vertices = vertices,
+                normals = normals,
+                triangles = indices,
+            };
+            mesh.RecalculateBounds();
+
+            var meshObject = new GameObject(name);
+            meshObject.transform.SetParent(parent, false);
+            meshObject.transform.localPosition = Vector3.zero;
+            meshObject.transform.localRotation = Quaternion.identity;
+            meshObject.transform.localScale = Vector3.one;
+            meshObject.layer = 0;
+            var meshFilter = meshObject.AddComponent<MeshFilter>();
+            meshFilter.sharedMesh = mesh;
+            var renderer = meshObject.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+            return true;
+        }
+
+        static float EstimateStlUnitScale(byte[] data, int triangleCount)
+        {
+            var min = new Vector3(float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity);
+            var max = new Vector3(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity);
+            for (int i = 0; i < triangleCount; i++)
+            {
+                int offset = 84 + i * 50 + 12;
+                for (int j = 0; j < 3; j++)
+                {
+                    int vertexOffset = offset + j * 12;
+                    var vertex = new Vector3(
+                        BitConverter.ToSingle(data, vertexOffset),
+                        BitConverter.ToSingle(data, vertexOffset + 4),
+                        BitConverter.ToSingle(data, vertexOffset + 8));
+                    min = Vector3.Min(min, vertex);
+                    max = Vector3.Max(max, vertex);
+                }
+            }
+
+            Vector3 size = max - min;
+            return Mathf.Max(size.x, size.y, size.z) > 1.0f ? 0.001f : 1.0f;
+        }
+
+        static void ConfigureTopgearSensorTf(GameObject rig, TopgearSensorSuiteHandles sensors)
+        {
+            var tfPublisher = rig.GetComponent<VlnVehicleTfPublisher>();
+            if (tfPublisher == null)
+            {
+                tfPublisher = rig.AddComponent<VlnVehicleTfPublisher>();
+            }
+
+            var serializedPublisher = new SerializedObject(tfPublisher);
+            serializedPublisher.FindProperty("m_CameraFrame").stringValue = FrontCameraFrameId;
+            serializedPublisher.FindProperty("m_LidarFrame").stringValue = LidarFrameId;
+            serializedPublisher.FindProperty("m_CameraTransform").objectReferenceValue = sensors.FrontCamera;
+            serializedPublisher.FindProperty("m_LidarTransform").objectReferenceValue = sensors.Lidar;
+
+            var additionalFrames = serializedPublisher.FindProperty("m_AdditionalSensorFrames");
+            additionalFrames.arraySize = 3;
+            SetAdditionalSensorFrame(additionalFrames.GetArrayElementAtIndex(0), RearCameraFrameId, sensors.RearCamera);
+            SetAdditionalSensorFrame(additionalFrames.GetArrayElementAtIndex(1), LeftCameraFrameId, sensors.LeftCamera);
+            SetAdditionalSensorFrame(additionalFrames.GetArrayElementAtIndex(2), RightCameraFrameId, sensors.RightCamera);
+            serializedPublisher.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        static void SetAdditionalSensorFrame(SerializedProperty element, string frameId, Transform sensorTransform)
+        {
+            element.FindPropertyRelative("m_FrameId").stringValue = frameId;
+            element.FindPropertyRelative("m_Transform").objectReferenceValue = sensorTransform;
+        }
+
+        [Serializable]
+        public sealed class TopgearSensorPoseOverrideSet
+        {
+            public TopgearSensorPoseOverride[] sensors = Array.Empty<TopgearSensorPoseOverride>();
+        }
+
+        [Serializable]
+        public sealed class TopgearSensorPoseOverride
+        {
+            public string name;
+            public Vector3 localPosition;
+            public Vector3 localEulerAngles;
+            public Vector3 localScale;
+        }
+
+        public static string TopgearSensorPoseOverridePath => Path.GetFullPath(Path.Combine(Application.dataPath, "../../..", "config", "topgear_sensor_pose_overrides.json"));
+
+        static void ApplyTopgearSensorPoseOverrides(Transform sensorRoot)
+        {
+            string path = TopgearSensorPoseOverridePath;
+            if (!File.Exists(path))
+            {
+                return;
+            }
+
+            var overrides = JsonUtility.FromJson<TopgearSensorPoseOverrideSet>(File.ReadAllText(path));
+            if (overrides == null || overrides.sensors == null)
+            {
+                return;
+            }
+
+            foreach (var sensor in overrides.sensors)
+            {
+                if (sensor == null || string.IsNullOrWhiteSpace(sensor.name))
+                {
+                    continue;
+                }
+
+                Transform target = FindDeepChild(sensorRoot, sensor.name);
+                if (target == null || target.parent != sensorRoot)
+                {
+                    continue;
+                }
+
+                target.localPosition = sensor.localPosition;
+                target.localRotation = Quaternion.Euler(sensor.localEulerAngles);
+                if (sensor.localScale.x > 0f && sensor.localScale.y > 0f && sensor.localScale.z > 0f)
+                {
+                    target.localScale = sensor.localScale;
+                }
+            }
+        }
+
+        static GameObject InstantiateImportedSensorModel(Transform parent, string name, string[] assetPaths, Vector3 localPosition, Quaternion localRotation, Vector3 targetSize, Vector3 targetCenter, Material fallbackMaterial)
+        {
+            var container = new GameObject(name);
+            container.transform.SetParent(parent, false);
+            container.transform.localPosition = localPosition;
+            container.transform.localRotation = localRotation;
+            container.transform.localScale = Vector3.one;
+            container.layer = 0;
+
+            foreach (string assetPath in assetPaths)
+            {
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+                GameObject instance;
+                if (prefab == null && assetPath.EndsWith(".stl", StringComparison.OrdinalIgnoreCase))
+                {
+                    instance = CreateBinaryStlMeshObject(assetPath, fallbackMaterial);
+                }
+                else if (prefab == null)
+                {
+                    throw new FileNotFoundException($"Missing imported sensor mesh asset: {assetPath}", ProjectRelativeToFullPath(assetPath));
+                }
+                else
+                {
+                    instance = PrefabUtility.InstantiatePrefab(prefab) as GameObject;
+                    if (instance == null)
+                    {
+                        instance = UnityEngine.Object.Instantiate(prefab);
+                    }
+                }
+
+                instance.name = Path.GetFileNameWithoutExtension(assetPath);
+                instance.transform.SetParent(container.transform, false);
+                instance.transform.localPosition = Vector3.zero;
+                instance.transform.localRotation = Quaternion.identity;
+                instance.transform.localScale = Vector3.one;
+                RemovePhysicsComponents(instance);
+                SetLayerRecursively(instance, 0);
+
+                if (fallbackMaterial != null)
+                {
+                    foreach (var renderer in instance.GetComponentsInChildren<Renderer>(true))
+                    {
+                        if (renderer.sharedMaterial == null)
+                        {
+                            renderer.sharedMaterial = fallbackMaterial;
+                        }
+                    }
+                }
+            }
+
+            FitRendererBoundsToLocalBox(container, targetSize, targetCenter);
+            return container;
+        }
+
+        static GameObject CreateBinaryStlMeshObject(string assetPath, Material material)
+        {
+            string fullPath = ProjectRelativeToFullPath(assetPath);
+            byte[] data = File.ReadAllBytes(fullPath);
+            if (data.Length < 84)
+            {
+                throw new InvalidDataException($"STL file too short: {assetPath}");
+            }
+
+            int triangleCount = BitConverter.ToInt32(data, 80);
+            int expectedLength = 84 + triangleCount * 50;
+            if (triangleCount <= 0 || data.Length < expectedLength)
+            {
+                throw new InvalidDataException($"Invalid binary STL triangle payload: {assetPath}");
+            }
+
+            var vertices = new Vector3[triangleCount * 3];
+            var triangles = new int[triangleCount * 3];
+            int offset = 84;
+            const float millimetersToMeters = 0.001f;
+            for (int triangle = 0; triangle < triangleCount; triangle++)
+            {
+                offset += 12; // facet normal, recalculated below after import.
+                for (int vertex = 0; vertex < 3; vertex++)
+                {
+                    float x = BitConverter.ToSingle(data, offset) * millimetersToMeters;
+                    float y = BitConverter.ToSingle(data, offset + 4) * millimetersToMeters;
+                    float z = BitConverter.ToSingle(data, offset + 8) * millimetersToMeters;
+                    int index = triangle * 3 + vertex;
+                    vertices[index] = new Vector3(x, y, z);
+                    triangles[index] = index;
+                    offset += 12;
+                }
+                offset += 2; // attribute byte count.
+            }
+
+            var mesh = new Mesh
+            {
+                name = Path.GetFileNameWithoutExtension(assetPath) + "_mesh"
+            };
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+
+            var instance = new GameObject(Path.GetFileNameWithoutExtension(assetPath));
+            var meshFilter = instance.AddComponent<MeshFilter>();
+            var meshRenderer = instance.AddComponent<MeshRenderer>();
+            meshFilter.sharedMesh = mesh;
+            meshRenderer.sharedMaterial = material;
+            return instance;
+        }
+
+        static void FitRendererBoundsToLocalBox(GameObject root, Vector3 targetSize, Vector3 targetCenter)
+        {
+            Bounds initialBounds = CalculateRendererBoundsInLocalFrame(root, root.transform);
+            if (initialBounds.size.x <= 0f || initialBounds.size.y <= 0f || initialBounds.size.z <= 0f)
+            {
+                throw new InvalidOperationException($"Cannot fit sensor mesh with empty bounds: {root.name}");
+            }
+
+            Vector3 rotatedSize = AxisAlignedSizeAfterRotation(root.transform.localRotation, targetSize);
+            root.transform.localScale = new Vector3(
+                rotatedSize.x / initialBounds.size.x,
+                rotatedSize.y / initialBounds.size.y,
+                rotatedSize.z / initialBounds.size.z);
+
+            Bounds scaledBounds = CalculateRendererBoundsInLocalFrame(root, root.transform.parent);
+            root.transform.localPosition += targetCenter - scaledBounds.center;
+        }
+
+        static Vector3 AxisAlignedSizeAfterRotation(Quaternion rotation, Vector3 targetParentSize)
+        {
+            Matrix4x4 matrix = Matrix4x4.Rotate(rotation);
+            var localX = new Vector3(Mathf.Abs(matrix.m00), Mathf.Abs(matrix.m10), Mathf.Abs(matrix.m20));
+            var localY = new Vector3(Mathf.Abs(matrix.m01), Mathf.Abs(matrix.m11), Mathf.Abs(matrix.m21));
+            var localZ = new Vector3(Mathf.Abs(matrix.m02), Mathf.Abs(matrix.m12), Mathf.Abs(matrix.m22));
+            return new Vector3(
+                Vector3.Dot(localX, targetParentSize),
+                Vector3.Dot(localY, targetParentSize),
+                Vector3.Dot(localZ, targetParentSize));
+        }
+
+        static void TintImportedRenderersByName(GameObject root, Material bodyMaterial, Material ringMaterial, Material glassMaterial, Material accentMaterial)
+        {
+            foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+            {
+                string lower = renderer.name.ToLowerInvariant();
+                if (lower.Contains("scan"))
+                {
+                    renderer.sharedMaterial = glassMaterial;
+                }
+                else if (lower.Contains("base_2"))
+                {
+                    renderer.sharedMaterial = ringMaterial;
+                }
+                else if (lower.Contains("base_1"))
+                {
+                    renderer.sharedMaterial = bodyMaterial;
+                }
+                else if (renderer.sharedMaterial == null)
+                {
+                    renderer.sharedMaterial = accentMaterial;
+                }
+            }
+        }
+
+        static void EnsureReadableCameraMaterials(GameObject root, Material bodyMaterial, Material glassMaterial, Material metalMaterial)
+        {
+            foreach (var renderer in root.GetComponentsInChildren<Renderer>(true))
+            {
+                if (renderer.sharedMaterial == null)
+                {
+                    renderer.sharedMaterial = bodyMaterial;
+                    continue;
+                }
+
+                string materialName = renderer.sharedMaterial.name.ToLowerInvariant();
+                if (materialName.Contains("glass") || materialName.Contains("lens"))
+                {
+                    renderer.sharedMaterial = glassMaterial;
+                }
+                else if (materialName.Contains("aluminum") || materialName.Contains("metal"))
+                {
+                    renderer.sharedMaterial = metalMaterial;
+                }
+            }
+        }
+
+        static void ConfigureSensorMaterial(Material material, float metallic, float glossiness)
+        {
+            if (material == null)
+            {
+                return;
+            }
+
+            if (material.HasProperty("_Metallic"))
+            {
+                material.SetFloat("_Metallic", metallic);
+            }
+            if (material.HasProperty("_Glossiness"))
+            {
+                material.SetFloat("_Glossiness", glossiness);
+            }
+            EditorUtility.SetDirty(material);
+        }
+
+        static ScanPattern LoadVlp16ScanPattern()
+        {
+            const string vlp16Guid = "f0221c83205fa634c8ecd626305d9072";
+            string path = AssetDatabase.GUIDToAssetPath(vlp16Guid);
+            var scanPattern = AssetDatabase.LoadAssetAtPath<ScanPattern>(path);
+            if (scanPattern == null)
+            {
+                throw new FileNotFoundException($"未找到 UnitySensors VLP-16 scan pattern，GUID={vlp16Guid}，path={path}");
+            }
+
+            return scanPattern;
+        }
+
+        static void ConfigureRgbSensor(RGBCameraSensor sensor)
+        {
+            var serializedSensor = new SerializedObject(sensor);
+            serializedSensor.FindProperty("_frequency").floatValue = SensorFrequencyHz;
+            serializedSensor.FindProperty("_resolution").vector2IntValue = TopgearCameraResolution;
+            serializedSensor.FindProperty("_fov").floatValue = 78f;
+            serializedSensor.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        static void ConfigureImagePublisher(ImageMsgPublisher publisher, RGBCameraSensor sensor, string topicName, string frameId)
+        {
+            var serializedPublisher = new SerializedObject(publisher);
+            serializedPublisher.FindProperty("_frequency").floatValue = SensorFrequencyHz;
+            serializedPublisher.FindProperty("_topicName").stringValue = topicName;
+
+            var serializer = serializedPublisher.FindProperty("_serializer");
+            serializer.FindPropertyRelative("_source").objectReferenceValue = sensor;
+            serializer.FindPropertyRelative("_sourceTexture").enumValueIndex = 0;
+            serializer.FindPropertyRelative("_encoding").enumValueIndex = 0;
+
+            var header = serializer.FindPropertyRelative("_header");
+            header.FindPropertyRelative("_source").objectReferenceValue = sensor;
+            header.FindPropertyRelative("_frame_id").stringValue = frameId;
+
+            serializedPublisher.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        static void ConfigureCameraInfoPublisher(CameraInfoMsgPublisher publisher, RGBCameraSensor sensor, string topicName, string frameId)
+        {
+            var serializedPublisher = new SerializedObject(publisher);
+            serializedPublisher.FindProperty("_frequency").floatValue = SensorFrequencyHz;
+            serializedPublisher.FindProperty("_topicName").stringValue = topicName;
+
+            var serializer = serializedPublisher.FindProperty("_serializer");
+            serializer.FindPropertyRelative("_source").objectReferenceValue = sensor;
+
+            var header = serializer.FindPropertyRelative("_header");
+            header.FindPropertyRelative("_source").objectReferenceValue = sensor;
+            header.FindPropertyRelative("_frame_id").stringValue = frameId;
+
+            serializedPublisher.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        static void ConfigureLidarSensor(RaycastLiDARSensor sensor, ScanPattern scanPattern)
+        {
+            var serializedSensor = new SerializedObject(sensor);
+            serializedSensor.FindProperty("_frequency").floatValue = SensorFrequencyHz;
+            serializedSensor.FindProperty("_scanPattern").objectReferenceValue = scanPattern;
+            serializedSensor.FindProperty("_pointsNumPerScan").intValue = LidarPointsPerScan;
+            serializedSensor.FindProperty("_minRange").floatValue = LidarMinRange;
+            serializedSensor.FindProperty("_maxRange").floatValue = LidarMaxRange;
+            serializedSensor.FindProperty("_gaussianNoiseSigma").floatValue = 0.0f;
+            serializedSensor.FindProperty("_maxIntensity").floatValue = 255.0f;
+            serializedSensor.FindProperty("_raycastLayerMask").intValue = 1;
+            serializedSensor.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        static void ConfigurePointCloudPublisher(LiDARPointCloud2MsgPublisher publisher, RaycastLiDARSensor sensor, string topicName, string frameId)
+        {
+            var serializedPublisher = new SerializedObject(publisher);
+            serializedPublisher.FindProperty("_frequency").floatValue = SensorFrequencyHz;
+            serializedPublisher.FindProperty("_topicName").stringValue = topicName;
+            serializedPublisher.FindProperty("_source").objectReferenceValue = sensor;
+
+            var serializer = serializedPublisher.FindProperty("_serializer");
+            var header = serializer.FindPropertyRelative("_header");
+            header.FindPropertyRelative("_source").objectReferenceValue = sensor;
+            header.FindPropertyRelative("_frame_id").stringValue = frameId;
+
+            serializedPublisher.ApplyModifiedPropertiesWithoutUndo();
         }
 
         static void ConfigureScoutWheelGroundCamera(Transform rig)
@@ -1934,6 +2651,51 @@ namespace VLN.Editor
             {
                 bounds.Encapsulate(renderers[i].bounds);
             }
+            return bounds;
+        }
+
+        static Bounds CalculateRendererBoundsInLocalFrame(GameObject root, Transform localFrame)
+        {
+            var renderers = root.GetComponentsInChildren<Renderer>(true);
+            if (renderers.Length == 0)
+            {
+                throw new InvalidOperationException($"{root.name} produced no renderers.");
+            }
+
+            bool initialized = false;
+            Bounds bounds = default;
+            foreach (var renderer in renderers)
+            {
+                Bounds worldBounds = renderer.bounds;
+                Vector3 min = worldBounds.min;
+                Vector3 max = worldBounds.max;
+                Vector3[] corners =
+                {
+                    new Vector3(min.x, min.y, min.z),
+                    new Vector3(min.x, min.y, max.z),
+                    new Vector3(min.x, max.y, min.z),
+                    new Vector3(min.x, max.y, max.z),
+                    new Vector3(max.x, min.y, min.z),
+                    new Vector3(max.x, min.y, max.z),
+                    new Vector3(max.x, max.y, min.z),
+                    new Vector3(max.x, max.y, max.z),
+                };
+
+                foreach (Vector3 corner in corners)
+                {
+                    Vector3 localCorner = localFrame.InverseTransformPoint(corner);
+                    if (!initialized)
+                    {
+                        bounds = new Bounds(localCorner, Vector3.zero);
+                        initialized = true;
+                    }
+                    else
+                    {
+                        bounds.Encapsulate(localCorner);
+                    }
+                }
+            }
+
             return bounds;
         }
 

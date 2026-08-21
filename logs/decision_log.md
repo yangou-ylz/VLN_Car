@@ -484,3 +484,45 @@
 - 备选项：继续使用 `setsid` 并尝试修 stdin；继续让终端报错后关闭；或者完全取消 Unity 菜单，只让用户手工开终端运行脚本。
 - 理由：用户的真实操作入口是 Unity 菜单，如果终端 1 秒关闭，就无法判断是 ROS2 环境、端口占用、RViz/rqt 问题还是包装器问题。`setsid` 对当前目标不是必要条件，反而增加 GNOME Terminal 会话控制复杂度。手动清理可以通过登记 PID/PGID 和 `--include-known` 完成，不需要自动退出清理。
 - 影响：菜单启动行为以“能稳定看到日志和错误”为最高优先级。`cleanup_unity_menu_processes.sh` 只清理仍活着的登记 PID，跳过 stale PGID，降低误杀风险。后续如果要恢复自动清理或重新隔离进程组，必须先证明不会导致菜单终端一打开就关闭。
+
+## 2026-08-20：Topgear V2 上装只作为视觉 mesh 叠加到 Scout 物理底盘
+
+- 决策：师兄提供的 `topgear_v2.dae` 在阶段 19 中只作为涂装/上装视觉件挂到 `ScoutWheelGround_VisualUrdf` 下；不新增 collider、rigidbody、质量、惯量、悬挂、WheelCollider 或动力学参数，也不覆盖已有 Scout wheel-ground 物理根。
+- 备选项：直接用 Topgear mesh 替换整个车体；给上装 mesh 自动生成 MeshCollider；把真实雷达/四相机一起挂上；或等待师兄后续完整小车模型再处理。
+- 理由：师兄明确说新增涂装版本都是 mesh、只起视觉作用，没有新的动力学和物理学参数要建立；当前最重要的是“套用原来小车的物理学和动力学建模，视觉上变成上装版本，但开起来仍和原来一样”。直接给上装加碰撞或动力学会改变当前金标准路线和物理调参边界，偏离本轮需求。
+- 影响：阶段 19 的验收必须同时检查 `topgear_visual_present=1`、`topgear_visual_collider_count=0`、`topgear_visual_rigidbody_count=0`，并回归短动、13 点金标准路线和 16 点挑战路线。阶段 19 已通过 run id：视觉专项 `vln_topgear_visual_alignment_20260820_171033`，短动 `vln_scout_wheel_ground_20260820_171049`，13 点路线 `vln_scout_wheel_ground_route_20260820_171934`，16 点挑战路线 `vln_scout_wheel_ground_challenge_route_20260820_172504`。
+
+## 2026-08-20：Topgear V2 姿态采用 DAE Z_UP 到 Scout Y_UP 的显式坐标转换
+
+- 决策：`topgear_v2.dae` 的挂载姿态不再用单纯 yaw 翻转猜测；按文件自身 `Z_UP` 坐标定义处理，让 DAE `+Z` 对应 Scout/Unity 局部 `+Y` 竖直方向，让 DAE `+Y` 前向对应 Scout 局部 `+Z` 车头方向，再把渲染包围盒底部对齐到车身顶部平台附近。
+- 备选项：继续只调 `Quaternion.Euler(0,180,0)`；直接在 Unity Inspector 中手工拖拽；或把 DAE 在外部建模软件中永久改轴。
+- 理由：用户截图显示上装曾侧躺、悬空且前后方向不对；DAE 文件明确由 Blender 导出并声明 `up_axis=Z_UP`，而当前直接挂在 Unity/Scout 局部帧下会产生轴向错配。用代码显式转换能复现、可回归，也不污染原始模型文件。
+- 影响：当前源码位置为 `Assets/VLN/Editor/VlnOffroadScoutWheelGroundCandidateProjectSetup.cs::AttachTopgearV2Visual()`。后续如果师兄给新的上装/完整车体 mesh，先读模型文件坐标系和材质/部件 bbox，再调整挂载常量，不要盲目套旧的 180°/90° 经验。本轮新增 `run_topgear_visual_alignment_smoke_test.sh` 专门输出前/后/左/右/顶视图和材质局部 bbox，用于以后快速验收上装视觉姿态。
+
+## 2026-08-20：Topgear 传感器只做视觉挂载和 ROS2 数据发布，不改车辆物理
+
+- 决策：阶段 20 的 16 线 LiDAR 和四个相机安装在 Topgear 上装上，但传感器视觉件不添加 `Collider`、`Rigidbody`、质量、惯量或任何底盘动力学参数；它们只作为 UnitySensors/UnitySensorsROS 的挂载点和可见模型。
+- 备选项：给 LiDAR/相机外壳加 collider；把传感器质量计入车体重心；或直接把传感器简化成不可见 GameObject。
+- 理由：师兄当前给的 Topgear 上装 mesh 明确是视觉上装，传感器阶段目标是先把感知层输入打通。给传感器外观件加入碰撞或质量会改变已经验收的 Scout wheel-ground 物理基线，且对当前相机/点云数据链路没有必要。
+- 影响：阶段 20 完成标准固定检查 `topgear_sensor_collider_count=0`、`topgear_sensor_rigidbody_count=0`；如果后续要研究传感器重量、安装支架碰撞或完整硬件动力学，必须另开物理标定阶段，不在当前感知挂载阶段混入。
+
+## 2026-08-20：保留旧前相机和 LiDAR topic，新增后/左/右相机 topic
+
+- 决策：LiDAR 继续发布 `/vln/lidar/points`，前相机继续发布 `/vln/front/image_raw` 和 `/vln/front/camera_info`；后、左、右相机新增 `/vln/rear/*`、`/vln/left/*`、`/vln/right/*`，并分别使用 `rear_camera_optical_frame`、`left_camera_optical_frame`、`right_camera_optical_frame`。
+- 备选项：把所有 topic 重命名成 Topgear 命名；只保留一个前相机；或把四路相机合成一个图像 topic。
+- 理由：旧前相机和 LiDAR 已被用户的 rqt、RViz 和脚本反复使用，改名会破坏已有手工演示和回归入口。新增三路相机既满足上装四相机需求，又保持向后兼容。
+- 影响：TF 扩展为 `map->base_link` 和 `base_link->front/rear/left/right_camera_optical_frame,lidar_link`。手工验证时可以继续用原 `view_front_image.sh` 和 `view_vln_vehicle_rviz.sh`，也可以用 `ros2 run rqt_image_view rqt_image_view /vln/rear/image_raw` 这类指定 topic 方式查看新增相机；准确 topic 以 `user.md` 和 `CURRENT_STATE.md` 为准。
+
+## 2026-08-20：阶段 20 后 13 点通过即可停止，不默认继续跑 16 点
+
+- 决策：Topgear 传感器专项通过后，只补跑 13 点金标准路线回归；13 点链路成功后，本轮停止自动验收，不再继续跑 16 点挑战路线。
+- 备选项：每次传感器小改后继续全量跑 13 点 + 16 点；或完全不跑路线回归，只验收传感器 topic。
+- 理由：用户明确指出 13 点链路验证成功后就可以不用再验证 16 点，后续应让用户亲自看效果。传感器视觉件不参与物理，13 点已经足够证明主链路没有退化；16 点耗时更长，当前没有新增挑战区或障碍物变化。
+- 影响：阶段 20 当前记录为传感器专项 `vln_topgear_sensor_suite_20260820_190104` 和 13 点路线 `vln_scout_wheel_ground_route_20260820_190253`。16 点挑战路线保留最近已知通过结果，后续只有新增障碍、挑战区变更、路线风险或用户明确要求时再跑。
+
+## 2026-08-20：Topgear 传感器外观必须使用官方模型，不允许程序化兜底
+
+- 决策：阶段 20 的 LiDAR 外观固定使用 Velodyne VLP-16 官方/外部 DAE mesh，四个相机外观固定使用 RealSense D405 官方 STL mesh；不再允许用程序化圆柱、方块、螺丝、小条、玻璃片等自建外观补细节或替代。
+- 备选项：继续在官方 mesh 外叠加程序化细节；官方模型加载失败时临时生成方块/圆柱兜底；或把传感器做成不可见挂载点。
+- 理由：用户和师兄的主线是导入真实模型/mesh 到 Unity 中仿真，传感器外观验收看的是模型来源、姿态和挂载位置；程序化兜底会让视觉路线偏离需求，即使 ROS2 topic 能通也不算合格。
+- 影响：`run_topgear_sensor_suite_smoke_test.sh` 现在检查 `topgear_sensor_vlp16_official_mesh_count=1`、`topgear_sensor_d405_official_stl_count=4`，并要求旧程序化 VLP rib / D405 screw 残留为 0。官方模型导入失败时应修导入、轴向、缩放或资产路径，而不是创建临时几何体。

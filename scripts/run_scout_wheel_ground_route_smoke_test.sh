@@ -18,6 +18,7 @@ ROUTE_LOG="$LOG_DIR/ros2_scout_physics_route.log"
 TOPIC_LOG="$LOG_DIR/ros2_topic_list.log"
 RESULT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_candidate_result.txt"
 SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_candidate_screenshot.png"
+TOPGEAR_SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_topgear_visual_screenshot.png"
 BRIDGE_SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_bridge_screenshot.png"
 SHORT_RAMP_SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_short_ramp_screenshot.png"
 CHALLENGE_SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_challenge_screenshot.png"
@@ -73,7 +74,7 @@ cleanup()
 
 trap cleanup EXIT
 
-for old_file in "$RESULT_FILE" "$SCREENSHOT_FILE" "$BRIDGE_SCREENSHOT_FILE" "$SHORT_RAMP_SCREENSHOT_FILE" "$CHALLENGE_SCREENSHOT_FILE" "$CHALLENGE_GRASS_SCREENSHOT_FILE" "$CHALLENGE_STONE_SCREENSHOT_FILE" "$CHALLENGE_SAND_SCREENSHOT_FILE" "$CONTROLLER_RESULT_FILE" "$ROUTE_RESULT_FILE"; do
+for old_file in "$RESULT_FILE" "$SCREENSHOT_FILE" "$TOPGEAR_SCREENSHOT_FILE" "$BRIDGE_SCREENSHOT_FILE" "$SHORT_RAMP_SCREENSHOT_FILE" "$CHALLENGE_SCREENSHOT_FILE" "$CHALLENGE_GRASS_SCREENSHOT_FILE" "$CHALLENGE_STONE_SCREENSHOT_FILE" "$CHALLENGE_SAND_SCREENSHOT_FILE" "$CONTROLLER_RESULT_FILE" "$ROUTE_RESULT_FILE"; do
   if [ -f "$old_file" ]; then
     mv "$old_file" "$LOG_DIR/previous_$(basename "$old_file")"
   fi
@@ -139,6 +140,9 @@ set -e
 
 if [ -f "$SCREENSHOT_FILE" ]; then
   cp "$SCREENSHOT_FILE" "$LOG_DIR/vln_offroad_scout_wheel_ground_candidate_screenshot.png"
+fi
+if [ -f "$TOPGEAR_SCREENSHOT_FILE" ]; then
+  cp "$TOPGEAR_SCREENSHOT_FILE" "$LOG_DIR/vln_offroad_scout_wheel_ground_topgear_visual_screenshot.png"
 fi
 if [ -f "$BRIDGE_SCREENSHOT_FILE" ]; then
   cp "$BRIDGE_SCREENSHOT_FILE" "$LOG_DIR/vln_offroad_scout_wheel_ground_bridge_screenshot.png"
@@ -225,6 +229,11 @@ bridge_physical_max_width=$(grep -E '^bridge_physical_max_width_m=' "$RESULT_FIL
 bridge_physical_height_span=$(grep -E '^bridge_physical_height_span_m=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 short_ramp_physical_max_width=$(grep -E '^short_ramp_physical_max_width_m=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 short_ramp_physical_height_span=$(grep -E '^short_ramp_physical_height_span_m=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+topgear_visual_present=$(grep -E '^topgear_visual_present=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+topgear_visual_renderer_count=$(grep -E '^topgear_visual_renderer_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+topgear_visual_collider_count=$(grep -E '^topgear_visual_collider_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+topgear_visual_rigidbody_count=$(grep -E '^topgear_visual_rigidbody_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+topgear_visual_bounds_size=$(grep -E '^topgear_visual_bounds_size_m=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 controller_cmd_count=$(grep -E '^cmd_vel_count=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 motor_command_count=$(grep -E '^motor_command_count=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 road_contact_steps=$(grep -E '^road_contact_steps=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
@@ -267,6 +276,7 @@ wheel_visual_direction_reversal_count=$(grep -E '^wheel_visual_direction_reversa
   echo "expected_route_waypoint_count=$EXPECTED_ROUTE_WAYPOINT_COUNT"
   echo "require_challenge_course=$REQUIRE_CHALLENGE_COURSE"
   echo "route_result_file=$ROUTE_RESULT_FILE"
+  echo "topgear_screenshot_file=${TOPGEAR_SCREENSHOT_FILE}"
   echo "bridge_screenshot_file=${BRIDGE_SCREENSHOT_FILE}"
   echo "short_ramp_screenshot_file=${SHORT_RAMP_SCREENSHOT_FILE}"
   echo "challenge_screenshot_file=${CHALLENGE_SCREENSHOT_FILE}"
@@ -333,6 +343,11 @@ wheel_visual_direction_reversal_count=$(grep -E '^wheel_visual_direction_reversa
   echo "bridge_physical_height_span_m=${bridge_physical_height_span:-missing}"
   echo "short_ramp_physical_max_width_m=${short_ramp_physical_max_width:-missing}"
   echo "short_ramp_physical_height_span_m=${short_ramp_physical_height_span:-missing}"
+  echo "topgear_visual_present=${topgear_visual_present:-0}"
+  echo "topgear_visual_renderer_count=${topgear_visual_renderer_count:-0}"
+  echo "topgear_visual_collider_count=${topgear_visual_collider_count:-missing}"
+  echo "topgear_visual_rigidbody_count=${topgear_visual_rigidbody_count:-missing}"
+  echo "topgear_visual_bounds_size_m=${topgear_visual_bounds_size:-missing}"
   echo "controller_cmd_count=${controller_cmd_count:-0}"
   echo "motor_command_count=${motor_command_count:-0}"
   echo "road_contact_steps=${road_contact_steps:-0}"
@@ -536,6 +551,22 @@ if [ "${short_ramp_visual_detail_count:-0}" -lt 5 ]; then
 fi
 if ! awk "BEGIN { exit !(${short_ramp_physical_height_span:-0} >= 0.62) }"; then
   echo "short_ramp_too_flat"
+  exit 1
+fi
+if [ "${topgear_visual_present:-0}" -ne 1 ]; then
+  echo "topgear_v2_visual_missing"
+  exit 1
+fi
+if [ "${topgear_visual_renderer_count:-0}" -lt 1 ]; then
+  echo "topgear_v2_visual_renderer_missing"
+  exit 1
+fi
+if [ "${topgear_visual_collider_count:-1}" -ne 0 ]; then
+  echo "topgear_v2_visual_must_not_add_colliders"
+  exit 1
+fi
+if [ "${topgear_visual_rigidbody_count:-1}" -ne 0 ]; then
+  echo "topgear_v2_visual_must_not_add_rigidbodies"
   exit 1
 fi
 if [ "${road_contact_steps:-0}" -lt 20 ]; then

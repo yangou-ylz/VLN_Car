@@ -19,6 +19,7 @@ ODOM_LOG="$LOG_DIR/ros2_odom_once.log"
 TOPIC_LOG="$LOG_DIR/ros2_topic_list.log"
 RESULT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_candidate_result.txt"
 SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_candidate_screenshot.png"
+TOPGEAR_SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_topgear_visual_screenshot.png"
 BRIDGE_SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_bridge_screenshot.png"
 SHORT_RAMP_SCREENSHOT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_short_ramp_screenshot.png"
 CONTROL_RESULT_FILE="$UNITY_PROJECT/Logs/vln_vehicle_control_result.txt"
@@ -59,7 +60,7 @@ cleanup()
 
 trap cleanup EXIT
 
-for old_file in "$RESULT_FILE" "$SCREENSHOT_FILE" "$BRIDGE_SCREENSHOT_FILE" "$SHORT_RAMP_SCREENSHOT_FILE" "$CONTROL_RESULT_FILE" "$CONTROLLER_RESULT_FILE" "$FOLLOW_RESULT_FILE" "$ODOM_RESULT_FILE"; do
+for old_file in "$RESULT_FILE" "$SCREENSHOT_FILE" "$TOPGEAR_SCREENSHOT_FILE" "$BRIDGE_SCREENSHOT_FILE" "$SHORT_RAMP_SCREENSHOT_FILE" "$CONTROL_RESULT_FILE" "$CONTROLLER_RESULT_FILE" "$FOLLOW_RESULT_FILE" "$ODOM_RESULT_FILE"; do
   if [ -f "$old_file" ]; then
     mv "$old_file" "$LOG_DIR/previous_$(basename "$old_file")"
   fi
@@ -131,6 +132,9 @@ set -e
 if [ -f "$SCREENSHOT_FILE" ]; then
   cp "$SCREENSHOT_FILE" "$LOG_DIR/vln_offroad_scout_wheel_ground_candidate_screenshot.png"
 fi
+if [ -f "$TOPGEAR_SCREENSHOT_FILE" ]; then
+  cp "$TOPGEAR_SCREENSHOT_FILE" "$LOG_DIR/vln_offroad_scout_wheel_ground_topgear_visual_screenshot.png"
+fi
 if [ -f "$BRIDGE_SCREENSHOT_FILE" ]; then
   cp "$BRIDGE_SCREENSHOT_FILE" "$LOG_DIR/vln_offroad_scout_wheel_ground_bridge_screenshot.png"
 fi
@@ -165,6 +169,11 @@ short_ramp_physical_height_span=$(grep -E '^short_ramp_physical_height_span_m=' 
 visual_renderer_count=$(grep -E '^visual_renderer_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 visual_collider_count=$(grep -E '^visual_collider_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 visual_articulation_body_count=$(grep -E '^visual_articulation_body_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+topgear_visual_present=$(grep -E '^topgear_visual_present=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+topgear_visual_renderer_count=$(grep -E '^topgear_visual_renderer_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+topgear_visual_collider_count=$(grep -E '^topgear_visual_collider_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+topgear_visual_rigidbody_count=$(grep -E '^topgear_visual_rigidbody_count=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
+topgear_visual_bounds_size=$(grep -E '^topgear_visual_bounds_size_m=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 physics_root_delta=$(grep -E '^physics_root_delta_m=' "$RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 cmd_vel_count=$(grep -E '^cmd_vel_count=' "$CONTROL_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
 controller_cmd_count=$(grep -E '^cmd_vel_count=' "$CONTROLLER_RESULT_FILE" 2>/dev/null | tail -n 1 | cut -d= -f2)
@@ -214,6 +223,11 @@ odom_publish_count=$(grep -E '^odom_publish_count=' "$ODOM_RESULT_FILE" 2>/dev/n
   echo "visual_renderer_count=${visual_renderer_count:-0}"
   echo "visual_collider_count=${visual_collider_count:-missing}"
   echo "visual_articulation_body_count=${visual_articulation_body_count:-missing}"
+  echo "topgear_visual_present=${topgear_visual_present:-0}"
+  echo "topgear_visual_renderer_count=${topgear_visual_renderer_count:-0}"
+  echo "topgear_visual_collider_count=${topgear_visual_collider_count:-missing}"
+  echo "topgear_visual_rigidbody_count=${topgear_visual_rigidbody_count:-missing}"
+  echo "topgear_visual_bounds_size_m=${topgear_visual_bounds_size:-missing}"
   echo "physics_root_delta_m=${physics_root_delta:-missing}"
   echo "cmd_vel_count=${cmd_vel_count:-0}"
   echo "controller_cmd_count=${controller_cmd_count:-0}"
@@ -432,6 +446,26 @@ fi
 
 if [ "${visual_articulation_body_count:-1}" -ne 0 ]; then
   echo "scout_wheel_ground_visual_articulation_bodies_should_be_stripped"
+  exit 1
+fi
+
+if [ "${topgear_visual_present:-0}" -ne 1 ]; then
+  echo "topgear_v2_visual_missing"
+  exit 1
+fi
+
+if [ "${topgear_visual_renderer_count:-0}" -lt 1 ]; then
+  echo "topgear_v2_visual_renderer_missing"
+  exit 1
+fi
+
+if [ "${topgear_visual_collider_count:-1}" -ne 0 ]; then
+  echo "topgear_v2_visual_must_not_add_colliders"
+  exit 1
+fi
+
+if [ "${topgear_visual_rigidbody_count:-1}" -ne 0 ]; then
+  echo "topgear_v2_visual_must_not_add_rigidbodies"
   exit 1
 fi
 

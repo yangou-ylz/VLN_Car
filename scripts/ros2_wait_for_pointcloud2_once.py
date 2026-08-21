@@ -46,6 +46,46 @@ def count_nonzero_points(msg):
     return count
 
 
+def validate_message(msg, args):
+    field_names = [field.name for field in msg.fields]
+    expected_data_len = msg.row_step * msg.height
+    nonzero_points = count_nonzero_points(msg)
+
+    errors = []
+    if msg.header.frame_id != args.frame_id:
+        errors.append(f"frame_id={msg.header.frame_id}，期望 {args.frame_id}")
+    if msg.height != 1:
+        errors.append(f"height={msg.height}，期望 1")
+    if msg.width != args.width:
+        errors.append(f"width={msg.width}，期望 {args.width}")
+    if msg.point_step != args.point_step:
+        errors.append(f"point_step={msg.point_step}，期望 {args.point_step}")
+    if msg.row_step != msg.point_step * msg.width:
+        errors.append(f"row_step={msg.row_step}，期望 {msg.point_step * msg.width}")
+    if len(msg.data) != expected_data_len:
+        errors.append(f"data_len={len(msg.data)}，期望 {expected_data_len}")
+    for field_name in ["x", "y", "z", "intensity"]:
+        if field_name not in field_names:
+            errors.append(f"缺少字段 {field_name}")
+    if nonzero_points < args.min_nonzero_points:
+        errors.append(f"nonzero_points={nonzero_points}，期望至少 {args.min_nonzero_points}")
+
+    return field_names, expected_data_len, nonzero_points, errors
+
+
+def print_message_summary(msg, field_names, nonzero_points, topic):
+    print(f"topic={topic}")
+    print(f"stamp={msg.header.stamp.sec}.{msg.header.stamp.nanosec:09d}")
+    print(f"frame_id={msg.header.frame_id}")
+    print(f"height={msg.height}")
+    print(f"width={msg.width}")
+    print(f"fields={','.join(field_names)}")
+    print(f"point_step={msg.point_step}")
+    print(f"row_step={msg.row_step}")
+    print(f"data_len={len(msg.data)}")
+    print(f"nonzero_points={nonzero_points}")
+
+
 def main():
     args = parse_args()
     deadline = time.monotonic() + args.timeout
@@ -59,51 +99,28 @@ def main():
 
     subscription = node.create_subscription(PointCloud2, args.topic, on_cloud, 10)
     try:
-        while result["msg"] is None and time.monotonic() < deadline:
+        last_errors = []
+        field_names = []
+        nonzero_points = 0
+        while time.monotonic() < deadline:
             rclpy.spin_once(node, timeout_sec=0.25)
+            if result["msg"] is None:
+                continue
+
+            field_names, _expected_data_len, nonzero_points, last_errors = validate_message(result["msg"], args)
+            if not last_errors:
+                break
 
         if result["msg"] is None:
             print(f"未在 {args.timeout:.1f}s 内收到点云 topic：{args.topic}", file=sys.stderr)
             return 1
 
         msg = result["msg"]
-        field_names = [field.name for field in msg.fields]
-        expected_data_len = msg.row_step * msg.height
-        nonzero_points = count_nonzero_points(msg)
+        print_message_summary(msg, field_names, nonzero_points, args.topic)
 
-        errors = []
-        if msg.header.frame_id != args.frame_id:
-            errors.append(f"frame_id={msg.header.frame_id}，期望 {args.frame_id}")
-        if msg.height != 1:
-            errors.append(f"height={msg.height}，期望 1")
-        if msg.width != args.width:
-            errors.append(f"width={msg.width}，期望 {args.width}")
-        if msg.point_step != args.point_step:
-            errors.append(f"point_step={msg.point_step}，期望 {args.point_step}")
-        if msg.row_step != msg.point_step * msg.width:
-            errors.append(f"row_step={msg.row_step}，期望 {msg.point_step * msg.width}")
-        if len(msg.data) != expected_data_len:
-            errors.append(f"data_len={len(msg.data)}，期望 {expected_data_len}")
-        for field_name in ["x", "y", "z", "intensity"]:
-            if field_name not in field_names:
-                errors.append(f"缺少字段 {field_name}")
-        if nonzero_points < args.min_nonzero_points:
-            errors.append(f"nonzero_points={nonzero_points}，期望至少 {args.min_nonzero_points}")
-
-        print(f"topic={args.topic}")
-        print(f"stamp={msg.header.stamp.sec}.{msg.header.stamp.nanosec:09d}")
-        print(f"frame_id={msg.header.frame_id}")
-        print(f"height={msg.height}")
-        print(f"width={msg.width}")
-        print(f"fields={','.join(field_names)}")
-        print(f"point_step={msg.point_step}")
-        print(f"row_step={msg.row_step}")
-        print(f"data_len={len(msg.data)}")
-        print(f"nonzero_points={nonzero_points}")
-
-        if errors:
+        if last_errors:
             print("点云消息字段校验失败：", file=sys.stderr)
-            for error in errors:
+            for error in last_errors:
                 print(f"- {error}", file=sys.stderr)
             return 1
 

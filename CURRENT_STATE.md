@@ -2,7 +2,7 @@
 
 本文件是每次继续工作的第一层短上下文，用来替代过去每次全量阅读长日志的低效流程。它不取代 `AGENTS.md`、`PROJECT_MEMORY.md`、`workflow.md`、`env.md` 或 `logs/issue_log.md`；它只负责把当前阶段、不可破坏的基线和下一步读取策略压缩到一个短文件里。
 
-更新时间：2026-08-18
+更新时间：2026-08-20
 
 ## 启动读取策略
 
@@ -40,6 +40,8 @@
 - UnitySensors LiDAR `/vln/lidar/points`，PointCloud2。
 - `map -> base_link -> front_camera_optical_frame,lidar_link` TF。
 - Scout V2 URDF 视觉模型 + Unity WheelCollider/Rigidbody 轮地物理候选。
+- Topgear V2 涂装/上装视觉 mesh 已叠加到 Scout 车身上方；它只作为视觉上装，不增加 `Collider`、`Rigidbody` 或动力学参数，底盘物理、WheelCollider、PID 和 ROS2 控制继续沿用原 Scout wheel-ground 基线。`/home/ubuntu22/VLN/topgear_v2.dae` 的上装姿态和安装位置已经由用户确认完成，后续不要再改上装根姿态和贴合位置。
+- Topgear 传感器挂载阶段已完成官方模型修正：上装顶部圆盘中心安装 1 个竖直 Velodyne VLP-16 官方/外部 DAE mesh LiDAR，LiDAR 根位姿约为车体局部 `(0, 0.846, 0.004)`；LiDAR 下方上层小方盒四面安装前/后/左/右 4 个 RealSense D405 官方 STL 相机。传感器视觉模型只负责显示和 ROS2 数据发布，不添加 collider 或 rigidbody，不改变车体物理；禁止再用程序化圆柱、方块、螺丝、小条等自建外观替代。
 - `/vln/cmd_vel` 控制、`/vln/odom`、中文控制面板。
 - 固定自动路线后段已新增挑战场地：草地、青石路、沙地、低矮可越障碍；三段已分散到斜坡后的大空间，不再挤在最后一块地，终点挡墙后移到 `z=53.5m`；旧桥/坡基线保留。
 - Unity Editor 内已新增 `VLN/ROS2 手工演示面板` 和 `VLN/手工演示/*` 菜单。它们只启动现有 ROS2 shell 脚本，不把导航控制塞进 Unity；底层仍通过 ROS2 发布 `/vln/cmd_vel`。菜单启动的外部终端会登记到 `.runtime/unity_menu/processes.tsv`，每次输出日志写入 `.runtime/unity_menu/logs/`；2026-08-18 因自动退出清理会误杀刚启动的终端，已临时彻底禁用 Unity 退出自动清理，只保留面板/菜单里的“关闭 VLN 后台终端”手动按钮。菜单终端包装器不再使用 `setsid`，目标脚本退出后会保留窗口，方便看到报错。
@@ -102,26 +104,38 @@ cd /home/ubuntu22/VLN
 ./scripts/run_scout_wheel_ground_route_smoke_test.sh
 ```
 
-当前通过 run id：`vln_scout_wheel_ground_route_20260817_232310`
+当前通过 run id：`vln_scout_wheel_ground_route_20260820_190253`
 
 关键指标：
 
 ```text
 success=VLN_SCOUT_WHEEL_GROUND_ROUTE_SMOKE_TEST_PASS
 reached_count=13/13
-total_forward_progress=52.432m
-final_lateral_offset=-0.024m
-max_abs_lateral_offset=0.067m
-max_bridge_abs_lateral_offset=0.011m
+total_forward_progress=52.441m
+final_lateral_offset=-0.004m
+max_abs_lateral_offset=0.035m
+max_bridge_abs_lateral_offset=0.000m
 stall_count=0
 skipped_count=0
 broad_physical_trail_count=0
 bridge_contact_steps=1628
-short_ramp_contact_steps=1648
+short_ramp_contact_steps=1649
 bridge_physical_height_span_m=0.235
 short_ramp_physical_height_span_m=0.804
 wheel_visual_direction_reversal_count=0
+topgear_visual_present=1
+topgear_sensor_suite_present=1
+topgear_sensor_camera_count=4
+topgear_sensor_lidar_count=1
+topgear_visual_collider_count=0
+topgear_visual_rigidbody_count=0
+topgear_sensor_collider_count=0
+topgear_sensor_rigidbody_count=0
 ```
+
+用户最新约定：本轮 Topgear 传感器挂载后，13 点金标准链路已通过即可停止自动回归；不要继续浪费时间跑 16 点挑战路线。16 点挑战路线保留为手工/必要回归入口，后续只有新增障碍物、挑战区变化或用户明确要求时再跑。
+
+Topgear V2 当前姿态约束：`topgear_v2.dae` 是 Blender/COLLADA `Z_UP` 模型，Unity 挂载时将 DAE 的 `+Z` 映射为车体局部 `+Y` 竖直方向，并让 DAE 的 `+Y` 前向对准 Scout 局部 `+Z` 车头方向；模型底部对齐到车身顶部平台附近。不要把 Topgear 上装加入 WheelCollider、chassis collider 或刚体系统，除非后续明确进入上装碰撞/传感器物理阶段。
 
 路线控制关键约定：`angular-sign=1`。原因是当前 Unity wheel-ground 底层已经统一为正 `angular.z` 左转。不要恢复旧的 `angular-sign=-1`。
 
@@ -192,6 +206,69 @@ challenge_end_wall_z=53.500
 
 阶段 18B 当前状态：已完成“材质一致物理代理 + 第一版草叶轻倒伏视觉反馈”。第二版明显深色压痕/强倒伏轮迹已回退，当前代码不应恢复 `GrassTrackPainter` 或深色轮迹贴片。下一步若继续升级，优先做用户手工观察后的微调或更多授权外部资产候选；不能破坏当前 13 点金标准和 16 点挑战路线。
 
+### Topgear V2 上装视觉基线
+
+阶段 19 当前状态：Topgear V2 上装已作为纯视觉件安装到 Scout 车身顶部，未改变底盘物理、WheelCollider、PID、ROS2 topic/TF 或已有相机/LiDAR 链路。用户已经确认上装安装位置完成，后续除非用户明确要求，不要再改上装安装位置、角度或贴合高度。专项多视角验收命令：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/run_topgear_visual_alignment_smoke_test.sh
+```
+
+当前视觉贴合基线：专项视觉验收 run id `vln_topgear_visual_alignment_20260820_175959` 曾显示上装底部到 Scout 顶板约 `0.009m`。后续按用户肉眼反馈做过 1cm 级微调，最终源码常量和主场景实例已冻结为 `AlignRendererBoundsToLocalFrame(... new Vector3(0f, 0.115f, 0.045f))` / `m_LocalPosition.y=0.115`；用户已确认安装位置完成。该修改只影响上装视觉 Y 向贴合，不改旋转、X/Z 位置、底盘物理或控制。Topgear 传感器阶段后的最新 13 点主链路通过 run id 为 `vln_scout_wheel_ground_route_20260820_190253`；按用户要求不继续默认跑 16 点挑战长路线。关键约束继续保持：`topgear_visual_present=1`、`topgear_visual_collider_count=0`、`topgear_visual_rigidbody_count=0`。
+
+### Topgear 传感器挂载基线
+
+阶段 20 当前状态：16 线 LiDAR + 前/后/左/右 4 个相机已经安装到 Topgear 上装对应位置，并通过 ROS2 数据链路验收。2026-08-20 晚间修复过两类重要问题：第一，旧版把 `topgear_v2.dae` 的 GPS/大黑箱区域误当成 LiDAR 下方小方盒，导致 LiDAR 偏离圆盘、四个相机散在错误位置；第二，曾为了“看起来更精细”加入程序化圆柱、方块、螺丝和竖条，这是不允许的。当前已改为只加载官方/外部真实模型：Velodyne VLP-16 DAE mesh + RealSense D405 STL mesh，并把自建传感器外观残留从源码和主场景清掉。LiDAR 仍保留原 `/vln/lidar/points` topic，前相机仍保留原 `/vln/front/*` topic，避免破坏既有 rqt/RViz/脚本；后/左/右相机新增独立 topic。
+
+自动专项验收入口：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/run_topgear_sensor_suite_smoke_test.sh
+```
+
+最近通过 run id：`vln_topgear_sensor_suite_20260820_234909`
+
+关键输出：
+
+```text
+success=VLN_TOPGEAR_SENSOR_SUITE_SMOKE_TEST_PASS
+topgear_sensor_suite_present=1
+topgear_sensor_camera_count=4
+topgear_sensor_lidar_count=1
+topgear_sensor_renderer_count=7
+topgear_sensor_vlp16_official_mesh_count=1
+topgear_sensor_d405_official_stl_count=4
+topgear_sensor_procedural_vlp16_rib_count=0
+topgear_sensor_procedural_d405_screw_count=0
+topgear_sensor_collider_count=0
+topgear_sensor_rigidbody_count=0
+image_resolution=640x480
+lidar_scan_pattern=VLP-16
+lidar_points_per_scan=7200
+lidar_nonzero_points>=80
+tf_edges=map->base_link,base_link->front_camera_optical_frame,base_link->rear_camera_optical_frame,base_link->left_camera_optical_frame,base_link->right_camera_optical_frame,base_link->lidar_link
+```
+
+当前视觉约束：LiDAR 必须竖直坐在 Topgear 顶部圆盘中心，不得横倒或偏离圆盘；相机必须使用 RealSense D405 官方 STL，分别贴在 LiDAR 下方上层小方盒前/后/左/右四面，不得使用长条 D435，也不得放到下方黑色大箱体。禁止为了过验收再添加程序化外壳、圆柱、方块、螺丝、小条、玻璃片等自建外观；官方模型加载失败时必须修导入/轴向/缩放。若用户肉眼仍认为位置不准，优先使用 Unity 菜单 `VLN -> Topgear 传感器手动微调` 选中五个传感器根对象，用 Scene 视图移动/旋转手柄微调，再保存到 `/home/ubuntu22/VLN/config/topgear_sensor_pose_overrides.json`；不要回头改 Topgear 上装本体安装位置。
+
+当前 topic/frame：
+
+```text
+/vln/front/image_raw        front_camera_optical_frame
+/vln/front/camera_info      front_camera_optical_frame
+/vln/rear/image_raw         rear_camera_optical_frame
+/vln/rear/camera_info       rear_camera_optical_frame
+/vln/left/image_raw         left_camera_optical_frame
+/vln/left/camera_info       left_camera_optical_frame
+/vln/right/image_raw        right_camera_optical_frame
+/vln/right/camera_info      right_camera_optical_frame
+/vln/lidar/points           lidar_link
+```
+
+阶段 20 边界：传感器视觉件不参与物理碰撞，不改变车辆质量、惯量、悬挂、轮胎或路线控制；它们是 UnitySensors/UnitySensorsROS 组件挂载点 + ROS-TCP-Connector 发布链路。下一步由用户按手工流程亲自打开 Unity 看模型、看四路图像和 LiDAR 点云。
+
 ### 速度控制基线
 
 验收命令：
@@ -226,13 +303,15 @@ cd /home/ubuntu22/VLN
 - 控制面板：`./scripts/start_vln_control_panel.sh`
 - 自动 13 点回归验收：`./scripts/run_scout_wheel_ground_route_smoke_test.sh`
 - 自动 16 点挑战回归验收：`./scripts/run_scout_wheel_ground_challenge_route_smoke_test.sh`
+- Topgear 上装视觉对齐验收：`./scripts/run_topgear_visual_alignment_smoke_test.sh`
+- Topgear 传感器专项验收：`./scripts/run_topgear_sensor_suite_smoke_test.sh`
 - 速度控制专项回归：`./scripts/run_control_panel_manual_velocity_unity_smoke_test.sh`
 - 手动记录回归：`./scripts/run_control_panel_manual_recording_smoke_test.sh`
 - 清理 Unity lock：`./scripts/stop_unity_vln_project.sh`
 
 ## 需要查长文档时的定位方式
 
-- 当前阶段和验收：查 `workflow.md` 的阶段 15/16/17/18。
+- 当前阶段和验收：查 `workflow.md` 的阶段 15/16/17/18/19/20。
 - 用户复制命令：查 `user.md`。
 - 环境和安装限制：查 `env.md`。
 - 问题根因：先在 `logs/issue_log.md` 里按关键词搜。

@@ -22,7 +22,9 @@
 16. Scout wheel-ground 固定路线物理巡航：新增 ROS2 固定路线脚本，驱动物理车体从起点沿道路通过桥/坡区域并跑向终点方向，用于观察轮地接触、坡地/路面交互、传感器跟随和是否穿模。
 17. 手动示教路线记录与回放：在中文控制面板中用键盘手动驾驶真实物理车体，记录 `/vln/cmd_vel` 速度序列，导出 JSON 后可复现回放。
 18. Scout wheel-ground 后段挑战场地扩展：在旧桥/坡基线后追加草地、青石路、沙地和低矮可越障碍，仍使用自主路线演示并保持旧 13 点金标准可回归。
-19. 进入 VLN 感知层数据集/训练/算法对接。
+19. Topgear V2 上装视觉替换/叠加：把师兄提供的涂装上装 mesh 正确安装到 Scout 车身上方，只替换视觉上装，不改底盘物理、轮地动力学、ROS2 topic/TF 和已有传感器链路。
+20. Topgear 传感器挂载/标定：在已确认的 Topgear 上装上安装 1 个 16 线 LiDAR 和 4 个 RGB 相机，输出标准 ROS2 Image、CameraInfo、PointCloud2 和 TF；传感器视觉件不参与车体物理。
+21. 进入 VLN 感知层数据集/训练/算法对接。
 
 ## 阶段 0：项目约束与记忆机制
 
@@ -592,6 +594,124 @@ challenge_sand_screenshot=vln_offroad_scout_wheel_ground_challenge_sand_screensh
 视觉/物理一致验收：草地必须至少有 3 个草叶 mesh field、5 个草地物理代理和 3 个 `VlnChallengeGrassDeformer`；青石路必须至少有铺石/裂缝/碎石视觉细节、PBR 贴图和 7 个石板物理代理；沙地必须至少有沙纹/浅洼/颗粒视觉细节、PBR 贴图和 10 个沙地物理代理；三段截图必须归档。视觉增强层不承担全部交互，主要可接触语义由连续路面 collider、低矮可见代理、PhysicMaterial、控制器阻力/接触审计和第一版草叶轻倒伏共同承担。`GrassTrackPainter` 和 `challenge_grass_track_*` 不属于当前完成标准。
 
 阶段 18 当前边界：这是“后段挑战场地 + 写死自主路线演示”，不是动态绕障导航，也不是完整 VLN 决策。新增障碍的难度必须通过真实接触、车体姿态变化和无停滞通过来验收；如果新增障碍导致卡死，优先调障碍几何、局部材质和路线参数，禁止回退到隐藏托底、压平桥/坡或关闭碰撞。
+
+## 阶段 19：Topgear V2 上装视觉替换/叠加
+
+- 目标：把师兄提供的 `/home/ubuntu22/VLN/topgear_v2.dae` 涂装上装正确安装到 Scout 车身上方，替代“只有精简底盘视觉”的观感，同时继续套用原 Scout wheel-ground 物理、动力学和 ROS2 链路。
+- 范围：Topgear V2 当前只作为视觉 mesh，不新增 `Collider`、`Rigidbody`、WheelCollider、质量、惯量、悬挂或控制参数；不改 `/vln/cmd_vel`、`/vln/odom`、`/tf`、`/vln/front/*`、`/vln/lidar/points`。
+- 姿态规则：`topgear_v2.dae` 是 Blender/COLLADA `Z_UP` 模型；导入 Unity 后应把 DAE `+Z` 映射到车体局部 `+Y` 竖直方向，把 DAE `+Y` 前向映射到 Scout 局部 `+Z` 车头方向，并把上装底部贴近 Scout 车身顶部白色平台。
+- 后续边界：上装安装位置已经经用户确认完成，后续不要再改 Topgear 根姿态、角度、X/Z 位置或贴合高度。16 线雷达和四个相机已经转入阶段 20 单独处理，不回头改阶段 19 的上装安装逻辑。
+
+阶段 19 历史完整验收命令如下；日常小改不要默认全跑，尤其 13 点链路已经通过时不要继续无意义跑 16 点挑战长路线：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/run_topgear_visual_alignment_smoke_test.sh
+./scripts/run_scout_wheel_ground_smoke_test.sh
+./scripts/run_scout_wheel_ground_route_smoke_test.sh
+./scripts/run_scout_wheel_ground_challenge_route_smoke_test.sh
+```
+
+最近通过：
+
+```text
+visual alignment run id: vln_topgear_visual_alignment_20260820_171033
+visual deck-contact run id: vln_topgear_visual_alignment_20260820_175959
+short smoke run id: vln_scout_wheel_ground_20260820_171049
+13-point route run id: vln_scout_wheel_ground_route_20260820_171934
+16-point challenge route run id: vln_scout_wheel_ground_challenge_route_20260820_172504
+success=VLN_TOPGEAR_VISUAL_ALIGNMENT_SMOKE_TEST_PASS
+success=VLN_SCOUT_WHEEL_GROUND_SMOKE_TEST_PASS
+success=VLN_SCOUT_WHEEL_GROUND_ROUTE_SMOKE_TEST_PASS
+success=VLN_SCOUT_WHEEL_GROUND_CHALLENGE_ROUTE_SMOKE_TEST_PASS
+topgear_visual_present=1
+topgear_visual_renderer_count=1
+topgear_visual_collider_count=0
+topgear_visual_rigidbody_count=0
+topgear_visual_bounds_size_m=0.335,0.437,0.432
+topgear_visual_bottom_to_scout_visual_top_gap_m=0.009
+13-point route reached_count=13/13
+13-point route total_forward_progress=52.448m
+13-point route final_lateral_offset=0.001m
+13-point route max_abs_lateral_offset=0.078m
+13-point route stall_count=0
+13-point route skipped_count=0
+16-point challenge reached_count=16/16
+16-point challenge total_forward_progress=70.416m
+16-point challenge final_lateral_offset=-0.056m
+16-point challenge max_abs_lateral_offset=0.109m
+16-point challenge stall_count=0
+16-point challenge skipped_count=0
+16-point challenge sand_contact_steps=13811
+```
+
+2026-08-20 高度贴合补充：用户确认姿态正确但指出上装仍明显悬空。先把 `AttachTopgearV2Visual()` 的 Y 向底部对齐目标从 `0.205f` 下调到 `0.125f`，专项脚本新增 Scout 顶板间隙诊断，视觉验收 `vln_topgear_visual_alignment_20260820_175959` 显示上装底部到 Scout 顶板约 `0.009m`，`topgear_visual_collider_count=0`、`topgear_visual_rigidbody_count=0`。后续按用户肉眼反馈做过 1cm 级微调，最终源码常量和主场景实例已冻结为 `AlignRendererBoundsToLocalFrame(... new Vector3(0f, 0.115f, 0.045f))` / `m_LocalPosition.y=0.115`；不改上装旋转、X/Z 位置、不添加物理组件，不再默认重跑长路线。
+
+阶段 19 完成定义：自动截图中 Topgear 上装不再侧躺、四脚朝天或悬空，黑色上装箱体稳定坐在 Scout 车身平台上，白色 GPS/无线信号器在车头侧；短动回归确认相机、CameraInfo、LiDAR、TF、odom、cmd_vel 正常；13 点金标准路线不退化，16 点挑战路线只在挑战区/长路线相关改动或用户要求时复跑；验收结果必须保持 `topgear_visual_collider_count=0`、`topgear_visual_rigidbody_count=0`。当前阶段 19 已完成，后续不再修改上装安装位置。
+
+## 阶段 20：Topgear 传感器挂载/标定
+
+- 目标：基于已经确认安装完成的 Topgear 上装，安装 1 个 16 线 LiDAR 和前/后/左/右 4 个 RGB 相机，让 Unity 仿真继续通过 ROS2 输出感知层数据。
+- 范围：只新增传感器挂载点、传感器视觉件、UnitySensors/UnitySensorsROS 发布器、CameraInfo 和 TF；不改 Scout wheel-ground 底盘物理、WheelCollider、PID、质量、惯量、悬挂、路线控制和 Topgear 上装根姿态。
+- 视觉策略：LiDAR 和相机必须使用官方/外部真实模型资产。当前 LiDAR 使用 Velodyne VLP-16 DAE mesh，四个相机使用 RealSense D405 STL mesh；禁止再用程序化圆柱、方块、螺丝、小条、玻璃片等自建外观替代或兜底。传感器视觉件不添加 `Collider` 或 `Rigidbody`，避免改变车辆碰撞和动力学。
+- ROS2 兼容策略：保留既有 `/vln/lidar/points` 和 `/vln/front/*` topic，保证原 rqt/RViz/脚本不失效；新增 `/vln/rear/*`、`/vln/left/*`、`/vln/right/*`。
+
+阶段 20 当前 topic/frame：
+
+```text
+/vln/front/image_raw        sensor_msgs/msg/Image       front_camera_optical_frame
+/vln/front/camera_info      sensor_msgs/msg/CameraInfo  front_camera_optical_frame
+/vln/rear/image_raw         sensor_msgs/msg/Image       rear_camera_optical_frame
+/vln/rear/camera_info       sensor_msgs/msg/CameraInfo  rear_camera_optical_frame
+/vln/left/image_raw         sensor_msgs/msg/Image       left_camera_optical_frame
+/vln/left/camera_info       sensor_msgs/msg/CameraInfo  left_camera_optical_frame
+/vln/right/image_raw        sensor_msgs/msg/Image       right_camera_optical_frame
+/vln/right/camera_info      sensor_msgs/msg/CameraInfo  right_camera_optical_frame
+/vln/lidar/points           sensor_msgs/msg/PointCloud2 lidar_link
+```
+
+阶段 20 当前 TF：
+
+```text
+map -> base_link
+base_link -> front_camera_optical_frame
+base_link -> rear_camera_optical_frame
+base_link -> left_camera_optical_frame
+base_link -> right_camera_optical_frame
+base_link -> lidar_link
+```
+
+阶段 20 专项自动验收入口：
+
+```bash
+cd /home/ubuntu22/VLN
+./scripts/run_topgear_sensor_suite_smoke_test.sh
+```
+
+最近通过：
+
+```text
+sensor suite run id: vln_topgear_sensor_suite_20260820_234909
+success=VLN_TOPGEAR_SENSOR_SUITE_SMOKE_TEST_PASS
+topgear_sensor_suite_present=1
+topgear_sensor_camera_count=4
+topgear_sensor_lidar_count=1
+topgear_sensor_renderer_count=7
+topgear_sensor_vlp16_official_mesh_count=1
+topgear_sensor_d405_official_stl_count=4
+topgear_sensor_procedural_vlp16_rib_count=0
+topgear_sensor_procedural_d405_screw_count=0
+topgear_sensor_collider_count=0
+topgear_sensor_rigidbody_count=0
+front/rear/left/right Image status=0
+front/rear/left/right CameraInfo status=0
+LiDAR PointCloud2 status=0
+TF status=0
+```
+
+13 点路线回归：阶段 20 后已经跑过 `./scripts/run_scout_wheel_ground_route_smoke_test.sh`，通过 run id `vln_scout_wheel_ground_route_20260820_190253`，`reached_count=13/13`、`total_forward_progress=52.441m`、`final_lateral_offset=-0.004m`、`max_abs_lateral_offset=0.035m`、`stall_count=0`、`skipped_count=0`。用户明确约定：13 点链路验证成功后，本轮不用再接着跑 16 点挑战路线；16 点只在新增障碍、挑战区变更或用户明确要求时再跑。
+
+阶段 20 完成定义：Unity 中能看到官方 VLP-16 DAE 和官方 D405 STL 安装在 Topgear 上装对应位置；ROS2 能收到 4 路 Image、4 路 CameraInfo、1 路 PointCloud2 和完整 TF；传感器视觉件保持 `topgear_sensor_collider_count=0`、`topgear_sensor_rigidbody_count=0`；旧自建外观残留计数必须为 0；13 点金标准路线不退化。当前完成后交给用户按手工流程亲自查看，不默认继续跑 16 点挑战自动回归。
 
 ## 工作流管理规则
 

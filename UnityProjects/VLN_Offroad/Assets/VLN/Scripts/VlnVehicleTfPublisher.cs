@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using RosMessageTypes.BuiltinInterfaces;
 using RosMessageTypes.Geometry;
@@ -12,6 +13,16 @@ namespace VLN.ROS2
 {
     public sealed class VlnVehicleTfPublisher : MonoBehaviour
     {
+        [Serializable]
+        sealed class AdditionalSensorFrame
+        {
+            [SerializeField] string m_FrameId;
+            [SerializeField] Transform m_Transform;
+
+            public string FrameId => m_FrameId;
+            public Transform Transform => m_Transform;
+        }
+
         [SerializeField] string m_TfTopic = "/tf";
         [SerializeField] string m_MapFrame = "map";
         [SerializeField] string m_BaseFrame = "base_link";
@@ -20,6 +31,7 @@ namespace VLN.ROS2
         [SerializeField] string m_CmdVelTopic = "/vln/cmd_vel";
         [SerializeField] Transform m_CameraTransform;
         [SerializeField] Transform m_LidarTransform;
+        [SerializeField] AdditionalSensorFrame[] m_AdditionalSensorFrames = Array.Empty<AdditionalSensorFrame>();
         [SerializeField] float m_TfFrequencyHz = 10f;
         [SerializeField] float m_VehicleSpeedMetersPerSecond = 1.4f;
         [SerializeField] float m_PathStartZ = -24f;
@@ -74,7 +86,7 @@ namespace VLN.ROS2
             m_Ros.RegisterPublisher<TFMessageMsg>(m_TfTopic, queue_size: 10);
             m_Ros.Subscribe<TwistMsg>(m_CmdVelTopic, OnCmdVel);
             m_Registered = true;
-            Debug.Log($"VLN_VEHICLE_TF_READY topic={m_TfTopic} map={m_MapFrame} base={m_BaseFrame} camera={m_CameraFrame} lidar={m_LidarFrame} cmd_vel={m_CmdVelTopic}");
+            Debug.Log($"VLN_VEHICLE_TF_READY topic={m_TfTopic} map={m_MapFrame} base={m_BaseFrame} camera={m_CameraFrame} lidar={m_LidarFrame} additional_sensor_frames={m_AdditionalSensorFrames.Length} cmd_vel={m_CmdVelTopic}");
         }
 
         void Update()
@@ -277,22 +289,37 @@ namespace VLN.ROS2
         {
             TimeMsg stamp = MakeStamp(Time.time);
             TransformStampedMsg mapToBase = MakeTransform(m_MapFrame, m_BaseFrame, transform.position, transform.rotation, stamp);
+            var transforms = new List<TransformStampedMsg>
+            {
+                mapToBase,
+                MakeSensorTransform(m_CameraFrame, m_CameraTransform, stamp),
+                MakeSensorTransform(m_LidarFrame, m_LidarTransform, stamp),
+            };
 
-            TransformStampedMsg baseToCamera = MakeTransform(
-                m_BaseFrame,
-                m_CameraFrame,
-                m_CameraTransform != null ? m_CameraTransform.localPosition : Vector3.zero,
-                m_CameraTransform != null ? m_CameraTransform.localRotation : Quaternion.identity,
-                stamp);
+            foreach (var frame in m_AdditionalSensorFrames)
+            {
+                if (frame == null || string.IsNullOrWhiteSpace(frame.FrameId))
+                {
+                    continue;
+                }
 
-            TransformStampedMsg baseToLidar = MakeTransform(
-                m_BaseFrame,
-                m_LidarFrame,
-                m_LidarTransform != null ? m_LidarTransform.localPosition : Vector3.zero,
-                m_LidarTransform != null ? m_LidarTransform.localRotation : Quaternion.identity,
-                stamp);
+                transforms.Add(MakeSensorTransform(frame.FrameId, frame.Transform, stamp));
+            }
 
-            m_Ros.Publish(m_TfTopic, new TFMessageMsg(new[] { mapToBase, baseToCamera, baseToLidar }));
+            m_Ros.Publish(m_TfTopic, new TFMessageMsg(transforms.ToArray()));
+        }
+
+        TransformStampedMsg MakeSensorTransform(string childFrame, Transform sensorTransform, TimeMsg stamp)
+        {
+            Vector3 localPosition = Vector3.zero;
+            Quaternion localRotation = Quaternion.identity;
+            if (sensorTransform != null)
+            {
+                localPosition = transform.InverseTransformPoint(sensorTransform.position);
+                localRotation = Quaternion.Inverse(transform.rotation) * sensorTransform.rotation;
+            }
+
+            return MakeTransform(m_BaseFrame, childFrame, localPosition, localRotation, stamp);
         }
 
         static TransformStampedMsg MakeTransform(string parent, string child, Vector3 position, Quaternion rotation, TimeMsg stamp)
