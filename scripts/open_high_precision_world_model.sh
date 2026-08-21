@@ -14,11 +14,13 @@ usage() {
   ./scripts/open_high_precision_world_model.sh first
   ./scripts/open_high_precision_world_model.sh second
   ./scripts/open_high_precision_world_model.sh stitched
+  ./scripts/open_high_precision_world_model.sh first-topgear
 
 参数别名：
   first / 1 / mesa / mesa-desert / 第一套      打开第一套 Mesa Desert 独立场景
   second / 2 / oasis / oasis-desert / 第二套   打开第二套 Oasis Desert 独立场景
   stitched / 3 / fusion / mesa-oasis / 融合版  打开 Mesa+Oasis 融合场景
+  first-topgear / mesa-topgear / 车载Mesa     打开第一套 Mesa + Topgear 真实物理车候选场景
 
 后面的参数会原样传给 Unity，例如：
   ./scripts/open_high_precision_world_model.sh second -batchmode -nographics -quit -logFile /tmp/oasis.log
@@ -66,6 +68,13 @@ case "$WORLD_KEY" in
     REQUIRED_SCENE="$PROJECT_DIR/Assets/BK/PureNature_Oasis/Scenes/Scene_Oasis_Day.unity"
     TARGET_SCENE="$PROJECT_DIR/Assets/VLN/Scenes/VLNMesaOasisStitchedRouteCandidate.unity"
     METHOD="VLN.Editor.VlnPureNatureMesaOasisStitchBuilder.OpenStitchedForManualReview"
+    ;;
+  first-topgear|first_topgear|mesa-topgear|mesa_topgear|mesa-vehicle|mesa_vehicle|topgear-mesa|topgear_mesa|车载mesa|第一套小车)
+    MODEL_ID="mesa_topgear"
+    LABEL="第一套 Mesa Desert + Topgear 真实物理车候选场景"
+    REQUIRED_SCENE="$PROJECT_DIR/Assets/VLN/Scenes/VLNMesaDesertRouteCandidate.unity"
+    TARGET_SCENE="$PROJECT_DIR/Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity"
+    METHOD="VLN.Editor.VlnMesaTopgearVehicleCandidateBuilder.OpenCandidateForManualReview"
     ;;
   *)
     echo "未知世界模型参数：$WORLD_ARG"

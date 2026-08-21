@@ -283,6 +283,16 @@ cd /home/ubuntu22/VLN
 - topic/frame 保持兼容：`/vln/front/*`、`/vln/rear/*`、`/vln/left/*`、`/vln/right/*`、`/vln/lidar/points`、`/vln/cmd_vel`、`/vln/odom`。
 - 第一版沿用 640x480、5Hz、VLP-16 7200 点/帧；稳定后再提高画质。
 
+### 第一套 Mesa 接车结果
+
+- 当前工作场景：`UnityProjects/VLN_Offroad_LargeAssetSandbox/Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity`。
+- 构建入口：`VlnMesaTopgearVehicleCandidateBuilder.cs`，从旧 `VLNOffroadScoutWheelGroundCandidate.unity` 复制 `ScoutWheelGround_PhysicsRoot`、`Offroad_SensorRig_StaticVehiclePlaceholder` 和 `ROSConnection`，不重新创建传感器外观或位姿。
+- 平坦沙地出生点：`config/mesa_topgear_vehicle_candidate.json`，位置约 `(-177.961, 55.393, -610.063)`，坡度 `0.000°`，附近障碍数 `0`。
+- 手工查看：`./scripts/open_mesa_topgear_vehicle_candidate.sh`，或统一入口 `./scripts/open_high_precision_world_model.sh first-topgear`。
+- 物理落地验收：`./scripts/run_mesa_topgear_vehicle_physics_smoke_test.sh`，已通过，4 个 WheelCollider 与 Mesa TerrainCollider 全程接触，未穿地、未掉落。
+- ROS2 控制验收：`./scripts/run_mesa_topgear_vehicle_cmd_vel_smoke_test.sh`，已通过，四路相机、LiDAR、TF、odom、`/vln/cmd_vel` 均保持原链路。
+- 障碍反馈验收：`./scripts/run_mesa_topgear_vehicle_obstacle_impact_smoke_test.sh`，已通过，车轮对真实 Mesa 碎石障碍产生非地形接触，不使用假墙、隐藏托底或关闭碰撞。
+
 ## 阶段 6：高精荒漠自动演示路线
 
 - 新建荒漠路线，不复用旧 13 点路线本体。

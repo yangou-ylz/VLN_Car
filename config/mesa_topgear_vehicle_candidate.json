@@ -1,0 +1,28 @@
+﻿{
+  "stage": "mesa_desert_topgear_vehicle_candidate",
+  "scene_path": "Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity",
+  "world_scene_path": "Assets/VLN/Scenes/VLNMesaDesertRouteCandidate.unity",
+  "source_vehicle_scene_path": "Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity",
+  "notes": "Topgear vehicle copied from frozen wheel-ground baseline into Mesa first world. Sensor locked pose is not recalculated.",
+  "spawn": {
+    "x": -177.961,
+    "y": 55.393,
+    "z": -610.063,
+    "slope_deg": 0.000,
+    "height_range_m": 0.000,
+    "obstacle_count": 0
+  },
+  "copied_vehicle": {
+    "wheel_collider_count": 4,
+    "rigidbody_count": 1,
+    "visual_renderer_count": 18,
+    "sensor_camera_count": 4,
+    "sensor_lidar_count": 1
+  },
+  "world_physics": {
+    "terrain_collider_count": 1,
+    "scene_collider_count": 17063,
+    "terrain_contact_classified_as_sand": true
+  },
+  "route_reference_waypoint_count": 9
+}

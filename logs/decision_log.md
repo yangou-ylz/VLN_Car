@@ -801,3 +801,13 @@
 - 兼容性：旧入口 `open_pure_nature_mesa_desert_route_candidate.sh`、`open_pure_nature_mesa_desert_sandbox.sh`、`open_pure_nature_mesa_oasis_stitched_scene.sh` 仍保留，但底层改为调用统一入口；新增 `open_pure_nature_oasis_desert_route_candidate.sh` 作为第二套兼容入口。
 - 验证：`bash -n` 检查所有打开脚本通过；Unity batch 顺序验证 `first`、`second`、`stitched` 三个参数均正常打开，日志分别出现 `VLN_MESA_ROUTE_CANDIDATE_OPENED_FOR_MANUAL_REVIEW`、`VLN_OASIS_ROUTE_CANDIDATE_OPENED_FOR_MANUAL_REVIEW`、`VLN_MESA_OASIS_STITCHED_OPENED_FOR_MANUAL_REVIEW`；`VLNOasisDesertRouteCandidate.unity` 已实际生成。
 - 风险控制：本轮只改大资产副本工程和脚本/文档，不打开 ROS2、不跑路线、不改主工程、Topgear 锁定文件或第三方原始 `Mesa_Demo.unity` / `Scene_Oasis_Day.unity`。
+
+## 2026-08-22：第一套 Mesa 世界接入 Topgear 真实物理车并通过基础物理/ROS2 验收
+
+- 决策：阶段 21 先只基于第一套 Mesa 世界接入阶段 20 冻结的 Topgear 真实物理小车，暂不处理 Oasis 或融合版。候选场景为 `Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity`，保留原 `VLNMesaDesertRouteCandidate.unity` 作为世界来源。
+- 接入方式：新增 `VlnMesaTopgearVehicleCandidateBuilder.cs`，从旧金标准 `VLNOffroadScoutWheelGroundCandidate.unity` 复制 `ScoutWheelGround_PhysicsRoot`、`Offroad_SensorRig_StaticVehiclePlaceholder` 和 `ROSConnection`，再重新绑定 rig 跟随物理车体；不调用旧场景重建函数，不重算 Topgear 传感器位姿，不改 `topgear_sensor_pose_user_locked.json`。
+- 出生点：自动扫描 Mesa Terrain，选择平坦沙地洼地，记录到 `config/mesa_topgear_vehicle_candidate.json`；当前位置约 `(-177.961, 55.393, -610.063)`，坡度 `0.000°`，附近障碍数 `0`。
+- 物理策略：Mesa TerrainCollider 绑定沙地物理/控制器接触分类；只在 Mesa 候选车上启用 `m_TreatTerrainContactAsSand`，旧 Topgear/13 点基线默认不受影响。
+- 验证：物理落地 smoke test 通过，`wheel_collider_count=4`、`terrain_contact_steps=2172`、`no_wheel_contact_steps=1`、`body_height_span_m=0.0111`；ROS2 `/vln/cmd_vel` smoke test 通过，四路相机、LiDAR、odom、TF 在线，`cmd_vel_count=62`，位移约 `2.08m`；障碍撞击 smoke test 通过，真实碎石障碍 `VLN_Mesa_RubbleObstacle_034__RubbleSparse_3` 产生 `wheel_obstacle_contact_steps=232`。
+- 新入口：手工查看 `scripts/open_mesa_topgear_vehicle_candidate.sh` 或 `scripts/open_high_precision_world_model.sh first-topgear`；自动验收 `scripts/run_mesa_topgear_vehicle_physics_smoke_test.sh`、`scripts/run_mesa_topgear_vehicle_cmd_vel_smoke_test.sh`、`scripts/run_mesa_topgear_vehicle_obstacle_impact_smoke_test.sh`。
+- 风险控制：本轮只改大资产副本工程和脚本/文档，不导入主工程，不覆盖第三方原始 Mesa/Oasis 场景，不改旧 13 点金标准路线，不关闭碰撞、不压平地形、不创建假墙或隐藏托底。
