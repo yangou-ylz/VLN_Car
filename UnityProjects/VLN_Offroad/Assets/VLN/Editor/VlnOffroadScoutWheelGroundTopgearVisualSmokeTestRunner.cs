@@ -14,7 +14,21 @@ namespace VLN.Editor
 
         public static void Run()
         {
-            VlnOffroadScoutWheelGroundCandidateProjectSetup.BuildScoutWheelGroundCandidateScene();
+            RunInternal(rebuildScene: true);
+        }
+
+        public static void RunExistingScene()
+        {
+            RunInternal(rebuildScene: false);
+        }
+
+        static void RunInternal(bool rebuildScene)
+        {
+            if (rebuildScene)
+            {
+                VlnOffroadScoutWheelGroundCandidateProjectSetup.BuildScoutWheelGroundCandidateScene();
+            }
+
             EditorSceneManager.OpenScene(VlnOffroadScoutWheelGroundCandidateProjectSetup.ScenePath);
 
             string logRoot = Path.Combine(Application.dataPath, "../Logs");

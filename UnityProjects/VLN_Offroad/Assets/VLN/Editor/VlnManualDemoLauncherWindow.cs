@@ -15,6 +15,7 @@ namespace VLN.Editor
         const string ControlPanelUrl = "http://127.0.0.1:8765/";
 
         Vector2 m_Scroll;
+        bool m_ShowCameraOptions;
 
         [MenuItem("VLN/ROS2 手工演示面板", priority = 1)]
         public static void OpenWindow()
@@ -36,13 +37,7 @@ namespace VLN.Editor
             LaunchMode("endpoint", requirePlayMode: false);
         }
 
-        [MenuItem("VLN/手工演示/3 运行 13 点自动路线", priority = 12)]
-        public static void StartRouteMenu()
-        {
-            LaunchMode("route", requirePlayMode: true);
-        }
-
-        [MenuItem("VLN/手工演示/4 运行 16 点挑战路线", priority = 13)]
+        [MenuItem("VLN/手工演示/3 运行 16 点挑战路线", priority = 12)]
         public static void StartChallengeRouteMenu()
         {
             LaunchMode("challenge", requirePlayMode: true);
@@ -51,7 +46,9 @@ namespace VLN.Editor
         [MenuItem("VLN/手工演示/查看相机图像", priority = 30)]
         public static void ViewImageMenu()
         {
-            LaunchMode("image", requirePlayMode: true);
+            var window = GetWindow<VlnManualDemoLauncherWindow>("VLN ROS2 演示");
+            window.m_ShowCameraOptions = true;
+            window.Show();
         }
 
         [MenuItem("VLN/手工演示/查看雷达点云", priority = 31)]
@@ -74,76 +71,120 @@ namespace VLN.Editor
 
         void OnGUI()
         {
-            m_Scroll = EditorGUILayout.BeginScrollView(m_Scroll);
-            EditorGUILayout.LabelField("VLN ROS2 手工演示面板", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox(
-                "这个面板只启动现有 ROS2 脚本。控制仍在 ROS2 外部完成，Unity 只提供仿真世界、传感器和物理交互。推荐顺序：打开场景 -> 启动 endpoint -> Unity 点击 Play -> 运行路线或查看传感器。",
-                MessageType.Info);
-
-            using (new EditorGUILayout.VerticalScope("box"))
+            using (new EditorGUILayout.HorizontalScope())
             {
-                EditorGUILayout.LabelField("基础流程", EditorStyles.boldLabel);
-                if (GUILayout.Button("1. 打开 Scout wheel-ground 场景", GUILayout.Height(30f)))
+                using (new EditorGUILayout.VerticalScope(GUILayout.ExpandWidth(true)))
                 {
-                    OpenScoutScene();
+                    m_Scroll = EditorGUILayout.BeginScrollView(m_Scroll);
+                    EditorGUILayout.LabelField("VLN ROS2 手工演示面板", EditorStyles.boldLabel);
+                    EditorGUILayout.HelpBox(
+                        "这个面板只启动现有 ROS2 脚本。控制仍在 ROS2 外部完成，Unity 只提供仿真世界、传感器和物理交互。推荐顺序：打开场景 -> 启动 endpoint -> Unity 点击 Play -> 运行挑战路线或查看传感器。",
+                        MessageType.Info);
+
+                    using (new EditorGUILayout.VerticalScope("box"))
+                    {
+                        EditorGUILayout.LabelField("基础流程", EditorStyles.boldLabel);
+                        if (GUILayout.Button("1. 打开 Scout wheel-ground 场景", GUILayout.Height(30f)))
+                        {
+                            OpenScoutScene();
+                        }
+
+                        if (GUILayout.Button("2. 启动 ROS-TCP-Endpoint", GUILayout.Height(30f)))
+                        {
+                            LaunchMode("endpoint", requirePlayMode: false);
+                        }
+
+                        EditorGUILayout.HelpBox("启动 endpoint 后，回到 Unity 顶部点击 Play，再运行挑战路线或查看传感器。", MessageType.None);
+
+                        if (GUILayout.Button("3. 运行 16 点挑战路线", GUILayout.Height(30f)))
+                        {
+                            LaunchMode("challenge", requirePlayMode: true);
+                        }
+                    }
+
+                    using (new EditorGUILayout.VerticalScope("box"))
+                    {
+                        EditorGUILayout.LabelField("传感器和控制", EditorStyles.boldLabel);
+                        if (GUILayout.Button("查看相机图像", GUILayout.Height(28f)))
+                        {
+                            m_ShowCameraOptions = !m_ShowCameraOptions;
+                        }
+
+                        if (GUILayout.Button("打开雷达点云 RViz", GUILayout.Height(28f)))
+                        {
+                            LaunchMode("rviz", requirePlayMode: true);
+                        }
+
+                        if (GUILayout.Button("启动中文控制面板", GUILayout.Height(28f)))
+                        {
+                            LaunchMode("panel", requirePlayMode: true);
+                        }
+
+                        if (GUILayout.Button("打开控制面板网页", GUILayout.Height(28f)))
+                        {
+                            Application.OpenURL(ControlPanelUrl);
+                        }
+
+                        if (GUILayout.Button("关闭 VLN 后台终端", GUILayout.Height(28f)))
+                        {
+                            CleanupUnityMenuProcesses(includeKnownProjectProcesses: true, showDialog: true);
+                        }
+                    }
+
+                    using (new EditorGUILayout.VerticalScope("box"))
+                    {
+                        EditorGUILayout.LabelField("说明", EditorStyles.boldLabel);
+                        EditorGUILayout.SelectableLabel("场景：" + VlnOffroadScoutWheelGroundCandidateProjectSetup.ScenePath, GUILayout.Height(18f));
+                        EditorGUILayout.SelectableLabel("启动包装器：" + LauncherScript, GUILayout.Height(18f));
+                        EditorGUILayout.SelectableLabel("控制 topic：/vln/cmd_vel", GUILayout.Height(18f));
+                    }
+
+                    EditorGUILayout.EndScrollView();
                 }
 
-                if (GUILayout.Button("2. 启动 ROS-TCP-Endpoint", GUILayout.Height(30f)))
+                if (m_ShowCameraOptions)
                 {
-                    LaunchMode("endpoint", requirePlayMode: false);
-                }
-
-                EditorGUILayout.HelpBox("启动 endpoint 后，回到 Unity 顶部点击 Play，再运行路线。", MessageType.None);
-
-                if (GUILayout.Button("3. 运行 13 点自动路线", GUILayout.Height(30f)))
-                {
-                    LaunchMode("route", requirePlayMode: true);
-                }
-
-                if (GUILayout.Button("4. 运行 16 点挑战路线", GUILayout.Height(30f)))
-                {
-                    LaunchMode("challenge", requirePlayMode: true);
+                    DrawCameraOptionsPanel();
                 }
             }
+        }
 
-            using (new EditorGUILayout.VerticalScope("box"))
+        static void DrawCameraOptionsPanel()
+        {
+            using (new EditorGUILayout.VerticalScope("box", GUILayout.Width(168f)))
             {
-                EditorGUILayout.LabelField("传感器和控制", EditorStyles.boldLabel);
-                if (GUILayout.Button("打开相机图像 rqt", GUILayout.Height(28f)))
+                EditorGUILayout.LabelField("相机图像", EditorStyles.boldLabel);
+                if (GUILayout.Button("rqt", GUILayout.Height(26f)))
                 {
-                    LaunchMode("image", requirePlayMode: true);
+                    LaunchMode("image_all", requirePlayMode: true);
                 }
 
-                if (GUILayout.Button("打开雷达点云 RViz", GUILayout.Height(28f)))
+                EditorGUILayout.Space(4f);
+                if (GUILayout.Button("全部相机", GUILayout.Height(26f)))
                 {
-                    LaunchMode("rviz", requirePlayMode: true);
+                    VlnTopgearCameraPreviewWindow.OpenAllCameras();
                 }
 
-                if (GUILayout.Button("启动中文控制面板", GUILayout.Height(28f)))
+                bool singleEnabled = !VlnTopgearCameraPreviewWindow.IsAllCameraWindowOpen();
+                EditorGUI.BeginDisabledGroup(!singleEnabled);
+                if (GUILayout.Button("前相机", GUILayout.Height(26f)))
                 {
-                    LaunchMode("panel", requirePlayMode: true);
+                    VlnTopgearCameraPreviewWindow.OpenFrontCamera();
                 }
-
-                if (GUILayout.Button("打开控制面板网页", GUILayout.Height(28f)))
+                if (GUILayout.Button("后相机", GUILayout.Height(26f)))
                 {
-                    Application.OpenURL(ControlPanelUrl);
+                    VlnTopgearCameraPreviewWindow.OpenRearCamera();
                 }
-
-                if (GUILayout.Button("关闭 VLN 后台终端", GUILayout.Height(28f)))
+                if (GUILayout.Button("左相机", GUILayout.Height(26f)))
                 {
-                    CleanupUnityMenuProcesses(includeKnownProjectProcesses: true, showDialog: true);
+                    VlnTopgearCameraPreviewWindow.OpenLeftCamera();
                 }
+                if (GUILayout.Button("右相机", GUILayout.Height(26f)))
+                {
+                    VlnTopgearCameraPreviewWindow.OpenRightCamera();
+                }
+                EditorGUI.EndDisabledGroup();
             }
-
-            using (new EditorGUILayout.VerticalScope("box"))
-            {
-                EditorGUILayout.LabelField("说明", EditorStyles.boldLabel);
-                EditorGUILayout.SelectableLabel("场景：" + VlnOffroadScoutWheelGroundCandidateProjectSetup.ScenePath, GUILayout.Height(18f));
-                EditorGUILayout.SelectableLabel("启动包装器：" + LauncherScript, GUILayout.Height(18f));
-                EditorGUILayout.SelectableLabel("控制 topic：/vln/cmd_vel", GUILayout.Height(18f));
-            }
-
-            EditorGUILayout.EndScrollView();
         }
 
         static void OpenScoutScene()

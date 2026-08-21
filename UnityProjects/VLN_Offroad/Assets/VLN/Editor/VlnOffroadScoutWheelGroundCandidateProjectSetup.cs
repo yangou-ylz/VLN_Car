@@ -111,6 +111,7 @@ namespace VLN.Editor
         [MenuItem("VLN/Build Offroad Scout Wheel-Ground Candidate Scene")]
         public static void BuildScoutWheelGroundCandidateScene()
         {
+            BackupExistingCandidateSceneBeforeRebuild();
             EnsureScoutAssetsExist();
             VlnOffroadAssetCandidateProjectSetup.BuildAssetCandidateScene();
             AssetDatabase.ImportAsset(ScoutAssetRoot, ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceUpdate);
@@ -592,21 +593,21 @@ namespace VLN.Editor
 
             Transform lidar = CreateTopgearLidar(root.transform, scanPattern, bodyMaterial, ringMaterial, glassMaterial, metalMaterial, lidarAccentMaterial);
 
-            // Topgear upper sensor-box anchors are derived from topgear_v2.dae after the mounted
-            // Z-up -> Y-up transform: the LiDAR disk center is x=0,z=0.004 at y~=0.805, and the
-            // camera box material spans x=-0.045..0.045, y=0.660..0.805, z=-0.041..0.196.
-            // Put each camera root on the outer face center; the D405 official STL body extends along
-            // local -Z, so the lens plane is flush with the circular cutout and the body goes inward.
+            // Sensor poses are the user's manually aligned Unity baseline. Do not re-derive these
+            // from mesh bounds or old hole estimates; those defaults were visually wrong on Topgear.
             const float cameraCenterY = 0.723f;
             const float cameraBoxCenterZ = 0.077f;
             const float cameraBoxSideX = 0.050f;
-            const float cameraBoxFrontZ = 0.196f;
+            const float cameraBoxFrontX = 0.006f;
+            const float cameraBoxFrontY = 0.8409f;
+            const float cameraBoxFrontZ = 0.296f;
             const float cameraBoxRearZ = -0.041f;
-            Transform front = CreateTopgearCamera(root.transform, TopgearFrontCameraName, new Vector3(0f, cameraCenterY, cameraBoxFrontZ), Quaternion.identity, FrontImageTopic, FrontCameraInfoTopic, FrontCameraFrameId, bodyMaterial, ringMaterial, glassMaterial, metalMaterial);
+            Transform front = CreateTopgearCamera(root.transform, TopgearFrontCameraName, new Vector3(cameraBoxFrontX, cameraBoxFrontY, cameraBoxFrontZ), Quaternion.identity, FrontImageTopic, FrontCameraInfoTopic, FrontCameraFrameId, bodyMaterial, ringMaterial, glassMaterial, metalMaterial);
             Transform rear = CreateTopgearCamera(root.transform, TopgearRearCameraName, new Vector3(0f, cameraCenterY, cameraBoxRearZ), Quaternion.Euler(0f, 180f, 0f), RearImageTopic, RearCameraInfoTopic, RearCameraFrameId, bodyMaterial, ringMaterial, glassMaterial, metalMaterial);
             Transform left = CreateTopgearCamera(root.transform, TopgearLeftCameraName, new Vector3(-cameraBoxSideX, cameraCenterY, cameraBoxCenterZ), Quaternion.Euler(0f, -90f, 0f), LeftImageTopic, LeftCameraInfoTopic, LeftCameraFrameId, bodyMaterial, ringMaterial, glassMaterial, metalMaterial);
             Transform right = CreateTopgearCamera(root.transform, TopgearRightCameraName, new Vector3(cameraBoxSideX, cameraCenterY, cameraBoxCenterZ), Quaternion.Euler(0f, 90f, 0f), RightImageTopic, RightCameraInfoTopic, RightCameraFrameId, bodyMaterial, ringMaterial, glassMaterial, metalMaterial);
             ApplyTopgearSensorPoseOverrides(root.transform);
+            ApplyTopgearSensorHierarchyOverrides(root.transform);
 
             Debug.Log("VLN_TOPGEAR_SENSOR_SUITE_ATTACHED lidar=1 cameras=4 parent=rig topics=/vln/front,/vln/rear,/vln/left,/vln/right,/vln/lidar");
             return new TopgearSensorSuiteHandles
@@ -624,10 +625,10 @@ namespace VLN.Editor
         {
             var lidarObject = new GameObject(TopgearLidarName);
             lidarObject.transform.SetParent(parent, false);
-            // The topgear upper disk top is around local y=0.805. The LiDAR visual is fitted to 74 mm
-            // height around this root, so y=0.842 seats its lower shell on the disk center.
-            lidarObject.transform.localPosition = new Vector3(0f, 0.842f, 0.004f);
-            lidarObject.transform.localRotation = Quaternion.identity;
+            // User-aligned LiDAR baseline. Keep this as the default so scene rebuilds do not fall
+            // back to the old visually wrong center-only pose if JSON is unavailable.
+            lidarObject.transform.localPosition = new Vector3(0.0021f, 0.8419999f, 0.0097f);
+            lidarObject.transform.localRotation = Quaternion.Euler(0f, 266.9234f, 0f);
             lidarObject.transform.localScale = Vector3.one;
             lidarObject.layer = 0;
 
@@ -844,11 +845,30 @@ namespace VLN.Editor
             public Vector3 localScale;
         }
 
+        [Serializable]
+        public sealed class TopgearSensorHierarchyOverrideSet
+        {
+            public TopgearSensorHierarchyOverride[] transforms = Array.Empty<TopgearSensorHierarchyOverride>();
+        }
+
+        [Serializable]
+        public sealed class TopgearSensorHierarchyOverride
+        {
+            public string path;
+            public Vector3 localPosition;
+            public Vector3 localEulerAngles;
+            public Vector3 localScale;
+        }
+
         public static string TopgearSensorPoseOverridePath => Path.GetFullPath(Path.Combine(Application.dataPath, "../../..", "config", "topgear_sensor_pose_overrides.json"));
+        public static string TopgearSensorPoseUserLockedPath => Path.GetFullPath(Path.Combine(Application.dataPath, "../../..", "config", "topgear_sensor_pose_user_locked.json"));
+        public static string TopgearSensorHierarchyUserLockedPath => Path.GetFullPath(Path.Combine(Application.dataPath, "../../..", "config", "topgear_sensor_hierarchy_user_locked.json"));
+
+        public static string ActiveTopgearSensorPosePath => File.Exists(TopgearSensorPoseUserLockedPath) ? TopgearSensorPoseUserLockedPath : TopgearSensorPoseOverridePath;
 
         static void ApplyTopgearSensorPoseOverrides(Transform sensorRoot)
         {
-            string path = TopgearSensorPoseOverridePath;
+            string path = ActiveTopgearSensorPosePath;
             if (!File.Exists(path))
             {
                 return;
@@ -857,9 +877,15 @@ namespace VLN.Editor
             var overrides = JsonUtility.FromJson<TopgearSensorPoseOverrideSet>(File.ReadAllText(path));
             if (overrides == null || overrides.sensors == null)
             {
+                if (path == TopgearSensorPoseUserLockedPath)
+                {
+                    throw new InvalidOperationException($"Topgear locked sensor pose file is invalid: {path}");
+                }
+
                 return;
             }
 
+            int appliedCount = 0;
             foreach (var sensor in overrides.sensors)
             {
                 if (sensor == null || string.IsNullOrWhiteSpace(sensor.name))
@@ -879,7 +905,89 @@ namespace VLN.Editor
                 {
                     target.localScale = sensor.localScale;
                 }
+                appliedCount++;
             }
+
+            if (path == TopgearSensorPoseUserLockedPath && appliedCount < 5)
+            {
+                throw new InvalidOperationException($"Topgear locked sensor pose file applied only {appliedCount}/5 sensors: {path}");
+            }
+
+            Debug.Log($"VLN_TOPGEAR_SENSOR_POSE_APPLIED path={path} count={appliedCount}");
+        }
+
+        static void ApplyTopgearSensorHierarchyOverrides(Transform sensorRoot)
+        {
+            string path = TopgearSensorHierarchyUserLockedPath;
+            if (!File.Exists(path))
+            {
+                return;
+            }
+
+            var overrides = JsonUtility.FromJson<TopgearSensorHierarchyOverrideSet>(File.ReadAllText(path));
+            if (overrides == null || overrides.transforms == null || overrides.transforms.Length == 0)
+            {
+                throw new InvalidOperationException($"Topgear locked sensor hierarchy file is invalid: {path}");
+            }
+
+            int appliedCount = 0;
+            foreach (var pose in overrides.transforms)
+            {
+                if (pose == null || string.IsNullOrWhiteSpace(pose.path))
+                {
+                    continue;
+                }
+
+                Transform target = FindRelativeTransform(sensorRoot, pose.path);
+                if (target == null)
+                {
+                    throw new InvalidOperationException($"Topgear locked sensor hierarchy path is missing after rebuild: {pose.path}");
+                }
+
+                target.localPosition = pose.localPosition;
+                target.localRotation = Quaternion.Euler(pose.localEulerAngles);
+                if (pose.localScale.x > 0f && pose.localScale.y > 0f && pose.localScale.z > 0f)
+                {
+                    target.localScale = pose.localScale;
+                }
+
+                appliedCount++;
+            }
+
+            Debug.Log($"VLN_TOPGEAR_SENSOR_HIERARCHY_APPLIED path={path} count={appliedCount}");
+        }
+
+        static Transform FindRelativeTransform(Transform root, string path)
+        {
+            string[] parts = path.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0)
+            {
+                return null;
+            }
+
+            int index = parts[0] == root.name ? 1 : 0;
+            Transform current = root;
+            for (; index < parts.Length; index++)
+            {
+                Transform next = null;
+                foreach (Transform child in current)
+                {
+                    if (child.name == parts[index])
+                    {
+                        next = child;
+                        break;
+                    }
+                }
+
+                if (next == null)
+                {
+                    return null;
+                }
+
+                current = next;
+            }
+
+            return current;
         }
 
         static GameObject InstantiateImportedSensorModel(Transform parent, string name, string[] assetPaths, Vector3 localPosition, Quaternion localRotation, Vector3 targetSize, Vector3 targetCenter, Material fallbackMaterial)
@@ -2760,6 +2868,36 @@ namespace VLN.Editor
         static string ProjectRelativeToFullPath(string assetPath)
         {
             return Path.GetFullPath(Path.Combine(Application.dataPath, "..", assetPath));
+        }
+
+        static void BackupExistingCandidateSceneBeforeRebuild()
+        {
+            string sceneFullPath = ProjectRelativeToFullPath(ScenePath);
+            if (!File.Exists(sceneFullPath))
+            {
+                return;
+            }
+
+            try
+            {
+                string backupRoot = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "_SceneBackups", DateTime.Now.ToString("yyyyMMdd_HHmmss")));
+                Directory.CreateDirectory(backupRoot);
+
+                string sceneBackupPath = Path.Combine(backupRoot, Path.GetFileName(sceneFullPath));
+                File.Copy(sceneFullPath, sceneBackupPath, overwrite: true);
+
+                string metaPath = sceneFullPath + ".meta";
+                if (File.Exists(metaPath))
+                {
+                    File.Copy(metaPath, sceneBackupPath + ".meta", overwrite: true);
+                }
+
+                Debug.Log($"VLN_SCOUT_WHEEL_GROUND_SCENE_BACKUP before rebuild: {sceneBackupPath}");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"VLN_SCOUT_WHEEL_GROUND_SCENE_BACKUP_FAILED before rebuild: {ex.Message}");
+            }
         }
 
         static void DeleteAssetIfExists(string path)

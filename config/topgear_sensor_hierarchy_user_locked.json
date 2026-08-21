@@ -1,0 +1,328 @@
+{
+    "transforms": [
+        {
+            "path": "ScoutWheelGround_TopgearSensorSuite",
+            "localPosition": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "ScoutWheelGround_TopgearSensorSuite/Topgear_VLP16_RaycastLiDAR_UnitySensorsROS",
+            "localPosition": {
+                "x": 0.002099999925121665,
+                "y": 0.841999888420105,
+                "z": 0.009700000286102295
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 266.9234313964844,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "ScoutWheelGround_TopgearSensorSuite/Topgear_VLP16_RaycastLiDAR_UnitySensorsROS/Velodyne_VLP16_OfficialMesh",
+            "localPosition": {
+                "x": -0.005379624664783478,
+                "y": -0.03699982166290283,
+                "z": -3.725290298461914e-9
+            },
+            "localEulerAngles": {
+                "x": 270.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 0.8823860883712769,
+                "y": 0.9651579260826111,
+                "z": 1.059409737586975
+            }
+        },
+        {
+            "path": "ScoutWheelGround_TopgearSensorSuite/Topgear_VLP16_RaycastLiDAR_UnitySensorsROS/Velodyne_VLP16_OfficialMesh/VLP16_base_1",
+            "localPosition": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "ScoutWheelGround_TopgearSensorSuite/Topgear_VLP16_RaycastLiDAR_UnitySensorsROS/Velodyne_VLP16_OfficialMesh/VLP16_scan",
+            "localPosition": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "ScoutWheelGround_TopgearSensorSuite/Topgear_VLP16_RaycastLiDAR_UnitySensorsROS/Velodyne_VLP16_OfficialMesh/VLP16_base_2",
+            "localPosition": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "ScoutWheelGround_TopgearSensorSuite/Topgear_Front_RGBCamera_UnitySensorsROS",
+            "localPosition": {
+                "x": 0.006000000052154064,
+                "y": 0.8409000039100647,
+                "z": 0.29600000381469729
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "ScoutWheelGround_TopgearSensorSuite/Topgear_Front_RGBCamera_UnitySensorsROS/RealSense_D405_SquareStereoVisual",
+            "localPosition": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "ScoutWheelGround_TopgearSensorSuite/Topgear_Front_RGBCamera_UnitySensorsROS/RealSense_D405_SquareStereoVisual/RealSense_D405_OfficialStlBody",
+            "localPosition": {
+                "x": -0.006300000008195639,
+                "y": -0.05999999865889549,
+                "z": -0.22089999914169312
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "ScoutWheelGround_TopgearSensorSuite/Topgear_Rear_RGBCamera_UnitySensorsROS",
+            "localPosition": {
+                "x": 0.0,
+                "y": 0.7229999899864197,
+                "z": -0.04100000113248825
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 180.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "ScoutWheelGround_TopgearSensorSuite/Topgear_Rear_RGBCamera_UnitySensorsROS/RealSense_D405_SquareStereoVisual",
+            "localPosition": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "ScoutWheelGround_TopgearSensorSuite/Topgear_Rear_RGBCamera_UnitySensorsROS/RealSense_D405_SquareStereoVisual/RealSense_D405_OfficialStlBody",
+            "localPosition": {
+                "x": 0.00279999990016222,
+                "y": 0.05790000036358833,
+                "z": 0.025800000876188279
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "ScoutWheelGround_TopgearSensorSuite/Topgear_Left_RGBCamera_UnitySensorsROS",
+            "localPosition": {
+                "x": -0.05000000074505806,
+                "y": 0.7229999899864197,
+                "z": 0.07699999958276749
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 270.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "ScoutWheelGround_TopgearSensorSuite/Topgear_Left_RGBCamera_UnitySensorsROS/RealSense_D405_SquareStereoVisual",
+            "localPosition": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "ScoutWheelGround_TopgearSensorSuite/Topgear_Left_RGBCamera_UnitySensorsROS/RealSense_D405_SquareStereoVisual/RealSense_D405_OfficialStlBody",
+            "localPosition": {
+                "x": -0.0723000019788742,
+                "y": 0.05739999935030937,
+                "z": 0.0210999995470047
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "ScoutWheelGround_TopgearSensorSuite/Topgear_Right_RGBCamera_UnitySensorsROS",
+            "localPosition": {
+                "x": 0.05000000074505806,
+                "y": 0.7229999899864197,
+                "z": 0.07699999958276749
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 90.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "ScoutWheelGround_TopgearSensorSuite/Topgear_Right_RGBCamera_UnitySensorsROS/RealSense_D405_SquareStereoVisual",
+            "localPosition": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "ScoutWheelGround_TopgearSensorSuite/Topgear_Right_RGBCamera_UnitySensorsROS/RealSense_D405_SquareStereoVisual/RealSense_D405_OfficialStlBody",
+            "localPosition": {
+                "x": 0.07069999724626541,
+                "y": 0.057100001722574237,
+                "z": 0.02019999921321869
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        }
+    ]
+}

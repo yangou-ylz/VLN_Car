@@ -62,7 +62,7 @@ if [ "$MODE" = "--include-known" ] || [ "$MODE" = "--all" ]; then
   # 只匹配本项目自己的入口，避免误杀用户其他 ROS2 / RViz / Python 工作。
   pkill -TERM -f '^python3 /home/ubuntu22/VLN/scripts/vln_control_panel.py( |$)' >/dev/null 2>&1 || true
   pkill -TERM -f '^/usr/bin/python3 /home/ubuntu22/VLN/unity_ros2_ws/install/ros_tcp_endpoint/lib/ros_tcp_endpoint/default_server_endpoint( |$)' >/dev/null 2>&1 || true
-  pkill -TERM -f '/home/ubuntu22/VLN/scripts/(drive_scout_wheel_ground_route_demo|drive_scout_wheel_ground_challenge_route_demo|view_front_image|view_vln_vehicle_rviz)\.sh' >/dev/null 2>&1 || true
+  pkill -TERM -f '/home/ubuntu22/VLN/scripts/(drive_scout_wheel_ground_route_demo|drive_scout_wheel_ground_challenge_route_demo|view_front_image|view_all_camera_images|view_vln_vehicle_rviz)\.sh' >/dev/null 2>&1 || true
 fi
 
 sleep 0.8

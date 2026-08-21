@@ -526,3 +526,24 @@
 - 备选项：继续在官方 mesh 外叠加程序化细节；官方模型加载失败时临时生成方块/圆柱兜底；或把传感器做成不可见挂载点。
 - 理由：用户和师兄的主线是导入真实模型/mesh 到 Unity 中仿真，传感器外观验收看的是模型来源、姿态和挂载位置；程序化兜底会让视觉路线偏离需求，即使 ROS2 topic 能通也不算合格。
 - 影响：`run_topgear_sensor_suite_smoke_test.sh` 现在检查 `topgear_sensor_vlp16_official_mesh_count=1`、`topgear_sensor_d405_official_stl_count=4`，并要求旧程序化 VLP rib / D405 screw 残留为 0。官方模型导入失败时应修导入、轴向、缩放或资产路径，而不是创建临时几何体。
+
+## 2026-08-21：Topgear 传感器位姿以用户手动锁定状态为唯一基线
+
+- 决策：阶段 20 传感器位置和角度以用户在 Unity 中手动拖动后锁定的三重状态为唯一基线：`config/topgear_sensor_pose_user_locked.json`、`config/topgear_sensor_hierarchy_user_locked.json`、`config/topgear_sensor_scene_locked/VLNOffroadScoutWheelGroundCandidate_user_locked.unity`。`config/topgear_sensor_pose_overrides.json` 只是兼容副本，不再作为最高优先级真值。
+- 备选项：继续把源码默认几何锚点作为真值；或让模型 bbox/孔位检测自动微调相机、LiDAR。
+- 理由：用户实测证明源码默认锚点与肉眼正确安装位置存在 10cm 级差异，尤其前相机；自动微调即使数值只动 2cm，也会把用户确认的视觉安装效果破坏。当前项目需要先尊重已保存的人工标定，再做传感器数据链路。
+- 影响：后续任何 Topgear 传感器位姿调整必须由用户明确提出，并给出方向/幅度或通过 `VLN -> Topgear 传感器手动微调` 保存。自动验收、batch 重建、截图验证只能应用锁定 JSON / 层级 JSON，不能自行改位姿。若场景被覆盖，先运行 `./scripts/restore_topgear_sensor_locked_scene.sh` 用锁定整场景恢复。
+
+## 2026-08-21：Topgear 专项验收只读现有场景，不再重建主场景
+
+- 决策：`run_topgear_sensor_suite_smoke_test.sh` 和 `run_topgear_visual_alignment_smoke_test.sh` 改为调用 `RunExistingScene()`，只打开 `VLNOffroadScoutWheelGroundCandidate.unity` 的当前保存状态进行 ROS2 数据或截图验收，不再调用 `BuildScoutWheelGroundCandidateScene()`。
+- 备选项：继续重建场景后验收；或把 JSON 继续当成唯一真值；或每次验收前让用户重新手动导出 JSON。
+- 理由：用户已经用 Unity Editor 肉眼拖动传感器到满意位置，手工保存的主场景本身就是当前视觉基线。重建函数会重新生成并保存主场景，实际效果是覆盖用户场景，不是无害验收。JSON 只适合做重建同步，不应反向覆盖用户肉眼确认结果。
+- 影响：Topgear 专项验收不会再破坏传感器位置。真正需要重建地形/车体/路线的基础回归仍可使用 `BuildScoutWheelGroundCandidateScene()`，但重建前会自动备份主场景到 `UnityProjects/_SceneBackups/<timestamp>/`；如后续必须重建，应先确认传感器场景状态已同步到 JSON 或已有备份。
+
+## 2026-08-21：Unity 演示面板相机查看改为四路 rqt + 内部简洁预览
+
+- 决策：`VLN -> ROS2 手工演示面板` 删除 13 点自动路线入口；`查看相机图像` 改为右侧选项栏，包含 `rqt`、`全部相机`、`前相机`、`后相机`、`左相机`、`右相机`。
+- 备选项：继续只打开前向 rqt；或把所有图像查看都放到外部终端；或把四路图像做成复杂控制面板。
+- 理由：当前演示重点是 Topgear 四路相机和 LiDAR，不再需要在 Unity 面板里保留旧 13 点路线按钮。用户需要低干扰查看画面：rqt 用于 ROS topic 级验证，Unity 内部小窗口用于快速看当前场景四个 Camera 视角。
+- 影响：新增 `VlnTopgearCameraPreviewWindow.cs` 和 `scripts/view_all_camera_images.sh`。内部预览不启动终端，不改 ROS2 topic；rqt 入口会打开四个 `rqt_image_view`。`全部相机` 打开时单路相机按钮禁用。

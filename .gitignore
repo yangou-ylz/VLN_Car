@@ -113,6 +113,11 @@ unity_ros2_ws/
 VLN_ASSETS_CACHE/
 VLN_BAGS/
 VLN_RECORDINGS/
+UnityProjects/_SceneBackups/
+UnityProjects/_ManualRecoveryLogs/
+UnityProjects/VLN_Offroad/_ManualRecoveryLogs/
+config/topgear_sensor_scene_locked/
+config/pose_backups/
 VLN_REFERENCE_LIBRARY_DUPLICATE_*/
 _moved_from_home/
 

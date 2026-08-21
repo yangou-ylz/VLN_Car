@@ -5,7 +5,7 @@
 ## 快速入口
 
 - 当前短上下文：`CURRENT_STATE.md`。
-- 当前 Topgear 传感器专项：`vln_topgear_sensor_suite_20260820_234909` 已通过，4 路官方 RealSense D405 STL 相机、1 路官方/外部 Velodyne VLP-16 DAE LiDAR、CameraInfo、PointCloud2 和 TF 均正常；旧程序化 VLP rib / D405 screw 残留为 0。阶段 20 后 13 点自动路线回归 `vln_scout_wheel_ground_route_20260820_190253` 已通过；用户明确约定 13 点链路成功后本轮不用继续跑 16 点挑战路线。
+- 当前 Topgear 传感器专项：`vln_topgear_sensor_suite_20260821_132222` 已通过，4 路官方 RealSense D405 STL 相机、1 路官方/外部 Velodyne VLP-16 DAE LiDAR、CameraInfo、PointCloud2 和 TF 均正常；旧程序化 VLP rib / D405 screw 残留为 0。2026-08-21 用户重新在 Unity 中手动拖动并保存五个传感器位姿，当前基线以 `config/topgear_sensor_pose_overrides.json` 和主场景保存值为准，禁止再按源码默认锚点/包围盒主动推位置。Unity 演示面板已移除 13 点路线入口，相机查看改为右侧选项栏：四路 rqt 或 Unity 内部简洁预览。阶段 20 后 13 点自动路线回归 `vln_scout_wheel_ground_route_20260820_190253` 已通过；用户明确约定 13 点链路成功后本轮不用继续跑 16 点挑战路线。
 - 当前原则：普通子任务不再全量读取所有长记忆文件；先用 `CURRENT_STATE.md` 和关键词定位，必要时再查长文档。
 
 ## 项目目标
@@ -33,7 +33,7 @@
 - Unity Editor：`/home/ubuntu22/VLN/UnityEditors/2022.3.62f1/Editor/Unity`，版本 `2022.3.62f1`，Unity Personal 许可证已激活并通过空工程创建探测。
 - Unity 正式工程：`/home/ubuntu22/VLN/UnityProjects/VLN_Offroad`，已导入 `com.unity.robotics.ros-tcp-connector`、`com.frj.unity-sensors`、`com.frj.unity-sensors-ros`、`com.unity.ugui`、`com.unity.test-framework`、`com.unity.robotics.urdf-importer`。
 - Topgear V2 涂装/上装视觉件：师兄提供 `/home/ubuntu22/VLN/topgear_v2.dae`，已复制进 Unity 工程 `Assets/VLN/ExternalAssets/TopgearV2Visual/Models/topgear_v2.dae` 并挂到 Scout wheel-ground 视觉根 `ScoutWheelGround_VisualUrdf` 下。该 DAE 是 Blender/COLLADA `Z_UP`、`unit=meter`、单 mesh 视觉资产；当前只作为视觉上装，不加入 `Collider`、`Rigidbody`、WheelCollider、质量、惯量或底盘物理。姿态规则为 DAE `+Z -> Scout/Unity local +Y` 竖直方向、DAE `+Y -> Scout local +Z` 车头方向，并将 renderer bbox 底部对齐到 Scout 车身顶部平台附近。用户已经确认上装安装位置完成，后续不要再改根姿态、角度、X/Z 位置或贴合高度。
-- Topgear 传感器挂载：已在 Topgear 上装顶部安装 1 个官方/外部 Velodyne VLP-16 DAE LiDAR，并在前/后/左/右四侧安装 4 个官方 RealSense D405 STL RGB 相机；传感器视觉件只做显示和 ROS2 数据发布，不加入 `Collider` 或 `Rigidbody`。当前输出 `/vln/front/image_raw`、`/vln/rear/image_raw`、`/vln/left/image_raw`、`/vln/right/image_raw`、对应 4 路 CameraInfo，以及 `/vln/lidar/points`；TF 为 `map -> base_link` 和 `base_link -> front/rear/left/right_camera_optical_frame,lidar_link`。禁止再用程序化圆柱、方块、螺丝、小条等自建传感器外观兜底。
+- Topgear 传感器挂载：已在 Topgear 上装顶部安装 1 个官方/外部 Velodyne VLP-16 DAE LiDAR，并在前/后/左/右四侧安装 4 个官方 RealSense D405 STL RGB 相机；传感器视觉件只做显示和 ROS2 数据发布，不加入 `Collider` 或 `Rigidbody`。当前输出 `/vln/front/image_raw`、`/vln/rear/image_raw`、`/vln/left/image_raw`、`/vln/right/image_raw`、对应 4 路 CameraInfo，以及 `/vln/lidar/points`；TF 为 `map -> base_link` 和 `base_link -> front/rear/left/right_camera_optical_frame,lidar_link`。禁止再用程序化圆柱、方块、螺丝、小条等自建传感器外观兜底；禁止再根据源码默认锚点擅自改用户手动保存的传感器位姿。
 - Unity-ROS2 最小通信闭环：已通过。Unity 发布 `/unity/heartbeat`，ROS2 echo 成功；ROS2 发布 `/ros2/command`，Unity 接收成功。
 - UnitySensors 相机图像闭环：已通过。Unity 发布 `/vln/front/image_raw`，ROS2 校验为 `sensor_msgs/msg/Image`、640x480、`rgb8`、`front_camera_optical_frame`、约 5Hz；同时发布 `/vln/front/camera_info`。
 - UnitySensors LiDAR 点云闭环：已通过。UnitySensors VLP-16 Raycast LiDAR 发布 `/vln/lidar/points`，ROS2 校验为 `sensor_msgs/msg/PointCloud2`、`lidar_link`、7200 点/帧、`point_step=16`、约 5Hz、带宽约 0.6 MB/s。

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 # 阶段 20：Topgear V2 上装传感器套件自动验收。
-# 验收内容：上装 16 线 LiDAR + 前后左右 4 个 RGB 相机安装在 Topgear 上装位置，ROS2 数据可收到，视觉传感器不参与物理碰撞。
+# 验收内容：在现有主场景中验证上装 16 线 LiDAR + 前后左右 4 个 RGB 相机 ROS2 数据可收到，视觉传感器不参与物理碰撞。
+# 注意：本脚本禁止重建主场景，避免覆盖用户在 Unity Editor 中手动保存的 Topgear 传感器位姿。
 
 set -eo pipefail
 
@@ -115,7 +116,7 @@ topic_pid=$!
 set +e
 timeout 170s "$VLN_ROOT/scripts/open_unity_vln_project.sh" \
   -batchmode \
-  -executeMethod VLN.Editor.VlnOffroadScoutWheelGroundCandidateSmokeTestRunner.Run \
+  -executeMethod VLN.Editor.VlnOffroadScoutWheelGroundCandidateSmokeTestRunner.RunExistingScene \
   -logFile "$UNITY_LOG"
 unity_status=$?
 if [ "$unity_status" -ne 0 ]; then

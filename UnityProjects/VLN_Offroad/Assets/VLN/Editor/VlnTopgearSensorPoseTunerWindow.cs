@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 namespace VLN.Editor
@@ -26,20 +27,44 @@ namespace VLN.Editor
             window.Show();
         }
 
+        public static void LockCurrentSceneSensorPosesBatch()
+        {
+            try
+            {
+                EditorSceneManager.OpenScene(VlnOffroadScoutWheelGroundCandidateProjectSetup.ScenePath);
+                Transform root = FindSensorRoot();
+                if (root == null)
+                {
+                    throw new InvalidOperationException($"Missing {SensorRootName} in current scene. Refusing to write locked sensor poses.");
+                }
+
+                SaveCurrentPoses(root, showDialog: false);
+                Debug.Log("VLN_TOPGEAR_SENSOR_POSE_BATCH_LOCK_OK");
+                EditorApplication.Exit(0);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"VLN_TOPGEAR_SENSOR_POSE_BATCH_LOCK_FAILED {ex}");
+                EditorApplication.Exit(1);
+            }
+        }
+
         void OnGUI()
         {
             EditorGUILayout.LabelField("Topgear 传感器手动微调", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("先打开主场景并让传感器存在。点击下面按钮选中对象后，用 Unity Scene 视图里的移动/旋转手柄拖到肉眼满意的位置，再点保存。保存结果会在下次重建场景时自动应用。", MessageType.Info);
+            EditorGUILayout.HelpBox("先打开主场景并让传感器存在。选中对象后，用 Unity Scene 视图里的移动/旋转手柄拖到肉眼满意的位置，再点“保存并锁定”。保存会同时写锁定 JSON、普通 JSON、恢复备份，并保存当前 Unity 主场景。", MessageType.Info);
+            EditorGUILayout.LabelField("锁定基线 JSON", EditorStyles.boldLabel);
+            EditorGUILayout.SelectableLabel(VlnOffroadScoutWheelGroundCandidateProjectSetup.TopgearSensorPoseUserLockedPath, EditorStyles.textField, GUILayout.Height(18f));
+            EditorGUILayout.LabelField("兼容 JSON", EditorStyles.boldLabel);
             EditorGUILayout.SelectableLabel(VlnOffroadScoutWheelGroundCandidateProjectSetup.TopgearSensorPoseOverridePath, EditorStyles.textField, GUILayout.Height(18f));
 
             Transform root = FindSensorRoot();
             if (root == null)
             {
-                EditorGUILayout.HelpBox($"当前场景没有找到 {SensorRootName}。请先打开或重建 VLNOffroadScoutWheelGroundCandidate 场景。", MessageType.Warning);
-                if (GUILayout.Button("重建并打开主场景"))
+                EditorGUILayout.HelpBox($"当前场景没有找到 {SensorRootName}。请先打开 VLNOffroadScoutWheelGroundCandidate 主场景。这里不会重建场景，避免覆盖手动位姿。", MessageType.Warning);
+                if (GUILayout.Button("只打开主场景（不重建）"))
                 {
-                    VlnOffroadScoutWheelGroundCandidateProjectSetup.BuildScoutWheelGroundCandidateScene();
-                    UnityEditor.SceneManagement.EditorSceneManager.OpenScene(VlnOffroadScoutWheelGroundCandidateProjectSetup.ScenePath);
+                    EditorSceneManager.OpenScene(VlnOffroadScoutWheelGroundCandidateProjectSetup.ScenePath);
                 }
                 return;
             }
@@ -66,20 +91,16 @@ namespace VLN.Editor
             }
 
             EditorGUILayout.Space(12f);
-            if (GUILayout.Button("保存当前五个传感器位姿到 JSON", GUILayout.Height(30f)))
+            if (GUILayout.Button("保存当前五个传感器位姿并锁定为唯一基线", GUILayout.Height(34f)))
             {
-                SaveCurrentPoses(root);
+                SaveCurrentPoses(root, showDialog: true);
             }
 
             using (new EditorGUILayout.HorizontalScope())
             {
-                if (GUILayout.Button("从 JSON 应用到当前场景"))
+                if (GUILayout.Button("从锁定 JSON 应用到当前场景"))
                 {
                     ApplySavedPoses(root);
-                }
-                if (GUILayout.Button("清除 JSON 覆盖"))
-                {
-                    ClearSavedPoses();
                 }
             }
 
@@ -126,8 +147,23 @@ namespace VLN.Editor
             return $"{transform.name}: pos=({p.x:F4},{p.y:F4},{p.z:F4}) euler=({r.x:F2},{r.y:F2},{r.z:F2}) scale=({s.x:F4},{s.y:F4},{s.z:F4})";
         }
 
-        static void SaveCurrentPoses(Transform root)
+        static void SaveCurrentPoses(Transform root, bool showDialog)
         {
+            var scene = root.gameObject.scene;
+            if (scene.path != VlnOffroadScoutWheelGroundCandidateProjectSetup.ScenePath)
+            {
+                string message = $"当前场景不是主场景，拒绝写入锁定基线。当前：{scene.path}；需要：{VlnOffroadScoutWheelGroundCandidateProjectSetup.ScenePath}";
+                if (showDialog)
+                {
+                    EditorUtility.DisplayDialog("未保存", message, "确定");
+                }
+                else
+                {
+                    throw new InvalidOperationException(message);
+                }
+                return;
+            }
+
             var poses = new List<VlnOffroadScoutWheelGroundCandidateProjectSetup.TopgearSensorPoseOverride>();
             foreach (string sensorName in SensorNames)
             {
@@ -146,24 +182,80 @@ namespace VLN.Editor
                 });
             }
 
+            if (poses.Count != SensorNames.Length)
+            {
+                string message = $"只找到 {poses.Count}/{SensorNames.Length} 个传感器。为避免锁定错误基线，已拒绝保存。";
+                if (showDialog)
+                {
+                    EditorUtility.DisplayDialog("未保存", message, "确定");
+                }
+                else
+                {
+                    throw new InvalidOperationException(message);
+                }
+                return;
+            }
+
             var data = new VlnOffroadScoutWheelGroundCandidateProjectSetup.TopgearSensorPoseOverrideSet
             {
                 sensors = poses.ToArray(),
             };
+            var hierarchyData = new VlnOffroadScoutWheelGroundCandidateProjectSetup.TopgearSensorHierarchyOverrideSet
+            {
+                transforms = BuildHierarchySnapshot(root).ToArray(),
+            };
 
-            string path = VlnOffroadScoutWheelGroundCandidateProjectSetup.TopgearSensorPoseOverridePath;
-            Directory.CreateDirectory(Path.GetDirectoryName(path));
-            File.WriteAllText(path, JsonUtility.ToJson(data, true));
+            string json = JsonUtility.ToJson(data, true);
+            string hierarchyJson = JsonUtility.ToJson(hierarchyData, true);
+            string overridePath = VlnOffroadScoutWheelGroundCandidateProjectSetup.TopgearSensorPoseOverridePath;
+            string lockedPath = VlnOffroadScoutWheelGroundCandidateProjectSetup.TopgearSensorPoseUserLockedPath;
+            string hierarchyPath = VlnOffroadScoutWheelGroundCandidateProjectSetup.TopgearSensorHierarchyUserLockedPath;
+            string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string backupDirectory = Path.Combine(Path.GetDirectoryName(overridePath), "pose_backups");
+            string lockedSceneDirectory = Path.Combine(Path.GetDirectoryName(overridePath), "topgear_sensor_scene_locked");
+            string recoveryDirectory = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "_ManualRecoveryLogs"));
+
+            Directory.CreateDirectory(Path.GetDirectoryName(overridePath));
+            Directory.CreateDirectory(backupDirectory);
+            Directory.CreateDirectory(lockedSceneDirectory);
+            Directory.CreateDirectory(recoveryDirectory);
+
+            BackupFileIfExists(overridePath, Path.Combine(backupDirectory, $"topgear_sensor_pose_overrides_before_user_lock_{stamp}.json"));
+            BackupFileIfExists(lockedPath, Path.Combine(backupDirectory, $"topgear_sensor_pose_user_locked_before_user_lock_{stamp}.json"));
+            BackupFileIfExists(hierarchyPath, Path.Combine(backupDirectory, $"topgear_sensor_hierarchy_user_locked_before_user_lock_{stamp}.json"));
+
+            File.WriteAllText(lockedPath, json);
+            File.WriteAllText(overridePath, json);
+            File.WriteAllText(hierarchyPath, hierarchyJson);
+            File.WriteAllText(Path.Combine(backupDirectory, $"topgear_sensor_pose_user_locked_{stamp}.json"), json);
+            File.WriteAllText(Path.Combine(backupDirectory, $"topgear_sensor_hierarchy_user_locked_{stamp}.json"), hierarchyJson);
+            File.WriteAllText(Path.Combine(recoveryDirectory, $"topgear_sensor_pose_user_locked_{stamp}.json"), json);
+            File.WriteAllText(Path.Combine(recoveryDirectory, $"topgear_sensor_hierarchy_user_locked_{stamp}.json"), hierarchyJson);
+
+            EditorUtility.SetDirty(root.gameObject);
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
+
+            string sceneFullPath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", scene.path));
+            BackupFileIfExists(sceneFullPath, Path.Combine(lockedSceneDirectory, "VLNOffroadScoutWheelGroundCandidate_user_locked.unity"));
+            BackupFileIfExists(sceneFullPath + ".meta", Path.Combine(lockedSceneDirectory, "VLNOffroadScoutWheelGroundCandidate_user_locked.unity.meta"));
+            BackupFileIfExists(sceneFullPath, Path.Combine(recoveryDirectory, $"VLNOffroadScoutWheelGroundCandidate_user_locked_{stamp}.unity"));
+            BackupFileIfExists(sceneFullPath + ".meta", Path.Combine(recoveryDirectory, $"VLNOffroadScoutWheelGroundCandidate_user_locked_{stamp}.unity.meta"));
+
             AssetDatabase.Refresh();
-            EditorUtility.DisplayDialog("已保存", $"已保存 {poses.Count} 个传感器位姿：\n{path}", "确定");
+            Debug.Log($"VLN_TOPGEAR_SENSOR_POSE_LOCKED path={lockedPath} compatible={overridePath} hierarchy={hierarchyPath} count={poses.Count} hierarchy_count={hierarchyData.transforms.Length}");
+            if (showDialog)
+            {
+                EditorUtility.DisplayDialog("已锁定", $"已锁定 {poses.Count} 个传感器位姿和 {hierarchyData.transforms.Length} 个层级 Transform。\n锁定 JSON：{lockedPath}\n层级 JSON：{hierarchyPath}\n当前主场景也已保存。", "确定");
+            }
         }
 
         static void ApplySavedPoses(Transform root)
         {
-            string path = VlnOffroadScoutWheelGroundCandidateProjectSetup.TopgearSensorPoseOverridePath;
+            string path = VlnOffroadScoutWheelGroundCandidateProjectSetup.TopgearSensorPoseUserLockedPath;
             if (!File.Exists(path))
             {
-                EditorUtility.DisplayDialog("没有 JSON", "还没有保存过传感器位姿。", "确定");
+                EditorUtility.DisplayDialog("没有锁定 JSON", "还没有保存过锁定基线。请先拖好五个传感器，再点击“保存并锁定”。", "确定");
                 return;
             }
 
@@ -189,20 +281,51 @@ namespace VLN.Editor
                 }
             }
 
+            if (count != SensorNames.Length)
+            {
+                EditorUtility.DisplayDialog("未完成", $"锁定 JSON 只应用了 {count}/{SensorNames.Length} 个传感器。请不要继续重建，先检查对象名称。", "确定");
+                return;
+            }
+
             EditorUtility.SetDirty(root.gameObject);
-            UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(root.gameObject.scene);
-            EditorUtility.DisplayDialog("已应用", $"已应用 {count} 个传感器位姿。", "确定");
+            EditorSceneManager.MarkSceneDirty(root.gameObject.scene);
+            EditorSceneManager.SaveScene(root.gameObject.scene);
+            EditorUtility.DisplayDialog("已应用", $"已应用并保存 {count} 个传感器位姿。", "确定");
         }
 
-        static void ClearSavedPoses()
+        static void BackupFileIfExists(string sourcePath, string backupPath)
         {
-            string path = VlnOffroadScoutWheelGroundCandidateProjectSetup.TopgearSensorPoseOverridePath;
-            if (File.Exists(path))
+            if (!File.Exists(sourcePath))
             {
-                File.Delete(path);
-                AssetDatabase.Refresh();
+                return;
             }
-            EditorUtility.DisplayDialog("已清除", "已清除传感器位姿 JSON 覆盖。", "确定");
+
+            Directory.CreateDirectory(Path.GetDirectoryName(backupPath));
+            File.Copy(sourcePath, backupPath, overwrite: true);
         }
+
+        static List<VlnOffroadScoutWheelGroundCandidateProjectSetup.TopgearSensorHierarchyOverride> BuildHierarchySnapshot(Transform root)
+        {
+            var transforms = new List<VlnOffroadScoutWheelGroundCandidateProjectSetup.TopgearSensorHierarchyOverride>();
+            CaptureTransform(root, root.name, transforms);
+            return transforms;
+        }
+
+        static void CaptureTransform(Transform transform, string path, List<VlnOffroadScoutWheelGroundCandidateProjectSetup.TopgearSensorHierarchyOverride> transforms)
+        {
+            transforms.Add(new VlnOffroadScoutWheelGroundCandidateProjectSetup.TopgearSensorHierarchyOverride
+            {
+                path = path,
+                localPosition = transform.localPosition,
+                localEulerAngles = transform.localEulerAngles,
+                localScale = transform.localScale,
+            });
+
+            foreach (Transform child in transform)
+            {
+                CaptureTransform(child, $"{path}/{child.name}", transforms);
+            }
+        }
+
     }
 }

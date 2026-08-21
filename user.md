@@ -48,7 +48,13 @@ cd /home/ubuntu22/VLN
 
 Unity 顶部菜单打开：`VLN -> ROS2 手工演示面板`。
 
-面板里的推荐顺序也是：`打开 Scout 场景` -> `启动 ROS-TCP-Endpoint` -> 回 Unity 点 `Play` -> `运行 13 点自动路线` 或 `运行 16 点挑战路线`。
+当前面板约定：13 点自动路线入口已移除；需要看路线时优先使用 16 点挑战路线，或按终端命令手工运行旧脚本。点击“查看相机图像”后，右侧会出现相机选项栏：
+
+- `rqt`：打开四个 `rqt_image_view`，分别查看 `/vln/front/image_raw`、`/vln/rear/image_raw`、`/vln/left/image_raw`、`/vln/right/image_raw`。
+- `全部相机`：在 Unity 内部打开一个四路拼接预览窗口，不弹终端。
+- `前相机`、`后相机`、`左相机`、`右相机`：在 Unity 内部打开单路简洁预览窗口；如果 `全部相机` 已打开，单路按钮会暂时禁用，关闭全部相机窗口后恢复。
+
+面板里的推荐顺序也是：`打开 Scout 场景` -> `启动 ROS-TCP-Endpoint` -> 回 Unity 点 `Play` -> `运行 16 点挑战路线` 或查看传感器。
 
 这个面板只是帮你开新终端执行现有脚本，底层仍然是 ROS2 发布 `/vln/cmd_vel`，不是 Unity 内置导航。
 

@@ -752,3 +752,19 @@
 - 解决方案：删除 `CreateTopgearVlp16ReadableAccents()`、`CreateTopgearD405ReadableFace()` 及传感器创建段里的全部 `CreateVisualPrimitive` 自建细节；删除该构建文件中已经不用的 `CreateVisualPrimitive()` 工具函数。当前 LiDAR 只加载 Velodyne VLP-16 DAE mesh，四个相机只加载 RealSense D405 STL mesh；官方模型加载失败时直接报错，不允许 fallback 到自建形状。
 - 验收方式：重新运行 `./scripts/run_topgear_sensor_suite_smoke_test.sh`，最终通过 run id `vln_topgear_sensor_suite_20260820_234909`。关键字段：`topgear_sensor_vlp16_official_mesh_count=1`、`topgear_sensor_d405_official_stl_count=4`、`topgear_sensor_procedural_vlp16_rib_count=0`、`topgear_sensor_procedural_d405_screw_count=0`、`topgear_sensor_collider_count=0`、`topgear_sensor_rigidbody_count=0`。`rg` 扫描源码和主场景均不再发现旧自建传感器对象名。
 - 状态：已修复并写入 `AGENTS.md` 硬约束。后续任何 Topgear 传感器外观改动都必须优先修官方资产导入、轴向、缩放和挂载位置，不能再自建相机/雷达外观骗过验收。
+
+## 2026-08-21：根据源码默认锚点微调会破坏用户手动确认的传感器位姿
+
+- 现象：用户在 Unity 中手动拖动并保存 Topgear 五个传感器位姿后，继续按源码默认锚点/几何推断做“微调”，会导致相机或 LiDAR 又偏离用户肉眼确认的位置。
+- 环境：`config/topgear_sensor_pose_overrides.json`、主场景 `VLNOffroadScoutWheelGroundCandidate.unity`、Unity 菜单 `VLN -> Topgear 传感器手动微调`。
+- 根因：源码默认锚点和实际上装视觉孔位/用户肉眼标定之间存在显著差异。前相机当前用户保存值约 `(0.0060,0.8409,0.2960)`，比源码默认 `(0,0.723,0.196)` 高约 `11.79cm`、前约 `10cm`；这不是自动小微调能修正的误差，而是原先对孔位/坐标系理解错误。
+- 解决方案：把用户手动保存值设为唯一基线，并写入 `AGENTS.md`、`CURRENT_STATE.md`、`PROJECT_MEMORY.md`、`workflow.md` 和决策日志。后续只读取和应用该 JSON；禁止再主动根据包围盒、圆盘中心或源码默认锚点推位置。随后将这组用户保存值同步写入 `VlnOffroadScoutWheelGroundCandidateProjectSetup.cs` 的默认创建值，避免场景重建或 JSON 未及时应用时回落到旧错位姿。
+- 状态：已记录为硬约束。若用户之后要求调整，只能由用户在 Unity 中继续手动拖动保存，或明确给出具体方向和幅度后再改。
+
+## 2026-08-21：Topgear 自动验收重建主场景，覆盖用户手动摆放的传感器位姿
+
+- 现象：用户在 Unity 中手动拖动并保存 Topgear LiDAR / 四相机位置后，重新打开工程或查看截图时仍然看到旧版乱放位置；当前 `config/topgear_sensor_pose_overrides.json` 里的数值也不能证明就是用户最后肉眼确认的那一版。
+- 环境：`scripts/run_topgear_sensor_suite_smoke_test.sh`、`scripts/run_topgear_visual_alignment_smoke_test.sh`、`Assets/VLN/Editor/VlnOffroadScoutWheelGroundCandidateSmokeTestRunner.cs`、`Assets/VLN/Editor/VlnOffroadScoutWheelGroundTopgearVisualSmokeTestRunner.cs`、`Assets/VLN/Editor/VlnOffroadScoutWheelGroundCandidateProjectSetup.cs`。
+- 根因：Topgear 专项脚本调用的 Unity runner 会先执行 `BuildScoutWheelGroundCandidateScene()`；该函数会从生成逻辑重新创建场景并 `SaveScene(scene, ScenePath)` 保存到 `Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`。这会把用户在 Editor 里手动摆好并保存的场景覆盖成源码/JSON 当前值，因此用户看到的不是他最后手摆的那一版。进一步确认：当前工程还存在 `config/topgear_sensor_pose_user_locked.json`，源码会优先读取该 locked 文件；现有 locked 文件、`topgear_sensor_pose_overrides.json`、当前主场景和两个可找到的 recovery 场景备份中的五个传感器 Transform 完全一致，都是同一组旧值，不是用户口中的最终满意版本。
+- 解决方案：新增 `RunExistingScene()` 入口，让 Topgear 传感器专项和 Topgear 视觉专项只打开现有主场景进入 Play/截图，不再重建场景；保留原 `Run()` 给真正需要重建的基础自动回归使用。同时给 `BuildScoutWheelGroundCandidateScene()` 增加重建前场景备份，备份目录为 `UnityProjects/_SceneBackups/<timestamp>/`，并把该目录加入 `.gitignore`。
+- 状态：已修复覆盖源头。2026-08-21 14:11 用户重新手动摆放并确认后，已完成三重锁定：父传感器位姿 `config/topgear_sensor_pose_user_locked.json`、完整传感器层级位姿 `config/topgear_sensor_hierarchy_user_locked.json`、整场景固定恢复副本 `config/topgear_sensor_scene_locked/VLNOffroadScoutWheelGroundCandidate_user_locked.unity`；另有时间戳恢复副本写入 `UnityProjects/_ManualRecoveryLogs/` 和 `config/pose_backups/`。传感器专项 `vln_topgear_sensor_suite_20260821_141404` 以 `rebuild_scene=False` 通过，截图显示 LiDAR 和相机未再散开。若再次发生覆盖，先运行 `./scripts/restore_topgear_sensor_locked_scene.sh` 恢复整场景。

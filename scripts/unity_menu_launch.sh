@@ -31,6 +31,11 @@ case "$MODE" in
     TARGET_SCRIPT="$VLN_ROOT/scripts/view_front_image.sh"
     SUMMARY="打开 rqt_image_view 查看 /vln/front/image_raw。"
     ;;
+  image_all)
+    TITLE="VLN 四路相机图像"
+    TARGET_SCRIPT="$VLN_ROOT/scripts/view_all_camera_images.sh"
+    SUMMARY="打开四个 rqt_image_view 查看 /vln/front、/vln/rear、/vln/left、/vln/right。"
+    ;;
   rviz)
     TITLE="VLN 雷达点云"
     TARGET_SCRIPT="$VLN_ROOT/scripts/view_vln_vehicle_rviz.sh"
@@ -49,6 +54,7 @@ case "$MODE" in
       "$VLN_ROOT/scripts/drive_scout_wheel_ground_route_demo.sh" \
       "$VLN_ROOT/scripts/drive_scout_wheel_ground_challenge_route_demo.sh" \
       "$VLN_ROOT/scripts/view_front_image.sh" \
+      "$VLN_ROOT/scripts/view_all_camera_images.sh" \
       "$VLN_ROOT/scripts/view_vln_vehicle_rviz.sh" \
       "$VLN_ROOT/scripts/start_vln_control_panel.sh"; do
       test -x "$script"
@@ -58,7 +64,7 @@ case "$MODE" in
     exit 0
     ;;
   *)
-    echo "用法：$0 {endpoint|route|challenge|image|rviz|panel|selftest}" >&2
+    echo "用法：$0 {endpoint|route|challenge|image|image_all|rviz|panel|selftest}" >&2
     exit 2
     ;;
 esac

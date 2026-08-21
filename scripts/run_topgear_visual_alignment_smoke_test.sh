@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 # Topgear V2 上装视觉对齐专项验收。
-# 只生成 Unity 场景和多视角截图，不启动 ROS2 endpoint，不跑路线，不改物理链路。
+# 只打开现有 Unity 主场景生成多视角截图，不启动 ROS2 endpoint，不跑路线，不改物理链路。
+# 注意：本脚本禁止重建主场景，避免覆盖用户在 Unity Editor 中手动保存的 Topgear 传感器位姿。
 
 set -eo pipefail
 
@@ -14,7 +15,7 @@ RESULT_FILE="$UNITY_PROJECT/Logs/vln_offroad_scout_wheel_ground_topgear_visual_r
 
 mkdir -p "$LOG_DIR"
 
-echo "Topgear 上装视觉专项验收：只 batch 打开 Unity 生成截图，不启动 ROS2。"
+echo "Topgear 上装视觉专项验收：只 batch 打开现有 Unity 主场景生成截图，不启动 ROS2，不重建场景。"
 
 if pgrep -af "$VLN_ROOT/UnityEditors/2022.3.62f1/Editor/Unity" | grep -F -- "-projectPath $UNITY_PROJECT" >/dev/null 2>&1; then
   echo "unity_project_already_open=true" | tee "$LOG_DIR/run_summary.txt"
@@ -42,7 +43,7 @@ done
 set +e
 timeout 150s "$VLN_ROOT/scripts/open_unity_vln_project.sh" \
   -batchmode \
-  -executeMethod VLN.Editor.VlnOffroadScoutWheelGroundTopgearVisualSmokeTestRunner.Run \
+  -executeMethod VLN.Editor.VlnOffroadScoutWheelGroundTopgearVisualSmokeTestRunner.RunExistingScene \
   -logFile "$UNITY_LOG"
 unity_status=$?
 set -e

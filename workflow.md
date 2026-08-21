@@ -670,6 +670,8 @@ topgear_visual_bottom_to_scout_visual_top_gap_m=0.009
 /vln/lidar/points           sensor_msgs/msg/PointCloud2 lidar_link
 ```
 
+阶段 20 传感器位姿基线：2026-08-21 14:11 起，以用户重新手动摆放并确认后的三重锁定为准：父传感器位姿 `config/topgear_sensor_pose_user_locked.json`、完整传感器层级位姿 `config/topgear_sensor_hierarchy_user_locked.json`、整场景固定恢复副本 `config/topgear_sensor_scene_locked/VLNOffroadScoutWheelGroundCandidate_user_locked.unity`。`config/topgear_sensor_pose_overrides.json` 只是兼容副本。后续不能再根据源码默认锚点、包围盒、圆盘或孔位主动推断并覆盖这些值；如需调整，只能由用户通过 Unity 手动微调工具确认后保存。若位置再次异常，先运行 `./scripts/restore_topgear_sensor_locked_scene.sh` 恢复整场景。
+
 阶段 20 当前 TF：
 
 ```text
@@ -691,7 +693,7 @@ cd /home/ubuntu22/VLN
 最近通过：
 
 ```text
-sensor suite run id: vln_topgear_sensor_suite_20260820_234909
+sensor suite run id: vln_topgear_sensor_suite_20260821_132222
 success=VLN_TOPGEAR_SENSOR_SUITE_SMOKE_TEST_PASS
 topgear_sensor_suite_present=1
 topgear_sensor_camera_count=4
@@ -712,6 +714,8 @@ TF status=0
 13 点路线回归：阶段 20 后已经跑过 `./scripts/run_scout_wheel_ground_route_smoke_test.sh`，通过 run id `vln_scout_wheel_ground_route_20260820_190253`，`reached_count=13/13`、`total_forward_progress=52.441m`、`final_lateral_offset=-0.004m`、`max_abs_lateral_offset=0.035m`、`stall_count=0`、`skipped_count=0`。用户明确约定：13 点链路验证成功后，本轮不用再接着跑 16 点挑战路线；16 点只在新增障碍、挑战区变更或用户明确要求时再跑。
 
 阶段 20 完成定义：Unity 中能看到官方 VLP-16 DAE 和官方 D405 STL 安装在 Topgear 上装对应位置；ROS2 能收到 4 路 Image、4 路 CameraInfo、1 路 PointCloud2 和完整 TF；传感器视觉件保持 `topgear_sensor_collider_count=0`、`topgear_sensor_rigidbody_count=0`；旧自建外观残留计数必须为 0；13 点金标准路线不退化。当前完成后交给用户按手工流程亲自查看，不默认继续跑 16 点挑战自动回归。
+
+Unity 手工演示面板更新：`VLN -> ROS2 手工演示面板` 删除 13 点自动路线入口；相机查看改为右侧选项栏。`rqt` 入口调用 `scripts/view_all_camera_images.sh` 打开四路 `rqt_image_view`；`全部相机/前相机/后相机/左相机/右相机` 使用 Unity Editor 内部相机预览窗口直接显示当前 Camera 画面，不弹终端。打开 `全部相机` 时单路相机入口禁用，关闭全部窗口后恢复。
 
 ## 工作流管理规则
 

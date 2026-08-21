@@ -8,13 +8,31 @@ namespace VLN.Editor
 {
     public static class VlnOffroadScoutWheelGroundCandidateSmokeTestRunner
     {
-        static readonly DateTime s_Deadline = DateTime.UtcNow.AddSeconds(52);
+        static DateTime s_Deadline;
         static bool s_StartedPlayMode;
         static bool s_ExitRequested;
 
         public static void Run()
         {
-            VlnOffroadScoutWheelGroundCandidateProjectSetup.BuildScoutWheelGroundCandidateScene();
+            RunInternal(rebuildScene: true);
+        }
+
+        public static void RunExistingScene()
+        {
+            RunInternal(rebuildScene: false);
+        }
+
+        static void RunInternal(bool rebuildScene)
+        {
+            s_Deadline = DateTime.UtcNow.AddSeconds(52);
+            s_StartedPlayMode = false;
+            s_ExitRequested = false;
+
+            if (rebuildScene)
+            {
+                VlnOffroadScoutWheelGroundCandidateProjectSetup.BuildScoutWheelGroundCandidateScene();
+            }
+
             EditorSceneManager.OpenScene(VlnOffroadScoutWheelGroundCandidateProjectSetup.ScenePath);
 
             string resultPath = Path.Combine(Application.dataPath, "../Logs/vln_offroad_scout_wheel_ground_candidate_result.txt");
@@ -26,7 +44,7 @@ namespace VLN.Editor
             EditorApplication.update += Tick;
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
             EditorApplication.EnterPlaymode();
-            Debug.Log("VLN_OFFROAD_SCOUT_WHEEL_GROUND_CANDIDATE_RUNNER entering Play Mode");
+            Debug.Log($"VLN_OFFROAD_SCOUT_WHEEL_GROUND_CANDIDATE_RUNNER entering Play Mode rebuild_scene={rebuildScene}");
         }
 
         static void OnPlayModeStateChanged(PlayModeStateChange state)

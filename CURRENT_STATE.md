@@ -219,16 +219,16 @@ cd /home/ubuntu22/VLN
 
 ### Topgear 传感器挂载基线
 
-阶段 20 当前状态：16 线 LiDAR + 前/后/左/右 4 个相机已经安装到 Topgear 上装对应位置，并通过 ROS2 数据链路验收。2026-08-20 晚间修复过两类重要问题：第一，旧版把 `topgear_v2.dae` 的 GPS/大黑箱区域误当成 LiDAR 下方小方盒，导致 LiDAR 偏离圆盘、四个相机散在错误位置；第二，曾为了“看起来更精细”加入程序化圆柱、方块、螺丝和竖条，这是不允许的。当前已改为只加载官方/外部真实模型：Velodyne VLP-16 DAE mesh + RealSense D405 STL mesh，并把自建传感器外观残留从源码和主场景清掉。LiDAR 仍保留原 `/vln/lidar/points` topic，前相机仍保留原 `/vln/front/*` topic，避免破坏既有 rqt/RViz/脚本；后/左/右相机新增独立 topic。
+阶段 20 当前状态：16 线 LiDAR + 前/后/左/右 4 个相机已经安装到 Topgear 上装对应位置，并通过 ROS2 数据链路验收。2026-08-20 晚间修复过两类重要问题：第一，旧版把 `topgear_v2.dae` 的 GPS/大黑箱区域误当成 LiDAR 下方小方盒，导致 LiDAR 偏离圆盘、四个相机散在错误位置；第二，曾为了“看起来更精细”加入程序化圆柱、方块、螺丝和竖条，这是不允许的。当前已改为只加载官方/外部真实模型：Velodyne VLP-16 DAE mesh + RealSense D405 STL mesh，并把自建传感器外观残留从源码和主场景清掉。LiDAR 仍保留原 `/vln/lidar/points` topic，前相机仍保留原 `/vln/front/*` topic，避免破坏既有 rqt/RViz/脚本；后/左/右相机新增独立 topic。2026-08-21 已确认一个重要问题：旧 Topgear 自动验收会调用 `BuildScoutWheelGroundCandidateScene()`，该函数会重建并保存主场景，可能覆盖用户在 Unity 中手动保存的传感器位置。现在 Topgear 传感器/视觉专项脚本已改为只打开现有主场景验证；后续看到位置回旧版时，优先查是否误跑了会重建场景的脚本，而不是继续微调传感器。
 
-自动专项验收入口：
+自动专项验收入口；该脚本只打开现有主场景，不重建、不保存覆盖主场景：
 
 ```bash
 cd /home/ubuntu22/VLN
 ./scripts/run_topgear_sensor_suite_smoke_test.sh
 ```
 
-最近通过 run id：`vln_topgear_sensor_suite_20260820_234909`
+最近一次通过 run id：`vln_topgear_sensor_suite_20260821_141404`。该次验收确认 Unity runner 使用 `rebuild_scene=False`，没有调用 `BuildScoutWheelGroundCandidateScene()`，四路相机、CameraInfo、LiDAR 点云和 TF 全部通过。
 
 关键输出：
 
@@ -251,7 +251,9 @@ lidar_nonzero_points>=80
 tf_edges=map->base_link,base_link->front_camera_optical_frame,base_link->rear_camera_optical_frame,base_link->left_camera_optical_frame,base_link->right_camera_optical_frame,base_link->lidar_link
 ```
 
-当前视觉约束：LiDAR 必须竖直坐在 Topgear 顶部圆盘中心，不得横倒或偏离圆盘；相机必须使用 RealSense D405 官方 STL，分别贴在 LiDAR 下方上层小方盒前/后/左/右四面，不得使用长条 D435，也不得放到下方黑色大箱体。禁止为了过验收再添加程序化外壳、圆柱、方块、螺丝、小条、玻璃片等自建外观；官方模型加载失败时必须修导入/轴向/缩放。若用户肉眼仍认为位置不准，优先使用 Unity 菜单 `VLN -> Topgear 传感器手动微调` 选中五个传感器根对象，用 Scene 视图移动/旋转手柄微调，再保存到 `/home/ubuntu22/VLN/config/topgear_sensor_pose_overrides.json`；不要回头改 Topgear 上装本体安装位置。
+当前视觉约束：LiDAR 和相机视觉模型必须使用官方/外部真实模型资产，不得使用程序化外壳、圆柱、方块、螺丝、小条、玻璃片等自建外观。传感器位姿不再按源码默认“圆盘中心/孔位”推断。2026-08-21 14:11 已完成三重保险锁定：父传感器位姿 `config/topgear_sensor_pose_user_locked.json`、完整传感器层级位姿 `config/topgear_sensor_hierarchy_user_locked.json`、整场景固定恢复副本 `config/topgear_sensor_scene_locked/VLNOffroadScoutWheelGroundCandidate_user_locked.unity`。如果以后位置再次乱掉，先运行 `./scripts/restore_topgear_sensor_locked_scene.sh` 恢复整场景，再打开 Unity 检查；禁止用几何推断或旧截图重新改位置。
+
+当前 Unity 菜单约束：`VLN -> ROS2 手工演示面板` 中已移除 13 点自动路线按钮；相机查看改为右侧选项栏。`rqt` 会打开四路 `rqt_image_view`，Unity 内部的 `全部相机/前相机/后相机/左相机/右相机` 会直接显示当前场景四个 Camera 的简洁预览窗口，不弹终端；打开 `全部相机` 时，单路相机按钮默认禁用，关闭全部相机窗口后再恢复。
 
 当前 topic/frame：
 
