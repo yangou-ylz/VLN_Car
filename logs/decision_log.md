@@ -811,3 +811,141 @@
 - 验证：物理落地 smoke test 通过，`wheel_collider_count=4`、`terrain_contact_steps=2172`、`no_wheel_contact_steps=1`、`body_height_span_m=0.0111`；ROS2 `/vln/cmd_vel` smoke test 通过，四路相机、LiDAR、odom、TF 在线，`cmd_vel_count=62`，位移约 `2.08m`；障碍撞击 smoke test 通过，真实碎石障碍 `VLN_Mesa_RubbleObstacle_034__RubbleSparse_3` 产生 `wheel_obstacle_contact_steps=232`。
 - 新入口：手工查看 `scripts/open_mesa_topgear_vehicle_candidate.sh` 或 `scripts/open_high_precision_world_model.sh first-topgear`；自动验收 `scripts/run_mesa_topgear_vehicle_physics_smoke_test.sh`、`scripts/run_mesa_topgear_vehicle_cmd_vel_smoke_test.sh`、`scripts/run_mesa_topgear_vehicle_obstacle_impact_smoke_test.sh`。
 - 风险控制：本轮只改大资产副本工程和脚本/文档，不导入主工程，不覆盖第三方原始 Mesa/Oasis 场景，不改旧 13 点金标准路线，不关闭碰撞、不压平地形、不创建假墙或隐藏托底。
+
+## 2026-08-22：Mesa Topgear 先完成物理贴地和谷底出生点，不进入自动导航路线
+
+- 决策：按用户要求暂停 Mesa 自动导航路线开发，先把第一套 Mesa 世界里的基础物理体验做好：小车出生点应在岩壁之间的低洼谷底，而不是高处岩壁平台；车轮视觉不能浮空；岩壁/悬崖碰撞不能表现成粘墙卡住。
+- 出生点：`VlnMesaTopgearVehicleCandidateBuilder.cs` 的出生点扫描从“高处平坦平台优先”改为“低洼谷底优先”，当前 `config/mesa_topgear_vehicle_candidate.json` 记录位置约 `(820.117, 20.012, 205.443)`，`slope_deg=2.668`、`height_range_m=0.151`、`valley_wall_relief_m=62.493`、`obstacle_count=0`。
+- 贴地：仅在 Mesa 候选车上把 `m_WheelVisualVerticalOffset` 设为 `0.0m`，修复肉眼看上去轮胎/车体与地面有明显间隙的问题；旧 13 点金标准场景默认参数不受影响。
+- 物理材质：Mesa TerrainCollider 改用专用 `VLN_Mesa_SandTerrain.physicMaterial`，岩壁/rock/cliff/boulder/rubble/stone collider 绑定 `VLN_Mesa_RockCliff_Slide.physicMaterial`，避免复用旧挑战沙地材质导致岩壁接触过粘。
+- WheelCollider 陡坡策略：只在 Mesa 候选车上启用陡坡/离地刹车放松、轮胎抓地衰减、轮胎悬挂支撑衰减和基于真实接触法线的重力沿坡补偿。目的不是作弊托底，而是避免 Unity WheelCollider 把 40°+ 岩壁误当成可长期支撑的正常地面。
+- 验收：落地 `vln_mesa_topgear_vehicle_physics_20260822_072331` 通过，`terrain_contact_steps=2176`、`body_height_span_m=0.0102`；短 `/vln/cmd_vel` + 四路相机/LiDAR/odom `vln_mesa_topgear_vehicle_cmd_vel_20260822_072428` 通过，LiDAR `nonzero_points=7200`、位移约 `2.74m`；真实碎石障碍 `vln_mesa_topgear_vehicle_obstacle_impact_20260822_072617` 通过，`wheel_obstacle_contact_steps=82`；新增悬崖专项 `vln_mesa_topgear_vehicle_cliff_drop_20260822_072135` 通过，`height_drop_m=5.846`、`max_pitch_abs_deg=89.567`、`max_roll_abs_deg=154.670`。
+- 风险控制：本轮没有跑或修改自动导航路线，没有改主工程，没有改旧 Topgear 传感器锁定文件，没有压平地形、关闭碰撞、加隐藏托底或假墙；所有修复限制在 `UnityProjects/VLN_Offroad_LargeAssetSandbox/` 的 Mesa 候选车链路。
+
+## 2026-08-22：Mesa Topgear 出生点改为无水荒漠洼地
+
+- 决策：用户指出上一版“低洼谷底”实际落到水池/绿洲水域，和当前荒漠小车测试目标不符。Mesa 第一世界 Topgear 出生点必须继续在岩壁之间的低洼可导航区域，但要硬排除水池、池塘、绿洲水面附近区域，优先选择仙人掌/荒漠植被附近的沙漠洼地。
+- 实现：`VlnMesaTopgearVehicleCandidateBuilder.cs` 的出生点扫描新增水体硬过滤和荒漠植被约束：识别 `water/lake/pond/pool/river/stream/oasis_water` 等水体对象或水材质；识别 `saguaro/cactus/opuntia/senita/yucca/agave/brittlebush/drygrass/grasspatch` 等荒漠植被；主出生点要求最近可见水体距离至少 `180m`，并在存在植被信息时要求靠近荒漠植被。
+- 当前出生点：`config/mesa_topgear_vehicle_candidate.json` 记录位置约 `(-143.657,55.389,-729.390)`，`slope_deg=1.989`、`height_range_m=0.174`、`valley_wall_relief_m=58.543`、`nearest_cactus_distance_m=22.121`、`nearby_cactus_count=48`、`nearest_water_distance_m=9999.000`。
+- 验收：重新生成候选场景日志显示 `VLN_MESA_SPAWN_CONTEXT water_bounds=2 cactus_positions=923`；最小物理落地 `vln_mesa_topgear_vehicle_physics_20260822_074538` 通过，`terrain_contact_steps=2086`、`no_wheel_contact_steps=1`、`body_height_span_m=0.0135`；同步截图 `UnityProjects/VLN_Offroad_LargeAssetSandbox/Logs/vln_mesa_topgear_vehicle_candidate_screenshot.png` 显示车辆在沙纹地面和荒漠植被旁边，不在水中。
+- 风险控制：本轮只改第一套 Mesa Topgear 候选场景出生点筛选和 smoke 截图同步保存，不跑自动导航路线，不改旧 13 点金标准路线，不改 Topgear 传感器锁定文件，不引入隐藏托底、假地面或关闭碰撞。
+
+## 2026-08-23：导入 Meadow / ForestLake 并升级世界模型统一入口
+
+- 决策：新增两套非荒漠完整世界作为阶段 21 世界库候选：`Meadow Environment - Dynamic Nature 2022` 作为 `meadow_forest`，`ForestLake 1.5` 作为 `forest_lake`。两者只导入大资产副本工程 `UnityProjects/VLN_Offroad_LargeAssetSandbox/`，不进入主工程。
+- 暂存与扫描：两个包硬链接到 `VLN_ASSETS_CACHE/high_precision_desert/raw_downloads/large_scene_packages/`，避免重复拷贝数 GB 文件。Meadow 只读扫描分数 `86`，包含 2 个 scene、219 个模型、345 张贴图、429 个 prefab、117 个 Terrain 相关资产；ForestLake 只读扫描分数 `78`，包含 1 个 scene、24 个模型、88 张贴图、29 个 prefab、5 个 Terrain 相关资产，并带 ProjectSettings/Packages 风险，因此必须继续限制在副本工程。
+- 导入：Unity batch 导入 `Meadow Environment - Dynamic Nature 2022.unitypackage` 成功，日志 `import_meadow_dynamic_nature_20260823_185249.log`；导入 `ForestLake 1.5.unitypackage` 成功，日志 `import_forestlake_20260823_185454.log`。
+- 派生场景：新增 `VlnImportedWorldSceneRegistry.cs`，从第三方原始 demo scene 派生 VLN 自有入口场景，不直接让用户依赖原始包路径。Meadow 派生 `Assets/VLN/Scenes/VLNMeadowDynamicNatureWorldCandidate.unity`，ForestLake 派生 `Assets/VLN/Scenes/VLNForestLakeWorldCandidate.unity`。
+- 截图验收：Meadow 初始 smoke `vln_meadow_dynamic_nature_world_20260823_190201` 主体截图显示森林草甸/湖泊环境，但后续确认 `missing_material_slots=210` 会导致 Play/Scene 中动态粒子对象出现白色移动标志，不能作为长期可忽略项；该问题已在 2026-08-23 单独修复。ForestLake smoke `vln_forest_lake_world_20260823_190233` 通过，`terrain_count=1`、`renderer_count=2592`、`collider_count=562`、`missing_material_slots=0`、`internal_error_materials=0`，截图显示森林湖泊大场景。
+- 统一入口：`scripts/open_high_precision_world_model.sh` 推荐改为 `--scene <scene_name>`，当前支持 `mesa_desert`、`oasis_desert`、`mesa_oasis`、`mesa_topgear`、`meadow_forest`、`forest_lake`；同时兼容用户误拼的 `--sence` / `-sence` 和旧的 `first/second/stitched/first-topgear`，避免旧命令立即失效。
+- 保存机制：`VLN -> 更改世界模型 -> 保存本次世界` 已把 Meadow / ForestLake 加入已注册世界白名单；用户后续在 Unity 里手工移动/删除/添加物体后，保存按钮会对这两个新场景同样写 marker 和 `config/world_model_current_save.json` 校验。
+- 风险控制：本轮未改主工程、未改 Topgear 传感器锁定文件、未改旧 13 点金标准路线、未跑自动导航；ForestLake 的远景截图雾效较重，属于原包视觉设置，后续接车或做论文展示前可单独调相机/雾效/出生点。
+
+## 2026-08-23：Meadow 动态粒子白色标志按材质缺失处理
+
+- 决策：用户在 Meadow 场景中看到规律移动的白色标志后，不再把 `missing_material_slots` 当作非阻断导入警告；Meadow smoke test 现在要求 `missing_material_slots=0` 才算通过。
+- 根因：完整包内材质文件存在，但 4 个动态 prefab 的 `ParticleSystemRenderer.m_Materials` 第二槽为 `{fileID: 0}`，包括 `prefab_Bees_Particle`、`prefab_Leafs`、`prefab_Meadow_Dust`、`prefab_Meadow_Dust 2`。这些对象属于昆虫、落叶、尘土粒子系统，Play/Scene 中会移动，因此空槽会表现成动态白色标志/白片。
+- 修复：新增 `VLN/World Models/Meadow Dynamic Nature/Fix Dynamic Missing Materials` 和 batch 入口 `VLN.Editor.VlnImportedWorldSceneRegistry.FixMeadowDynamicMissingMaterialsBatch`；脚本会审计 Meadow prefab/场景 renderer，把 Bees 绑定 `M_meadow_insects_01`，Leafs 绑定 `M_leaf_particles`，Dust 绑定 `M_meadow_particle_01`，Dust 2 绑定 `M_meadow_particle_02`，并写入 `vln_meadow_missing_material_audit.txt`。
+- 验证：审计报告显示 `prefabs_touched=4`、`material_slots_fixed=4`、`unresolved_renderers=0`、`scene_missing_slots_after_all=0`、`active_internal_error_materials_after_all=0`、`success=1`；重新跑 Meadow smoke `meadow_after_material_fix_v2_smoke_20260823_201956.log` 通过，结果文件 `missing_material_slots=0`、`internal_error_materials=0`、`success=1`。
+- 风险控制：本轮只改大资产副本工程中的 Meadow 动态 prefab、候选场景注册/验收脚本和文档；不改主工程、不改 Mesa/Topgear、不改旧 13 点金标准路线、不跑自动导航。
+
+## 2026-08-23：Meadow 白色四角标/大圆标按编辑器 Gizmo 图标处理
+
+- 决策：用户新截图中的白色四角星标和大白圆标不是运行时模型或材质渲染错误，而是 Unity Scene/Game 视图的编辑器 Annotation/Gizmo 图标。处理方式是隐藏编辑器覆盖层图标，不删除对应动态粒子、风场、探针或光源对象。
+- 实现：`VlnImportedWorldSceneRegistry.cs` 的 Meadow 打开入口现在会自动执行 SceneView 图标清理，并连续重试直到 SceneView 创建；新增菜单 `VLN -> World Models -> Meadow Dynamic Nature -> Hide Scene View Editor Icons`，也可通过 batch 入口 `HideMeadowSceneViewEditorIconsBatch` 执行。
+- 范围：通过 Unity 内部 `AnnotationUtility` 关闭 classID `82/108/123/182/198/215/220/259` 的图标，即 AudioSource、Light/LensFlare、WindZone、ParticleSystem、ReflectionProbe、LightProbeGroup、LightProbeProxyVolume 等。另在 Meadow 打开时把当前 SceneView 的 `drawGizmos` 设为 false，保证肉眼查看场景时不再被白色组件图标覆盖。
+- 验证：`vln_meadow_scene_view_icon_cleanup.txt` 显示 `annotation_icons_disabled=8`、`success=1`；随后 Meadow smoke `meadow_after_gizmo_cleanup_v2_smoke` 通过，结果仍为 `missing_material_slots=0`、`internal_error_materials=0`、`success=1`。
+- 风险控制：这只影响 Unity 编辑器视图显示，不改变 Meadow 运行时 mesh、材质、碰撞、粒子对象、Topgear、ROS2 或任何旧路线。后续如果要看编辑器组件图标，可以在 Unity Scene 右上角手动打开 Gizmos。
+
+## 2026-08-23：Mesa Topgear 问题坡先记录再优化
+
+- 决策：荒漠主线下一步仍是 Mesa 场景里的 Topgear 小车真实物理仿真；遇到“某个斜坡开不上去/卡住/打滑/像被粘住”的问题时，不直接盲调扭矩、摩擦或坡面，而是先记录真实问题地点的数据，再判断是地形坡口、碰撞代理、轮胎滑移、刹车/阻尼误触发、底盘碰撞还是控制器低速爬坡能力不足。
+- 实现：新增运行时组件 `VlnMesaTopgearIssueRecorder`，由 `VlnMesaTopgearVehicleCandidateBuilder.RebindVehicleForMesa()` 自动挂到 `ScoutWheelGround_PhysicsRoot`。记录器订阅 `/vln/cmd_vel`，每 0.05s 输出 `samples.csv`，字段包括车体位置/姿态/速度、命令速度、轮胎接触数、Terrain/非 Terrain 接触、轮地坡度、forward/sideways slip、RPM、motor/brake torque、地形高度/坡度、向下 Raycast 命中的真实地面或障碍、卡滞信号和碰撞体名称。
+- 手工流程：用户打开 `./scripts/open_high_precision_world_model.sh --scene mesa_topgear`，按平时流程启动 endpoint 并点击 Play，手动开到问题地形后按 `F8` 标记并截图，`F10` 只截图，`F9` 写 summary。记录保存在 `UnityProjects/VLN_Offroad_LargeAssetSandbox/Logs/mesa_issue_records/mesa_issue_*`。
+- 分析入口：新增 `scripts/analyze_mesa_issue_recording.py`，默认分析最新记录目录并生成 `analysis_report.txt`，自动检测卡滞窗口、最大坡度、轮胎滑移、轮胎转速、扭矩/刹车、轮胎离地和主要碰撞体，给出下一步修复方向。
+- 验证：Unity 构建 `mesa_issue_recorder_build_v2` 通过；最小物理 smoke `vln_mesa_topgear_vehicle_physics_20260823_212829` 通过，记录器生成 `mesa_issue_20260823_212921/samples.csv`、`events.txt`、`summary.txt`；分析脚本可读取并生成报告。该 smoke 中没有手动前进命令，因此无卡滞窗口，属于预期。
+- 风险控制：本轮没有改旧 13 点金标准路线、Topgear 传感器锁定、ROS2 topic 命名或自动导航路线；记录器只增加诊断输出，不改变 WheelCollider、Rigidbody、碰撞体或控制器参数。
+
+## 2026-08-23：Mesa Topgear 问题记录改为手动开始/结束的动态段落
+
+- 决策：单点截图或单个瞬间无法判断“连续坡面上为什么开不上去”。后续问题坡排障改为段落录制：用户在接近问题地形前按 `F6` 开始，完整驾驶通过卡坡/打滑/碰撞过程，中途按 `F8` 打标记，最后按 `F7` 结束。
+- 实现：`VlnMesaTopgearIssueRecorder` 不再 Play 后立刻写 `samples.csv`；它先进入待命状态，只有按 `F6` 后才按 0.05s 间隔连续采样，按 `F7` 时写结束事件、自动 summary 和结束截图。CSV 增加 `recording_time_s`，summary 增加录制开始/结束 UTC、持续时间、样本数和按键说明。
+- 分析入口：`scripts/analyze_mesa_issue_recording.py` 兼容新的 `recording_time_s`，如果没有按 `F6` 导致没有 `samples.csv`，会明确提示先开始录制再分析。
+- 验证：`python3 -m py_compile scripts/analyze_mesa_issue_recording.py` 通过；Unity batch 构建 `mesa_issue_recorder_segment_build_20260823_223123.log` 通过；最小物理 smoke `vln_mesa_topgear_vehicle_physics_20260823_223451` 通过，`success=1`、`wheel_collider_count=4`、`terrain_contact_steps=2028`、`no_wheel_contact_steps=1`、`body_height_span_m=0.0135`。中途一次 Unity batch 在 AssetDatabase 刷新阶段触发 Mono fd 断言并中止，重跑通过，未进入 VLN 方法，未作为记录器逻辑失败处理。
+- 风险控制：本轮只改诊断记录器、分析脚本提示和文档；不改 Mesa 场景、Topgear 小车、传感器、物理材质、WheelCollider 或任何自动路线。
+
+## 2026-08-24：Mesa Topgear 打开后自动聚焦小车
+
+- 决策：`./scripts/open_high_precision_world_model.sh --scene mesa_topgear` 不需要额外参数；用户打开后初始视角不在小车附近，是 Unity Scene View 保留上次编辑器视角，不是世界参数错误。
+- 实现：`VlnMesaTopgearVehicleCandidateBuilder.OpenCandidateForManualReview()` 打开场景后会延迟选中 `ScoutWheelGround_PhysicsRoot` 并对所有 Scene View 调用 `FrameSelected()`；新增菜单 `VLN -> Mesa Desert -> Focus Topgear Vehicle In Scene View`，用于手动重新聚焦。
+- 风险控制：该改动只影响编辑器 Scene View 的选中和视角，不保存场景、不改变小车、传感器、物理、ROS2 topic 或任何路线。
+
+## 2026-08-24：Mesa Topgear 手动速度控制抗卡顿与问题轨迹菜单化
+
+- 决策：用户反馈中文控制面板在 Mesa Topgear 中持续按速度按钮时会周期性卡住；先按控制链路排障处理，不改地形、物理材质、WheelCollider、传感器或自动路线。
+- 控制面板修复：`scripts/vln_control_panel.py` 的 `/api/velocity` 前端请求改为短超时并自动续发，避免一个慢 HTTP 请求堵住后续 50ms 速度心跳；`/api/status` 轮询增加超时和 in-flight 限流，避免状态查询挤占浏览器连接；后端手动命令超时默认从 `0.35s` 放宽到 `1.50s`，松键仍通过 `/api/velocity_stop` 立即停车。
+- 诊断：`/api/status` 的 manual 字段增加 `timeout_count`、`publish_count`、`last_publish_gap`，后续如果仍卡顿，可以区分是浏览器心跳断、HTTP 堵塞、ROS 发布间隔异常，还是 Unity 物理响应问题。
+- 问题轨迹录制：新增 Unity 菜单 `VLN -> Mesa Desert -> 录制问题轨迹 -> 开始录制 / 停止录制 / 标记问题点 / 截图 / 写入 Summary / 打开或复制当前记录目录`，调用现有 `VlnMesaTopgearIssueRecorder`，不再要求用户额外记住外部录制脚本；`F6/F7/F8/F9/F10` 快捷键保留。
+- 风险控制：本轮只改控制面板、记录器菜单和文档；不跑自动导航路线，不改 Mesa 场景、小车物理、Topgear 传感器锁定、旧 13 点金标准路线或任何大资产。
+
+## 2026-08-24：Mesa Topgear 问题录制增加 Game 视图 HUD
+
+- 决策：用户录制卡坡过程时需要肉眼确认是否真的开始录制，避免开过问题路段后才发现没有 `samples.csv`。在 Game 视图左上角增加轻量状态 HUD，显示 `待命/录制中/已停止`、样本数、标记数和当前记录目录。
+- 实现：`VlnMesaTopgearIssueRecorder` 新增 `m_ShowRecordingHud` 和 `OnGUI()` 状态面板；录制中显示绿色背景，待命/停止显示深色背景。HUD 只读显示，不参与 `/vln/cmd_vel`、WheelCollider、Rigidbody、碰撞、材质或传感器链路。
+- 验证：`python3 -m py_compile scripts/analyze_mesa_issue_recording.py` 和 `git diff --check` 通过；Unity batch 构建 `mesa_issue_recorder_hud_build_20260824_004748.log` 通过，日志显示 `Tundra build success`、`VLN_MESA_TOPGEAR_VEHICLE_CANDIDATE_BUILT`、`Exiting batchmode successfully now!`。
+- 风险控制：本轮不跑自动导航路线，不改小车物理、Mesa 地形、Topgear 传感器位姿、ROS2 topic 或任何大资产；只增强录制可见性和使用文档。
+
+## 2026-08-24：网页手动速度控制确认命令断流，新增本地键盘控制
+
+- 诊断：用户录制 `mesa_issue_20260824_003724`，时长约 `32.5s`、样本 `189`。报告显示 `command_active` 只有 `20` 个样本，活跃率 `10.6%`；非零速度命令只形成 `2` 段短脉冲，最长连续有效段约 `1.07s`。最大坡度约 `6.05°`、最大滑移 `0.030`、轮胎持续接触 Terrain，说明问题不是地形卡住或物理摩擦导致，而是网页/HTTP/前端按键心跳没有持续送达 `/vln/cmd_vel`。
+- 分析脚本：`scripts/analyze_mesa_issue_recording.py` 增加命令健康诊断，报告输出命令活跃率、非零命令样本、有效命令段数、最长连续有效命令段、平均/最大采样间隔；以后遇到类似情况会明确提示“控制命令明显断流”。
+- 本地控制：新增 `scripts/local_keyboard_cmd_vel_control.py` 和入口 `scripts/start_mesa_topgear_local_keyboard_control.sh`。它使用本地 Tk 窗口捕获按键，直接通过 rclpy 以默认 `100Hz` 发布 `/vln/cmd_vel`，绕过浏览器和 HTTP。方向约定：`↑/W` 前进、`↓/S` 后退、`←/A` 左转正 `angular.z`、`→/D` 右转负 `angular.z`，松开即停，空格停车，`Q` 退出。
+- 验证：`tkinter_ok=1`；`python3 -m py_compile scripts/analyze_mesa_issue_recording.py scripts/local_keyboard_cmd_vel_control.py` 通过；`bash -n scripts/start_mesa_topgear_local_keyboard_control.sh` 通过；入口脚本 `--help` 能在 ROS2 环境下正常打印参数说明。
+- 风险控制：本轮没有改 Unity 场景、小车物理、WheelCollider、TerrainCollider、传感器、ROS2 topic 命名或自动路线；只是新增本地手动控制入口并增强诊断报告。
+
+## 2026-08-24：本地键盘控制修复方向键被速度控件吃掉
+
+- 现象：本地 Tk 控制窗口中，焦点落在线速度或角速度控件后，按 `↑/↓/←/→` 会优先调节滑条/数值框，而不是发布车辆速度命令。
+- 根因：Tk 默认事件顺序是控件自身/class 绑定先处理方向键，原来的 `bind_all` 全局绑定在后面才执行，因此方向键先被 `Scale/Spinbox` 消耗。
+- 修复：`scripts/local_keyboard_cmd_vel_control.py` 给窗口内所有控件插入最高优先级 bindtag `VlnKeyboardControlCapture`，并把 `KeyPress/KeyRelease` 绑定到该 tag。现在方向键、`W/A/S/D`、空格和 `Q` 会先进入车辆控制逻辑；速度值仍可用鼠标拖动滑条或在数值框里输入数字调整。
+- 验证：`python3 -m py_compile scripts/local_keyboard_cmd_vel_control.py`、`bash -n scripts/start_mesa_topgear_local_keyboard_control.sh`、入口 `--help`、`git diff --check` 均通过。
+
+## 2026-08-24：Mesa Topgear 补入世界模型手动保存白名单
+
+- 决策：`./scripts/open_high_precision_world_model.sh --scene mesa_topgear` 打开的 `Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity` 是当前阶段 21 主线小车场景，应允许通过 Unity 菜单 `VLN -> 更改世界模型 -> 保存本次世界` 保存用户手工编辑结果。
+- 根因：`VlnWorldModelManualSaveWindow.cs` 的可保存世界白名单只注册了 Mesa、Oasis、Mesa+Oasis、Meadow、ForestLake，漏掉 `VlnMesaTopgearVehicleCandidateBuilder.CandidateScenePath`，导致正确场景被误报为“当前场景不是已注册世界”。
+- 修复：手动保存面板已补入 Mesa Topgear 标签、保存白名单和 `next_open_command` 映射；错误提示和面板 warning 同步加入 `mesa_topgear`，避免继续误导用户换流程。
+- 验证：`git diff --check` 通过；Unity 大资产副本工程批处理编译 `world_save_mesa_topgear_allow_compile_20260824_122407.log` 正常退出，日志显示 `AssetDatabase: script compilation time` 和 `Exiting batchmode successfully now!`，未执行场景重建或自动保存。
+- 风险控制：本轮只改保存注册逻辑和文档，不改变 Mesa Topgear 场景内容、小车物理、Topgear 传感器位姿、ROS2 topic、旧 13 点金标准路线或任何自动导航路线。
+
+## 2026-08-24：世界模型保存改为自动注册新 VLN 场景
+
+- 决策：后续每次导入新世界模型后，不能再只靠硬编码白名单逐个补场景名。统一规则改为：内置世界继续保留明确别名，新派生世界只要保存到 `Assets/VLN/Scenes/` 并符合 `VLN*WorldCandidate.unity`、`VLN*RouteCandidate.unity`、`VLN*TopgearVehicleCandidate.unity` 或 `VLNHighPrecisionDesertSandbox.unity` 命名，就自动进入 `VLN -> 更改世界模型 -> 保存本次世界` 的可保存范围。
+- 实现：`VlnWorldModelManualSaveWindow.cs` 新增自动扫描 `Assets/VLN/Scenes/*.unity`，生成动态注册列表；自动注册场景会显示“自动注册 VLN 世界”，保存 manifest 的 `next_open_command` 会写成 `./scripts/open_high_precision_world_model.sh --scene Assets/VLN/Scenes/<scene>.unity`。
+- 统一脚本：`scripts/open_high_precision_world_model.sh` 除了 `mesa_desert / oasis_desert / mesa_oasis / mesa_topgear / meadow_forest / forest_lake`，现在还能直接接受 `VLNNewWorldCandidate` 或 `Assets/VLN/Scenes/VLNNewWorldCandidate.unity`，并调用 `OpenRegisteredSceneFromCommandLine` 打开已自动注册场景。
+- 验证：`bash -n scripts/open_high_precision_world_model.sh`、`git diff --check` 通过；Unity 批处理直接打开自动注册场景 `VLNForestLakeWorldCandidate` 通过，日志 `world_auto_register_direct_open_20260824_123610.log` 显示 `VLN_WORLD_MODEL_REGISTERED_SCENE_OPENED Assets/VLN/Scenes/VLNForestLakeWorldCandidate.unity` 和 `Exiting batchmode successfully now!`。
+- 风险控制：自动注册只覆盖 `Assets/VLN/Scenes` 下符合 VLN 世界候选命名的场景，不放开第三方原始 Demo 场景、ROS smoke test 场景或旧低模工程场景；本轮不改变任何场景内容、小车物理、传感器位姿、ROS2 topic 或自动路线。
+
+## 2026-08-24：Mesa Topgear 四路相机改为 120° 鱼眼/超广角近似，传感器频率提升
+
+- 决策：按师兄口径“如果只能调 FOV，大于 90° 就算鱼眼视角”，当前不引入真实鱼眼畸变 shader 或相机模型重构，先把 Mesa Topgear 四路 UnitySensors RGB 相机设为 `FOV=120°`、`640x480`、`20Hz`，LiDAR 设为 `10Hz`。
+- 理由：Unity 普通 `Camera.fieldOfView` 本质是透视相机广角，不等同真实等距/等固角鱼眼投影；但本阶段师兄明确接受通过 FOV 实现鱼眼视角，120° 能明显扩大视野并保留现有 ROS2 Image/CameraInfo 链路稳定性。
+- 实现：新增 `VlnTopgearFisheyeSensorConfig.cs`，提供 Unity 菜单 `VLN -> Topgear 传感器 -> 应用鱼眼视角与高频发布到当前场景` 和 batch 入口 `ApplyMesaTopgearSceneBatch`；Mesa Topgear 构建器和默认 Topgear 传感器生成参数同步引用该配置，避免后续重建候选场景时回退到旧 FOV/频率。
+- 验证：新增 `scripts/ros2_measure_topic_frequency.py` 和 `scripts/run_mesa_topgear_fisheye_sensor_rate_smoke_test.sh`。最新 run id `vln_mesa_topgear_fisheye_sensor_rate_20260824_125706` 通过：前/后/左/右相机实际频率约 `20.022/20.119/20.819/20.089Hz`，LiDAR 实际频率约 `10.393Hz`；四路预览 PNG 已导出到 `UnityProjects/VLN_Offroad_LargeAssetSandbox/Logs/topgear_fisheye_previews/`，肉眼检查为明显广角视野。
+- 风险控制：本轮只改 Mesa Topgear 当前主线和候选构建默认传感器参数，不改 Topgear 传感器位姿锁定 JSON/锁定场景、不换官方 VLP-16/D405 外观模型、不改小车物理、控制器、旧 13 点金标准路线或自动导航路线。
+
+## 2026-08-24：Mesa Topgear 加入 Lens Distortion，LiDAR 提升到 15Hz/90m
+
+- 决策：在上一版 `FOV=120°` 的基础上，四路 Topgear 相机额外挂 Unity Post Processing `Lens Distortion`，参数为 `intensity=-55`、`scale=1.08`；LiDAR 从 `10Hz / 45m` 提升到 `15Hz / 90m`，其中 `90m` 是原默认最大距离的两倍。
+- 实现：`VlnTopgearFisheyeSensorConfig.cs` 统一写入相机畸变、LiDAR `_frequency` 和 `_maxRange`；`VlnOffroadScoutWheelGroundCandidateProjectSetup.cs` 的 Topgear LiDAR 默认最大距离改为引用同一配置，避免后续重建退回 45m；验收脚本新增 `lidar_target_max_range_m=90.0` 和 `lidar_max_range_set_count=1` 检查。
+- RViz：`config/vln_vehicle_sensors.rviz` 和 `config/vln_lidar_pointcloud.rviz` 改为 `Frame Rate=60`、PointCloud2 `Depth=20`、`Decay Time=0.4`、点大小 `2px`，这只优化显示刷新，不替代真实 `/vln/lidar/points` 频率验收。
+- 验证：`scripts/run_mesa_topgear_fisheye_sensor_rate_smoke_test.sh` 最新通过 run id `vln_mesa_topgear_fisheye_sensor_rate_20260824_132435`，前/后/左/右相机实际频率约 `19.806/20.094/20.884/20.071Hz`，LiDAR 实际频率约 `15.078Hz`，结果文件确认 `lidar_target_max_range_m=90.0`、`lidar_max_range_set_count=1`。
+- 风险控制：本轮不降低 LiDAR 点数、不关闭碰撞、不改小车物理、不改 Topgear 传感器位姿锁定文件、不改官方 VLP-16/D405 外观模型、不跑或修改旧 13 点金标准路线。
+
+## 2026-08-24：Mesa Topgear LiDAR 改为每帧完整一圈点云
+
+- 决策：用户反馈 RViz 中只能看到几十度扇区慢慢扫，无法持续看到整圈。根因不是单纯 RViz 帧率，而是 UnitySensors Raycast LiDAR 当前 `pointsNumPerScan=7200`，而 VLP-16 scan pattern 总 `size=57600`，每条 PointCloud2 只包含 1/8 圈。改为每帧直接输出完整 `57600` 点一圈。
+- 实现：`VlnTopgearFisheyeSensorConfig.TopgearLidarPointsPerScan=57600`，并在每次应用 Mesa Topgear 传感器配置时写入 `_pointsNumPerScan`；旧 Topgear 构建默认点数同步引用该配置。LiDAR 目标频率从 `15Hz` 提到 `16Hz`，给实际调度留出余量，最大距离保持 `90m`。
+- RViz：完整一圈点云不再需要长时间残留拼圈，`config/vln_vehicle_sensors.rviz` 和 `config/vln_lidar_pointcloud.rviz` 使用 `Frame Rate=60`、PointCloud2 `Depth=20`、`Decay Time=1`、点大小 `2px`。
+- 验证：`scripts/run_mesa_topgear_fisheye_sensor_rate_smoke_test.sh` 最新通过 run id `vln_mesa_topgear_fisheye_sensor_rate_20260824_170436`，结果文件显示 `lidar_target_frequency_hz=16.0`、`lidar_target_max_range_m=90.0`、`lidar_applied_points_per_scan=57600`、`lidar_scan_pattern_size=57600`，实测 `/vln/lidar/points` 为 `16.080Hz`。
+- 风险控制：只改 LiDAR 数据密度/频率和 RViz 显示，不改 Topgear 传感器位姿、官方外观模型、小车物理、碰撞、控制器或旧 13 点路线。

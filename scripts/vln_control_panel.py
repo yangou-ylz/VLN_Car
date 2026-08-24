@@ -475,11 +475,39 @@ def make_html():
         input.dispatchEvent(new Event('change', {bubbles: true}));
       });
     });
-    async function postJson(path, body) {
-      const response = await fetch(path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body || {})});
-      const data = await response.json();
-      if (!response.ok || data.ok === false) throw new Error(data.message || '请求失败');
-      return data;
+    async function postJson(path, body, timeoutMs = 0) {
+      const options = {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body || {})};
+      let timeoutId = null;
+      if (timeoutMs > 0 && window.AbortController) {
+        const controller = new AbortController();
+        options.signal = controller.signal;
+        timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+      }
+      try {
+        const response = await fetch(path, options);
+        const data = await response.json();
+        if (!response.ok || data.ok === false) throw new Error(data.message || '请求失败');
+        return data;
+      } finally {
+        if (timeoutId !== null) window.clearTimeout(timeoutId);
+      }
+    }
+    async function getJson(path, timeoutMs = 0) {
+      const options = {method: 'GET'};
+      let timeoutId = null;
+      if (timeoutMs > 0 && window.AbortController) {
+        const controller = new AbortController();
+        options.signal = controller.signal;
+        timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+      }
+      try {
+        const response = await fetch(path, options);
+        const data = await response.json();
+        if (!response.ok || data.ok === false) throw new Error(data.message || '请求失败');
+        return data;
+      } finally {
+        if (timeoutId !== null) window.clearTimeout(timeoutId);
+      }
     }
     $('sendTarget').addEventListener('click', async () => {
       try {
@@ -539,13 +567,19 @@ def make_html():
       const linearSpeed = clampNumberInput($('manualLinearSpeed'));
       const angularSpeed = clampNumberInput($('manualAngularSpeed'));
       try {
-        const data = await postJson('/api/velocity', {seq, keys: keyState, linear_speed: linearSpeed, angular_speed: angularSpeed});
+        const data = await postJson('/api/velocity', {seq, keys: keyState, linear_speed: linearSpeed, angular_speed: angularSpeed}, 250);
         if (!data.stale && seq === manualSeq) {
           $('velocityText').textContent = `${data.command.linear_x.toFixed(2)} / ${data.command.angular_z.toFixed(2)}`;
           const activeKeys = Object.entries(keyState).filter(([, v]) => v).map(([k]) => k.toUpperCase()).join(' + ');
           $('keyStateText').textContent = activeKeys || '待命';
         }
-      } catch (err) { setVelocityMessage(err.message, 'bad'); }
+      } catch (err) {
+        if (err && err.name === 'AbortError') {
+          velocityRequestPending = true;
+        } else {
+          setVelocityMessage(err.message, 'bad');
+        }
+      }
       finally {
         velocityRequestInFlight = false;
         if (velocityRequestPending && !$('velocityPanel').classList.contains('hidden') && anyKeyActive()) {
@@ -661,10 +695,12 @@ def make_html():
         setVelocityMessage('复制失败，请手动选中文本复制。', 'bad');
       }
     });
+    let statusRequestInFlight = false;
     async function refreshStatus() {
+      if (statusRequestInFlight) return;
+      statusRequestInFlight = true;
       try {
-        const response = await fetch('/api/status');
-        const data = await response.json();
+        const data = await getJson('/api/status', 400);
         $('stateBadge').textContent = data.pose ? 'TF 正常' : '等待 TF';
         $('poseText').textContent = data.pose ? `${data.pose.x.toFixed(2)}, ${data.pose.y.toFixed(2)}` : '--';
         $('yawText').textContent = data.pose ? `${data.pose.yaw.toFixed(2)} rad` : '--';
@@ -680,12 +716,16 @@ def make_html():
           $('velocityText').textContent = `${data.manual.linear_x.toFixed(2)} / ${data.manual.angular_z.toFixed(2)}`;
         }
       } catch (err) {
-        $('stateBadge').textContent = '后端断开';
-        $('controlText').textContent = '后端断开';
+        if (!(err && err.name === 'AbortError')) {
+          $('stateBadge').textContent = '后端断开';
+          $('controlText').textContent = '后端断开';
+        }
+      } finally {
+        statusRequestInFlight = false;
       }
     }
     refreshStatus();
-    setInterval(refreshStatus, 250);
+    setInterval(refreshStatus, 500);
     setInterval(() => {
       if (!$('velocityPanel').classList.contains('hidden') && anyKeyActive()) sendVelocity();
     }, 50);
@@ -719,6 +759,9 @@ class ControlPanel:
         self.manual_heading_hold_active = False
         self.manual_last_heading_error = 0.0
         self.manual_command_seq = 0
+        self.manual_timeout_count = 0
+        self.manual_publish_count = 0
+        self.manual_last_publish_gap = 0.0
         self.recording_active = False
         self.recording_started_at_monotonic = None
         self.recording_started_at_utc = None
@@ -795,7 +838,10 @@ class ControlPanel:
             return False
         try:
             self.publisher.publish(self.make_twist(linear_x, angular_z))
-            self.last_publish_time = time.monotonic()
+            now = time.monotonic()
+            self.manual_last_publish_gap = now - self.last_publish_time if self.last_publish_time > 0.0 else 0.0
+            self.last_publish_time = now
+            self.manual_publish_count += 1
             return True
         except Exception:
             return False
@@ -1055,6 +1101,7 @@ class ControlPanel:
                     self.manual_heading_hold_yaw = None
                     self.manual_heading_hold_active = False
                     self.last_message = "手动速度心跳超时，已自动停车"
+                    self.manual_timeout_count += 1
                 self.publish_zero(repeat=10)
                 self.record_manual_sample(0.0, 0.0, normalize_keys({}), "manual_timeout_stop")
                 return
@@ -1129,6 +1176,9 @@ class ControlPanel:
                     "heading_hold_yaw": self.manual_heading_hold_yaw,
                     "heading_error": self.manual_last_heading_error,
                     "yaw_rate": self.pose_yaw_rate,
+                    "timeout_count": self.manual_timeout_count,
+                    "publish_count": self.manual_publish_count,
+                    "last_publish_gap": self.manual_last_publish_gap,
                 },
                 "recording": {
                     "active": self.recording_active,
@@ -1288,7 +1338,7 @@ def parse_args():
     parser.add_argument("--manual-default-angular", type=float, default=0.42, help="速度控制面板默认角速度，单位 rad/s。")
     parser.add_argument("--manual-max-linear", type=float, default=20.0, help="速度控制面板允许的最大线速度绝对值；默认仍是 0.55m/s，但用户可手动调到 20m/s。")
     parser.add_argument("--manual-max-angular", type=float, default=1.00, help="速度控制面板允许的最大角速度绝对值。")
-    parser.add_argument("--manual-command-timeout", type=float, default=0.35, help="速度控制心跳超时时间；浏览器停止刷新按键状态后自动停车。松键仍会立即发停车。")
+    parser.add_argument("--manual-command-timeout", type=float, default=1.50, help="速度控制心跳超时时间；浏览器停止刷新按键状态后自动停车。松键仍会立即发停车。")
     parser.add_argument(
         "--manual-forward-linear-sign",
         type=float,

@@ -5,11 +5,16 @@
   "source_vehicle_scene_path": "Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity",
   "notes": "Topgear vehicle copied from frozen wheel-ground baseline into Mesa first world. Sensor locked pose is not recalculated.",
   "spawn": {
-    "x": -177.961,
-    "y": 55.393,
-    "z": -610.063,
-    "slope_deg": 0.000,
-    "height_range_m": 0.000,
+    "x": -143.657,
+    "y": 55.389,
+    "z": -729.390,
+    "slope_deg": 1.989,
+    "height_range_m": 0.174,
+    "valley_wall_relief_m": 58.543,
+    "nearest_water_distance_m": 9999.000,
+    "water_surface_clearance_m": 28.789,
+    "nearest_cactus_distance_m": 22.121,
+    "nearby_cactus_count": 48,
     "obstacle_count": 0
   },
   "copied_vehicle": {
@@ -22,7 +27,17 @@
   "world_physics": {
     "terrain_collider_count": 1,
     "scene_collider_count": 17063,
-    "terrain_contact_classified_as_sand": true
+    "terrain_contact_classified_as_sand": true,
+    "mesa_sand_terrain_material": "Assets/VLN/Materials/HighPrecisionDesert/VLN_Mesa_SandTerrain.physicMaterial",
+    "mesa_rock_cliff_slide_material": "Assets/VLN/Materials/HighPrecisionDesert/VLN_Mesa_RockCliff_Slide.physicMaterial",
+    "wheel_visual_vertical_offset_m": 0.0,
+    "relax_stop_damping_on_steep_or_airborne": true,
+    "relax_wheel_friction_on_steep_or_airborne": true,
+    "relaxed_wheel_friction_stiffness_scale": 0.30,
+    "relax_wheel_suspension_on_steep_or_airborne": true,
+    "relaxed_wheel_suspension_spring_scale": 0.08,
+    "relaxed_wheel_suspension_damper_scale": 0.25,
+    "steep_slope_gravity_assist_accel_mps2": 5.50
   },
   "route_reference_waypoint_count": 9
 }

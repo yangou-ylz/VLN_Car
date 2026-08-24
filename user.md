@@ -1,590 +1,203 @@
-# Scout wheel-ground 手工运行命令
+# VLN 常用运行手册
 
-本文件按你的实际使用习惯写：先打开 Unity 软件，再开终端跑控制/查看脚本。`run_*_smoke_test.sh` 是自动回归验收用的，不是你平时看效果的首选入口。
-
-所有命令默认在 `/home/ubuntu22/VLN` 下执行。
-
-## 0. 如果 Unity 卡住或异常退出，先清理残留锁
+所有命令默认从项目根目录执行：
 
 ```bash
 cd /home/ubuntu22/VLN
-./scripts/stop_unity_vln_project.sh
 ```
 
-正常情况不用每次都跑；只有 Unity 卡住、异常退出、或者提示工程被占用时再跑。希望看到 `Library 下未发现残留 lock 文件`。
-
-## 1. 终端 1：打开 Unity 工程
-
+## 打开荒漠小车项目
 ```bash
-cd /home/ubuntu22/VLN
-./scripts/open_unity_vln_project.sh
+./scripts/open_high_precision_world_model.sh --scene mesa_topgear
 ```
 
-Unity 打开后，进入场景 `Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`。先确认场景是 Scout 小车、独木桥、斜坡和后段挑战路段。
 
-## 2. 终端 2：启动 ROS-TCP-Endpoint
+## 基本手工流程
+
+手工看效果时按这个顺序：先打开 Unity 场景，再启动 ROS-TCP-Endpoint，再点 Play，最后运行控制或查看脚本。
 
 ```bash
-cd /home/ubuntu22/VLN
+./scripts/open_high_precision_world_model.sh --scene mesa_topgear
 ./scripts/start_ros_tcp_endpoint.sh
 ```
 
-这个终端保持开着，不要关。希望看到 `Starting server on 127.0.0.1:10000`。
+然后回 Unity 点击顶部 `Play`。之后按需要运行控制、相机、雷达或问题记录脚本。
 
-## 3. 回 Unity：点击 Play
+## 世界模型打开
 
-点击 Unity 顶部 Play。希望 endpoint 终端出现 `Connection from 127.0.0.1`，Unity 里 Scout 小车四轮贴地，传感器跟随车体。
-
-## 4. 终端 3：运行原 13 点自动路线演示
+统一用这个脚本打开不同世界；只推荐 `--scene` 写法。
 
 ```bash
-cd /home/ubuntu22/VLN
-./scripts/drive_scout_wheel_ground_route_demo.sh
+./scripts/open_high_precision_world_model.sh --scene mesa_topgear
 ```
 
-这是手工演示入口，不会自动打开 Unity。希望看到终端持续输出路径点进度，小车沿路线通过独木桥和斜坡，最后出现 `VLN_SCOUT_PHYSICS_ROUTE_MSG_OK`。
-
-## 4A. 可选：在 Unity 菜单里运行路线
-
-Unity 顶部菜单打开：`VLN -> ROS2 手工演示面板`。
-
-当前面板约定：13 点自动路线入口已移除；需要看路线时优先使用 16 点挑战路线，或按终端命令手工运行旧脚本。点击“查看相机图像”后，右侧会出现相机选项栏：
-
-- `rqt`：打开四个 `rqt_image_view`，分别查看 `/vln/front/image_raw`、`/vln/rear/image_raw`、`/vln/left/image_raw`、`/vln/right/image_raw`。
-- `全部相机`：在 Unity 内部打开一个四路拼接预览窗口，不弹终端。
-- `前相机`、`后相机`、`左相机`、`右相机`：在 Unity 内部打开单路简洁预览窗口；如果 `全部相机` 已打开，单路按钮会暂时禁用，关闭全部相机窗口后恢复。
-
-面板里的推荐顺序也是：`打开 Scout 场景` -> `启动 ROS-TCP-Endpoint` -> 回 Unity 点 `Play` -> `运行 16 点挑战路线` 或查看传感器。
-
-这个面板只是帮你开新终端执行现有脚本，底层仍然是 ROS2 发布 `/vln/cmd_vel`，不是 Unity 内置导航。
-
-从这个 Unity 菜单启动的 endpoint、路线、相机、RViz 和中文控制面板都会被登记。当前为了避免“一打开就被误杀”，已经临时禁用 Unity 退出自动清理；需要关闭后台终端时手动点击面板里的 `关闭 VLN 后台终端`。
-
-菜单弹出的终端如果脚本报错，会保留窗口，不会再 1 秒自动关闭。对应日志在：
-
-```bash
-ls -lt /home/ubuntu22/VLN/.runtime/unity_menu/logs | head
-```
-
-如果 Unity 已经关了，或者下次启动控制面板遇到 `Address already in use`，就用：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/cleanup_unity_menu_processes.sh --include-known
-```
-
-## 5. 终端 3：运行新增后段挑战路线演示
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/drive_scout_wheel_ground_challenge_route_demo.sh
-```
-
-这是新增草地、青石路、沙地和低矮障碍的手工演示入口，也不会自动打开 Unity。希望小车先通过原来的桥/坡，再继续走到后段挑战区；终端最后应出现 `VLN_SCOUT_PHYSICS_ROUTE_MSG_OK`。
-
-当前阶段 18A 已给青石路和沙地接入 1K PBR 贴图；手工看效果仍然使用这个挑战路线演示脚本，不需要换新命令。
-
-## 6. 终端 4：检查 ROS2 topic
-
-```bash
-cd /home/ubuntu22/VLN
-ros2env
-source /home/ubuntu22/VLN/unity_ros2_ws/install/setup.bash
-ros2 topic list -t | grep -E '/vln|/tf'
-```
-
-希望看到 `/vln/front/image_raw`、`/vln/front/camera_info`、`/vln/rear/image_raw`、`/vln/rear/camera_info`、`/vln/left/image_raw`、`/vln/left/camera_info`、`/vln/right/image_raw`、`/vln/right/camera_info`、`/vln/lidar/points`、`/vln/cmd_vel`、`/vln/odom`、`/tf`。
-
-## 7. 终端 5：看相机图像
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/view_front_image.sh
-```
-
-用于打开 rqt 图像窗口。希望能看到 Unity 相机画面；如果没有自动选中 topic，就手动选择 `/vln/front/image_raw`。
-
-现在 Topgear 上装已经有 4 路相机。也可以直接打开指定 topic：
-
-```bash
-cd /home/ubuntu22/VLN
-ros2env
-source /home/ubuntu22/VLN/unity_ros2_ws/install/setup.bash
-ros2 run rqt_image_view rqt_image_view /vln/front/image_raw
-```
-
-把最后一个 topic 换成 `/vln/rear/image_raw`、`/vln/left/image_raw`、`/vln/right/image_raw`，就能分别看后向、左向、右向相机。
-
-## 8. 终端 6：看 LiDAR 点云
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/view_vln_vehicle_rviz.sh
-```
-
-用于打开 RViz。希望能看到 `/vln/lidar/points` 点云，Fixed Frame 使用 `map`，TF 不报错。
-
-当前 LiDAR 仍沿用原来的 `/vln/lidar/points`，frame 是 `lidar_link`；Topgear 阶段只是把 LiDAR 挂到了上装顶部并补齐 TF，没有改原 RViz 查看入口。
-
-## 9. 可选：启动中文控制面板
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/start_vln_control_panel.sh
-```
-
-浏览器打开 `http://127.0.0.1:8765/`。目标位置、速度控制、相机视图、雷达点云都从这里进。
-
-## 10. 可选：直接发 `/vln/cmd_vel`
-
-```bash
-cd /home/ubuntu22/VLN
-ros2env
-source /home/ubuntu22/VLN/unity_ros2_ws/install/setup.bash
-ros2 topic pub --once /vln/cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.5}, angular: {z: 0.0}}"
-```
-
-用于快速确认控制链路。发完后如果车还在动，用下面命令停车：
-
-```bash
-ros2 topic pub --once /vln/cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.0}, angular: {z: 0.0}}"
-```
-
-## 11. 自动回归验收：我排查或改代码后使用
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/run_scout_wheel_ground_route_smoke_test.sh
-```
-
-这是 13 点路线自动回归，会自己打开 batch Unity、启动 endpoint、检查图像/点云/odom/路线指标。希望最后看到 `VLN_SCOUT_WHEEL_GROUND_ROUTE_SMOKE_TEST_PASS`。
-
-Topgear 传感器专项自动验收入口：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/run_topgear_sensor_suite_smoke_test.sh
-```
-
-这是 16 线 LiDAR + 4 路相机 + TF 的专项回归。希望最后看到 `VLN_TOPGEAR_SENSOR_SUITE_SMOKE_TEST_PASS`。
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/run_scout_wheel_ground_challenge_route_smoke_test.sh
-```
-
-这是 16 点后段挑战路线自动回归。希望最后同时看到 `VLN_SCOUT_WHEEL_GROUND_ROUTE_SMOKE_TEST_PASS` 和 `VLN_SCOUT_WHEEL_GROUND_CHALLENGE_ROUTE_SMOKE_TEST_PASS`。
-
-注意：如果 Unity Editor 已经手工打开，先不要跑这些 `run_*_smoke_test.sh`，因为同一工程不能同时被两个 Unity Editor 实例打开。你手工看效果时，用第 4/5 步的 `drive_*_demo.sh` 和第 7/8 步的相机/RViz 查看入口。
-
-当前约定：如果 13 点链路已经验证成功，本轮不需要再继续跑 16 点挑战自动回归；16 点只在新增障碍、挑战区变化或你明确要求时再跑。
-
-## 当前基线
-
-- Topgear 传感器专项当前通过 run id：`vln_topgear_sensor_suite_20260820_190104`，包含 4 路 Image、4 路 CameraInfo、LiDAR PointCloud2 和 6 条 TF 边。
-- 13 点自动路线当前通过 run id：`vln_scout_wheel_ground_route_20260820_190253`。
-- 16 点挑战路线保留最近已知通过 run id：`vln_scout_wheel_ground_challenge_route_20260820_172504`；阶段 20 后未继续重复跑，按你的要求交给你手工验证。
-- 挑战区当前已归档三段截图：草地、青石路、沙地；自动回归会检查三段截图和视觉细节数量。
-- 关键约束：禁止隐藏托底、压平桥/坡、关闭碰撞、跳过卡点或放宽 gate 来掩盖失败。
-
-## 手动速度控制注意
-
-- 控制面板入口：`cd /home/ubuntu22/VLN && ./scripts/start_vln_control_panel.sh`。
-- 前提仍然是 Unity 已打开 `VLNOffroadScoutWheelGroundCandidate.unity`、endpoint 已启动、Unity 已点击 Play。
-- 速度控制模块支持两种操作：真实键盘按住 `↑/↓/←/→/A/D`，或者用鼠标按住网页里的箭头/A/D 屏幕按钮。
-- 如果只是单击一下屏幕按钮，小车只会短促动一下；要连续走，必须按住不松。
-- 线速度默认 `0.55m/s`，但可以用输入框或旁边 `+/-` 按钮调高，当前上限 `20.0m/s`，线速度按钮每次变化 `0.50m/s`；角速度默认 `0.42rad/s`，当前上限 `1.00rad/s`，角速度按钮每次变化 `0.05rad/s`。
-- 导出记录后，路径旁边有“复制路径”按钮；未导出前复制的是记录目录，导出后复制的是最新 JSON 文件路径。
-- 当前手动控制已经修过请求堆积和旧请求晚到问题，但体感仍以用户人工验收为准；如果它明显不如自动路线，不要继续进入阶段 19，先回到阶段 16 修手动控制。
-
-## 阶段 21：高精荒漠主线入口
-
-阶段 21 先做高精荒漠环境，不覆盖旧主场景，不改 Topgear 传感器锁定文件。
-
-只读确认阶段 20 回退基线：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/check_high_precision_desert_phase0_baseline.sh
-```
-
-查看阶段 21 工作流：
-
-```bash
-cd /home/ubuntu22/VLN
-less docs/high_precision_desert_workflow.md
-```
-
-查看资产候选和下载预算：
-
-```bash
-cd /home/ubuntu22/VLN
-less VLN_REFERENCE_LIBRARY/high_precision_desert_research/high_precision_asset_candidates.md
-less VLN_REFERENCE_LIBRARY/high_precision_desert_research/download_budget.md
-```
-
-查看当前大资产阶段状态面板：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/report_high_precision_large_asset_status.py
-```
-
-它会汇总：下载前候选排序、本地是否已有大包、扫描报告、下一步命令。当前没有真实大包时会明确显示 `large_scene_packages/` 为空。
-
-检查 Gate 0 来源/授权/预算是否满足：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/check_high_precision_large_asset_gate0.py
-```
-
-它会显示当前 100GB 总预算、已下载体积、候选预留预算、每个候选是否需要账号/授权确认。当前免费技术底座 `Terrain Sample Asset Pack` 会显示为“可优先下载验证”，但仍不能直接导入主工程。
-
-重算下载前候选评分：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/rank_high_precision_large_asset_candidates.py
-```
-
-当前执行结论是：用户已经拿到并肉眼验收 `Pure Nature 2 Mesa Desert 1.0`，并继续提供 `Pure Nature 2 Oasis Desert Unity2022`。阶段 21 默认主线已经升级为 Mesa+Oasis 拼接场景 `VLNMesaOasisStitchedRouteCandidate.unity`。`Coast & Dunes`、`Pure Nature 2 : Mojave Desert`、`Landscape Ground Pack 3` 和免费 `Terrain Sample Asset Pack` 仍保留在候选排序里，但现在只作为备用调研池或回退方案；除非用户重新明确选择并确认授权/下载，否则不要把它们作为当前执行目标。
-
-当前判断：先按 Mesa+Oasis 完整资产拼接主线推进，不再回到旧低模挑战区，也不把免费自建 `VLNHighPrecisionDesertSandbox.unity` 当默认主线。当前重点是把 `VLNMesaOasisStitchedRouteCandidate.unity` 做成新的高精荒漠路线底座：路线要自然，障碍要不规则，后续物理代理和 Topgear/ROS2 接入都基于它。
-
-当前规则：正式下载任何大资产前，必须先更新预算表；总下载硬上限 `100GB`。免费官方 Terrain 包或以后重新启用的大型完整荒漠/越野场景包都只能进入副本/沙盒验证，禁止直接覆盖主工程、Topgear 锁定场景或主工程 ProjectSettings。
-
-下载/校验第一批 Poly Haven 高精荒漠小样本资产：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/download_high_precision_desert_sample_assets.py --max-gb 10.0 --proxy http://127.0.0.1:7897/ --timeout 90
-```
-
-这一步会走本地代理，下载约 236MB 的 CC0 资产，写入 `VLN_ASSETS_CACHE/high_precision_desert/`，并镜像到 Unity 工程的 `Assets/VLN/ExternalAssets/HighPrecisionDesert/PolyHaven/`。
-
-大资产整包验证入口：
-
-```bash
-cd /home/ubuntu22/VLN
-less VLN_REFERENCE_LIBRARY/high_precision_desert_research/large_asset_scene_research.md
-```
-
-准备大资产副本工程：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/prepare_high_precision_large_asset_sandbox_project.sh
-```
-
-当前副本工程路径是：
-
-```bash
-/home/ubuntu22/VLN/UnityProjects/VLN_Offroad_LargeAssetSandbox
-```
-
-打开大资产副本工程：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/open_unity_large_asset_sandbox_project.sh
-```
-
-后续如果重新启用 `Pure Nature 2 : Mojave Desert`、`Coast & Dunes` 这类 Asset Store/Fab 大包，只能导入这个副本工程，不要导入主工程 `UnityProjects/VLN_Offroad`。当前 Mesa+Oasis 拼接主线也在这个副本工程内推进。
-
-## 阶段 21：Pure Nature 2 Mesa+Oasis 当前主工作场景
-
-现在高精荒漠世界统一用一个脚本打开，只改后面的世界参数：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/open_high_precision_world_model.sh first
-```
-
-`first` 打开第一套 Mesa Desert 独立场景，适合先单独把小车导入 Mesa 世界：
+| `--scene` 参数 | 作用 | 示例 |
+|---|---|---|
+| `mesa_topgear` | 当前主线：Mesa Desert + Topgear 真实物理小车 | `./scripts/open_high_precision_world_model.sh --scene mesa_topgear` |
+| `mesa_desert` | 第一套 Mesa Desert 独立世界 | `./scripts/open_high_precision_world_model.sh --scene mesa_desert` |
+| `oasis_desert` | 第二套 Oasis Desert 独立世界 | `./scripts/open_high_precision_world_model.sh --scene oasis_desert` |
+| `mesa_oasis` | Mesa + Oasis 融合世界 | `./scripts/open_high_precision_world_model.sh --scene mesa_oasis` |
+| `meadow_forest` | Meadow Dynamic Nature 湖泊树林/草甸世界 | `./scripts/open_high_precision_world_model.sh --scene meadow_forest` |
+| `forest_lake` | ForestLake 湖边村庄/森林湖泊世界 | `./scripts/open_high_precision_world_model.sh --scene forest_lake` |
+| `VLNNewWorldCandidate` | 新导入后派生出来的 VLN 世界场景 | `./scripts/open_high_precision_world_model.sh --scene VLNNewWorldCandidate` |
+| `Assets/VLN/Scenes/VLNNewWorldCandidate.unity` | 直接用场景路径打开新世界 | `./scripts/open_high_precision_world_model.sh --scene Assets/VLN/Scenes/VLNNewWorldCandidate.unity` |
+
+普通肉眼查看只需要使用表格里的 `--scene` 参数。
+
+以后新导入世界场景时，把派生后的场景保存到 `Assets/VLN/Scenes/`，并使用下面任一命名，Unity 保存面板会自动注册，不需要再手工改白名单：
 
 ```text
-UnityProjects/VLN_Offroad_LargeAssetSandbox/Assets/VLN/Scenes/VLNMesaDesertRouteCandidate.unity
+VLN*WorldCandidate.unity
+VLN*RouteCandidate.unity
+VLN*TopgearVehicleCandidate.unity
+VLNHighPrecisionDesertSandbox.unity
 ```
 
-```bash
-cd /home/ubuntu22/VLN
-./scripts/open_high_precision_world_model.sh second
-```
+`mesa_topgear` 打开后会自动选中并聚焦到小车；如果 Unity 视角没有跳过去，可点菜单 `VLN -> Mesa Desert -> Focus Topgear Vehicle In Scene View`。
 
-`second` 打开第二套 Oasis Desert 独立场景，适合单独把小车导入 Oasis 世界：
+## 保存世界模型
 
-```text
-UnityProjects/VLN_Offroad_LargeAssetSandbox/Assets/VLN/Scenes/VLNOasisDesertRouteCandidate.unity
-```
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/open_high_precision_world_model.sh stitched
-```
-
-`stitched` 打开原来的 Mesa+Oasis 融合场景，先保留作为参考和回退：
-
-```text
-UnityProjects/VLN_Offroad_LargeAssetSandbox/Assets/VLN/Scenes/VLNMesaOasisStitchedRouteCandidate.unity
-```
-
-可用别名：`first / 1 / mesa / 第一套`，`second / 2 / oasis / 第二套`，`stitched / 3 / fusion / 融合版`。
-
-旧脚本仍保留兼容，但底层已经改成调用统一入口：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/open_pure_nature_mesa_oasis_stitched_scene.sh
-```
-
-如果你要自己精修世界模型，打开场景后先不要点 Play，直接在 Unity 的 Scene 视图里拖动、删除或添加物体。改完后点击 Unity 顶部菜单：
+在 Unity 里手工拖动、删除或添加世界物体后，用菜单保存当前世界。
 
 ```text
 VLN -> 更改世界模型 -> 保存本次世界
 ```
 
-保存成功后会写入：
-
-```text
-/home/ubuntu22/VLN/config/world_model_current_save.json
-```
-
-这个保存不是假按钮：Unity 会先真实保存 `VLNMesaOasisStitchedRouteCandidate.unity`，再检查场景文件里的本次保存 marker 和 SHA256。只有都对上才会提示成功。
-
-下次仍然用同一个命令打开：
+保存后用下面命令确认这次真的写进场景文件：
 
 ```bash
-cd /home/ubuntu22/VLN
-./scripts/open_pure_nature_mesa_oasis_stitched_scene.sh
-```
-
-如果已经有保存记录，它会直接加载你保存后的世界，不会重新生成旧拼接场景覆盖。需要终端确认时运行：
-
-```bash
-cd /home/ubuntu22/VLN
 ./scripts/check_world_model_manual_save_state.sh
 ```
 
-希望看到 `VLN_WORLD_MODEL_MANUAL_SAVE_CHECK_PASS`。如果还没点过保存按钮，会提示“未找到保存记录”，这是正常的。
+希望看到 `VLN_WORLD_MODEL_MANUAL_SAVE_CHECK_PASS`。如果没保存过，它会提示没有保存记录，这是正常的。
 
-自动截图验收入口：
+## Mesa Topgear 问题坡录制
+
+用于记录“小车在某个坡、沟、岩壁或障碍处卡住/打滑/浮空/穿模”的连续动态过程。
+
+先打开当前主线场景，启动 endpoint，Unity 点 Play，然后手动驾驶到问题地形附近：
 
 ```bash
-cd /home/ubuntu22/VLN
-./scripts/run_pure_nature_mesa_oasis_stitched_smoke_test.sh
+./scripts/open_high_precision_world_model.sh --scene mesa_topgear
+./scripts/start_ros_tcp_endpoint.sh
 ```
 
-希望看到 `VLN_PURE_NATURE_MESA_OASIS_STITCHED_SMOKE_TEST_PASS`。当前最新通过：`vln_pure_nature_mesa_oasis_stitched_20260822_022523`。如果还没有手工保存世界，这一步会重建/刷新 Mesa+Oasis 拼接场景、开 Oasis 山体入口并截图；如果已经手工保存世界，它默认只打开已保存场景做只读截图检查，不会覆盖你的修改。不启动 ROS2，不改旧 Topgear 主场景。
-
-当前拼接策略：两张完整地图用沙地边界重叠衔接；按你截图标出的入口方向，删除 Oasis 山体环上挡路的大型山体 mesh/collider，留下进山口；不额外手工铺一条假沙路。最新指标：`terrain_count=2`、`seam_height_delta_m=-0.192`、`seam_profile_mean_delta_m=4.006`、`seam_profile_max_delta_m=10.115`、`oasis_gate_removed_obstacle_count=1`、`mountain_gate_removed_renderer_count=375`、`mountain_gate_removed_collider_count=29`、材质错误为 `0`。
-
-注意：不要直接改第三方原始 `Assets/BK/PureNature_MesaDesert/Scenes/Mesa_Demo.unity` 和 `Assets/BK/PureNature_Oasis/Scenes/Scene_Oasis_Day.unity`；后续所有路线、物理代理、Topgear/ROS2 接入默认基于 `VLNMesaOasisStitchedRouteCandidate.unity`。单 Mesa 场景只作为来源/回退。
-
-## 阶段 21：Pure Nature 2 Mesa Desert 单场景回退
-
-单 Mesa 场景现在保留为 Mesa+Oasis 拼接场景的来源和回退。它不是当前默认主工作场景；如果需要单独回看 Mesa，可以打开 VLN 派生场景：
+Unity 菜单也可以直接录制，不用另外开脚本：
 
 ```text
-UnityProjects/VLN_Offroad_LargeAssetSandbox/Assets/VLN/Scenes/VLNMesaDesertRouteCandidate.unity
+VLN -> Mesa Desert -> 录制问题轨迹 -> 开始录制 / 停止录制 / 标记问题点
 ```
 
-手工打开给你看效果：
+Game 视图左上角会显示录制状态：`待命`、`录制中` 或 `已停止`，并显示样本数、标记数和当前记录目录。看到 `录制中` 后再开过问题坡，记录才是有效的。
 
-```bash
-cd /home/ubuntu22/VLN
-./scripts/open_pure_nature_mesa_desert_route_candidate.sh
-```
+快捷键仍然保留：
 
-兼容旧入口也会打开同一个 VLN 候选场景：
+| 按键 | 作用 |
+|---|---|
+| `F6` | 开始录制当前问题路段 |
+| `F7` | 结束录制，写 summary，并截结束图 |
+| `F8` | 录制中标记当前问题点并截图，可按多次 |
+| `F10` | 只截图 |
+| `F9` | 手动写一次 summary |
 
-```bash
-cd /home/ubuntu22/VLN
-./scripts/open_pure_nature_mesa_desert_sandbox.sh
-```
-
-自动截图验收入口：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/run_pure_nature_mesa_desert_route_candidate_smoke_test.sh
-```
-
-希望看到 `VLN_PURE_NATURE_MESA_DESERT_ROUTE_CANDIDATE_SMOKE_TEST_PASS`。这一步只刷新 Mesa 候选场景、增加不规则石块/碎石/仙人掌/草灌木并截图，不启动 ROS2，不改旧 Topgear 主场景。
-
-当前最新通过：`vln_pure_nature_mesa_desert_route_candidate_20260822_013001`。场景里有 9 个候选路线点，新增 `130` 个石/碎石障碍、`38` 个树/仙人掌、`265` 个草堆/灌木，材质丢失和 InternalError shader 都为 `0`。
-
-注意：不要直接改第三方原始 `Assets/BK/PureNature_MesaDesert/Scenes/Mesa_Demo.unity`；后续所有路线、物理代理、Topgear/ROS2 接入都基于 `VLNMesaDesertRouteCandidate.unity`。
-
-如果浏览器或 Unity Asset Store 已把大场景包下载到本地，把原始 `.unitypackage`、`.zip`、`.tar` 或解包目录放到：
-
-```bash
-/home/ubuntu22/VLN/VLN_ASSETS_CACHE/high_precision_desert/raw_downloads/large_scene_packages/
-```
-
-然后只读扫描包内容：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/inspect_high_precision_large_asset_package.py \
-  VLN_ASSETS_CACHE/high_precision_desert/raw_downloads/large_scene_packages/<资产包文件或目录> \
-  --output VLN_REFERENCE_LIBRARY/high_precision_desert_research/large_asset_inspections/<资产名>_inspection.json
-```
-
-这一步只统计场景、模型、贴图、材质、shader、prefab、Terrain、ProjectSettings 和 collider/physics 关键词，不导入 Unity，不改工程。
-
-如果目录里放了多个大包，直接批量扫描：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/scan_high_precision_large_scene_packages.sh
-```
-
-当前如果还没下载大包，会看到 `VLN_HIGH_PRECISION_LARGE_ASSET_SCAN_NO_PACKAGES`，这是正常状态。扫描后会生成排序报告：
-
-```bash
-/home/ubuntu22/VLN/VLN_REFERENCE_LIBRARY/high_precision_desert_research/large_asset_inspections/large_asset_ranking.md
-```
-
-如果不知道下载到了哪里，先查找本机可疑包：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/find_high_precision_large_scene_packages.sh
-```
-
-如果下载目录里杂项很多，只显示 100MB 以上候选：
-
-```bash
-cd /home/ubuntu22/VLN
-VLN_LARGE_ASSET_MIN_MB=100 ./scripts/find_high_precision_large_scene_packages.sh
-```
-
-如果上面找到了目标资产包，把它暂存到 VLN 大资产目录：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/stage_high_precision_large_scene_package.sh '<资产包完整路径>'
-```
-
-然后再运行扫描：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/scan_high_precision_large_scene_packages.sh
-```
-
-注意：`Poly Desert [FREE]`、`Low-Poly Desert Environment Pack` 这类低模免费包只用于下载/扫描 smoke test，不是高精荒漠主线。2026-08-21 已确认 itch `Poly Desert [FREE]` 命令行只能拿到临时下载页，最终 zip 会重定向回商品页；如果以后确实要用它做 smoke test，请直接在浏览器点击免费下载，再按上面的暂存/扫描流程处理。
-
-构建并截图验证高精荒漠沙盒：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/run_high_precision_desert_sandbox_visual_smoke_test.sh
-```
-
-希望看到 `VLN_HIGH_PRECISION_DESERT_SANDBOX_VISUAL_SMOKE_TEST_PASS`。该脚本只做视觉导入和截图，不启动 ROS2，不改旧 Topgear 主场景。
-
-手工查看沙盒：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/open_unity_vln_project.sh
-```
-
-在 Unity 里打开 `Assets/VLN/Scenes/VLNHighPrecisionDesertSandbox.unity`。这是阶段 21 的独立高精荒漠沙盒，不是旧 Topgear 主场景。
-
-## 阶段 21 免费沙盒回退
-
-当前下载预算硬上限是 `100GB`，不是旧的 `1GB` 小样本限制。免费沙盒现在不是默认主线，而是 Mesa Desert 路线出现风险、需要低成本试验，或需要补充资产/材质方法时使用的回退场。建筑/废土/遗迹/集市类 Fab 包只作为参考，不替代当前 Mesa Desert 自然越野荒漠主线。
-
-### 查看免费沙盒回退场景
-
-自动截图验收：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/run_high_precision_desert_sandbox_visual_smoke_test.sh
-```
-
-希望看到：`VLN_HIGH_PRECISION_DESERT_SANDBOX_VISUAL_SMOKE_TEST_PASS`。该脚本只做视觉导入和截图，不启动 ROS2，不改旧 Topgear 主场景。
-
-手工打开 Unity 查看：
-
-```bash
-cd /home/ubuntu22/VLN
-./scripts/open_unity_vln_project.sh
-```
-
-在 Unity 里打开：
+推荐做法：到问题坡前按 `F6`，完整开过卡住/打滑/碰撞过程，再按 `F7`。记录目录在：
 
 ```text
-Assets/VLN/Scenes/VLNHighPrecisionDesertSandbox.unity
+UnityProjects/VLN_Offroad_LargeAssetSandbox/Logs/mesa_issue_records/mesa_issue_*/
 ```
 
-### 获取官方 Terrain Sample 包时
-
-通过浏览器或 Unity Asset Store / Package Manager 打开 Unity 官方 `Terrain Sample Asset Pack` 页面，用合法 Unity 账号加入/下载。下载完成后不要直接导入主工程；先让我或你在终端运行下面的定位命令。
-
-先看当前状态：
+分析最新一次录制：
 
 ```bash
-cd /home/ubuntu22/VLN
-./scripts/report_high_precision_large_asset_status.py
-./scripts/check_high_precision_large_asset_gate0.py
+./scripts/analyze_mesa_issue_recording.py
 ```
 
-希望看到：预算低于 `100GB`，并且 `large_scene_packages/` 为空或显示你刚下载的官方 Terrain 包。
+报告会判断卡滞窗口、坡度、轮胎接触、滑移、RPM、扭矩、刹车和主要碰撞体。如果提示没有 `samples.csv`，说明这次 Play 里没有按 `F6` 开始录制。
 
-下载官方包或以后重新启用的大包时，都要走浏览器、Unity Asset Store、Fab 或 Unity Package Manager 的合法账号入口。下载完后，不要直接导入主工程；先让脚本找包：
+## 本地键盘速度控制
+
+如果浏览器控制面板速度控制卡顿，优先用这个本地窗口。它绕过网页和 HTTP，直接用 ROS2 发布 `/vln/cmd_vel`。
+
+前提仍然是：Unity 已打开 `mesa_topgear`，endpoint 已启动，Unity 已点击 `Play`。
 
 ```bash
-cd /home/ubuntu22/VLN
-VLN_LARGE_ASSET_MIN_MB=100 ./scripts/find_high_precision_large_scene_packages.sh
+./scripts/start_mesa_topgear_local_keyboard_control.sh
 ```
 
-找到目标 `.unitypackage`、`.zip`、`.tar` 或解包目录后，先暂存：
+弹出窗口后，先点击一下这个窗口让它获得键盘焦点，再按键控制：
+
+| 按键 | 作用 |
+|---|---|
+| `↑` / `W` | 前进 |
+| `↓` / `S` | 后退 |
+| `←` / `A` | 左转，发布正 `angular.z` |
+| `→` / `D` | 右转，发布负 `angular.z` |
+| `Space` | 立即停车 |
+| `Q` | 退出窗口 |
+
+窗口里可以调线速度和角速度。默认发布频率是 `100Hz`，松开按键会自动归零停车。
+
+注意：方向键、`W/A/S/D`、空格和 `Q` 会被窗口优先捕获用于驾驶，不会再调节线速度/角速度控件。调速度请用鼠标拖动滑条，或直接在数值框里输入数字。
+
+## Mesa Topgear 鱼眼相机和传感器频率验收
+
+用于确认四路相机已经切到 120° 鱼眼/超广角视角，并且相机和 LiDAR 的 ROS2 发布频率达标。这个脚本会自动 batch 打开 Unity，不跑自动导航路线。
 
 ```bash
-cd /home/ubuntu22/VLN
-./scripts/stage_high_precision_large_scene_package.sh '<资产包完整路径>'
+./scripts/run_mesa_topgear_fisheye_sensor_rate_smoke_test.sh
 ```
 
-然后只读扫描：
+希望看到：`VLN_MESA_TOPGEAR_FISHEYE_SENSOR_RATE_SMOKE_TEST_PASS`。
 
-```bash
-cd /home/ubuntu22/VLN
-./scripts/scan_high_precision_large_scene_packages.sh
-./scripts/report_high_precision_large_asset_status.py
-```
-
-只有扫描确认 scene、terrain、prefab、材质、LOD、ProjectSettings 和 physics/collider 线索后，才导入副本工程：
+四路预览图会导出到：
 
 ```text
-/home/ubuntu22/VLN/UnityProjects/VLN_Offroad_LargeAssetSandbox
+UnityProjects/VLN_Offroad_LargeAssetSandbox/Logs/topgear_fisheye_previews/
 ```
 
-禁止直接导入主工程：
+当前目标参数是：四路相机 `FOV=120°`、`640x480`、`20Hz`；LiDAR `16Hz`、最大距离 `90m`、每帧 `57600` 点完整一圈。实际验收要求是相机至少 `15Hz`，LiDAR 至少 `15Hz`。
 
-```text
-/home/ubuntu22/VLN/UnityProjects/VLN_Offroad
-```
+现在四路相机还会额外挂 Unity Post Processing 的 `Lens Distortion`：`intensity=-55`、`scale=1.08`，用于产生更明显的桶形鱼眼畸变。脚本会同时检查 `post_process_layer_set_count=4` 和 `lens_distortion_volume_configured=1`。
 
-导入副本工程后再判断：官方 Terrain 包能提供有价值的 TerrainLayer、细节对象、地形笔刷或 demo 结构，就把可控子集迁移到当前 `1km²` 沙盒；如果只是参考资料，则继续保留为资料库/备用资产，不覆盖主工程。
+RViz 点云显示配置已调成：`Frame Rate=60`、PointCloud2 `Depth=20`、`Decay Time=1`、点大小 `2px`。这只优化肉眼显示流畅度，真实数据频率仍以 `/vln/lidar/points` 的 ROS2 频率验收为准。
 
-## Pure Nature 2 Mesa Desert 1.0 手工验收
+最近一次通过记录：`vln_mesa_topgear_fisheye_sensor_rate_20260824_170436`。实测四路相机约 `20Hz`，LiDAR 约 `16.080Hz`，配置结果确认 LiDAR 最大距离是 `90m`，每帧点数是 `57600`，等于 VLP-16 scan pattern 完整一圈。
 
-当前 Mesa 包已经导入大资产副本工程，不在主工程里。你要肉眼验收时运行：
+如果 RViz 里看起来还是只有 `5fps`，先不要只看 RViz 面板，直接量真实 topic：
 
 ```bash
-cd /home/ubuntu22/VLN
-./scripts/open_pure_nature_mesa_desert_sandbox.sh
+./scripts/check_vln_lidar_runtime_rate.sh
 ```
 
-希望看到：Unity 打开的是副本工程 `UnityProjects/VLN_Offroad_LargeAssetSandbox`，并自动加载：
+希望看到 `/vln/lidar/points` 的 `average_hz` 大于 `15Hz`。如果这里是 `15Hz+`，说明 RViz 只是显示/视角/负载问题；如果这里也是 `5Hz` 或没有消息，先关闭当前 Unity，重新用 `./scripts/open_high_precision_world_model.sh --scene mesa_topgear` 打开，因为这个入口现在会在打开时强制把 LiDAR 写回 `16Hz / 90m / 57600点每帧`。
+
+## 中文控制面板
+
+用于浏览器里控制目标位置、速度、相机和雷达入口。
+
+```bash
+./scripts/start_vln_control_panel.sh
+```
+
+浏览器打开：
 
 ```text
-Assets/BK/PureNature_MesaDesert/Scenes/Mesa_Demo.unity
+http://127.0.0.1:8765/
 ```
 
-当前自动加载验收已经通过：`vln_pure_nature_mesa_desert_20260822_005701`，`terrain_count=1`、`renderer_count=21302`、`collider_count=16535`、`missing_material_slots=0`、`internal_error_materials=0`。如果你肉眼确认场景效果可以，再进入下一步：把 Topgear 小车、四路相机、LiDAR 和 ROS2 控制链路迁移到 Mesa 场景。
+使用前仍要保证 Unity 场景已打开、endpoint 已启动、Unity 已点击 Play。速度控制要按住按钮或键盘键，单击只会短促发送一次。如果它仍然卡顿，直接换用上面的本地键盘速度控制。
+
+
+## 旧 Scout 金标准演示
+Unity 打开 `Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity` 后点击 Play，再运行 13 点路线：
+
+
+## Unity 卡死清理
+
+只有 Unity 卡住、异常退出或提示工程被占用时才用。
+
+```bash
+./scripts/stop_unity_vln_project.sh
+```
+
+正常手工流程不需要每次运行它。

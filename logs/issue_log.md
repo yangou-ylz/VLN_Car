@@ -768,3 +768,77 @@
 - 根因：Topgear 专项脚本调用的 Unity runner 会先执行 `BuildScoutWheelGroundCandidateScene()`；该函数会从生成逻辑重新创建场景并 `SaveScene(scene, ScenePath)` 保存到 `Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity`。这会把用户在 Editor 里手动摆好并保存的场景覆盖成源码/JSON 当前值，因此用户看到的不是他最后手摆的那一版。进一步确认：当前工程还存在 `config/topgear_sensor_pose_user_locked.json`，源码会优先读取该 locked 文件；现有 locked 文件、`topgear_sensor_pose_overrides.json`、当前主场景和两个可找到的 recovery 场景备份中的五个传感器 Transform 完全一致，都是同一组旧值，不是用户口中的最终满意版本。
 - 解决方案：新增 `RunExistingScene()` 入口，让 Topgear 传感器专项和 Topgear 视觉专项只打开现有主场景进入 Play/截图，不再重建场景；保留原 `Run()` 给真正需要重建的基础自动回归使用。同时给 `BuildScoutWheelGroundCandidateScene()` 增加重建前场景备份，备份目录为 `UnityProjects/_SceneBackups/<timestamp>/`，并把该目录加入 `.gitignore`。
 - 状态：已修复覆盖源头。2026-08-21 14:11 用户重新手动摆放并确认后，已完成三重锁定：父传感器位姿 `config/topgear_sensor_pose_user_locked.json`、完整传感器层级位姿 `config/topgear_sensor_hierarchy_user_locked.json`、整场景固定恢复副本 `config/topgear_sensor_scene_locked/VLNOffroadScoutWheelGroundCandidate_user_locked.unity`；另有时间戳恢复副本写入 `UnityProjects/_ManualRecoveryLogs/` 和 `config/pose_backups/`。传感器专项 `vln_topgear_sensor_suite_20260821_141404` 以 `rebuild_scene=False` 通过，截图显示 LiDAR 和相机未再散开。若再次发生覆盖，先运行 `./scripts/restore_topgear_sensor_locked_scene.sh` 恢复整场景。
+
+## 2026-08-22：Mesa Topgear 小车出生点在高台、视觉浮空、岩壁下落像粘住
+
+- 现象：用户手工驾驶第一套 Mesa 世界时发现，小车出生在岩壁上方平台而不是岩壁之间的低洼可导航谷底；车轮/车体肉眼看有轻微离地感；从大岩壁/小悬崖开下去时，车不像真实车辆那样翻滚/掉落，而像被岩壁粘住。
+- 根因：出生点扫描过度偏向平坦平台，未把“谷底/洼地”作为首要约束；旧轮胎视觉偏移 `0.085m` 在 Mesa 地面上造成明显离地观感；Unity WheelCollider 会把 40°+ 岩壁接触也当成可支撑地面，配合高摩擦/悬挂支撑后会出现长期贴壁卡住。
+- 修复：出生点扫描加入低高度和谷壁 relief 评分，当前出生点约 `(820.117,20.012,205.443)`；Mesa 候选车轮胎视觉偏移改为 `0.0m`；新增 Mesa 专用沙地/岩壁 PhysicMaterial；只在 Mesa 候选车启用陡坡/离地刹车放松、轮胎抓地衰减、悬挂支撑衰减和真实接触法线重力沿坡补偿。
+- 专项验证：新增 `scripts/run_mesa_topgear_vehicle_cliff_drop_smoke_test.sh`，只测试真实 Mesa cliff，不跑自动路线、不创建假墙/隐藏托底。最终 run id `vln_mesa_topgear_vehicle_cliff_drop_20260822_072135` 通过：`height_drop_m=5.846`、`horizontal_delta_m=9.048`、`max_pitch_abs_deg=89.567`、`max_roll_abs_deg=154.670`、`success=1`。
+- 回归验证：落地 `vln_mesa_topgear_vehicle_physics_20260822_072331` 通过，短 `/vln/cmd_vel` + 四路相机/LiDAR/odom `vln_mesa_topgear_vehicle_cmd_vel_20260822_072428` 通过，真实碎石障碍 `vln_mesa_topgear_vehicle_obstacle_impact_20260822_072617` 通过。
+- 状态：已修复到自动专项通过，下一步应由用户手工打开 `./scripts/open_mesa_topgear_vehicle_candidate.sh` 或 `./scripts/open_high_precision_world_model.sh first-topgear` 肉眼确认贴地和岩壁下落观感；仍不要进入 Mesa 自动导航路线，除非用户明确说基础物理已验收通过。
+
+## 2026-08-22：Mesa Topgear 小车出生点落到水池洼地
+
+- 现象：用户肉眼检查发现小车虽然已经从高处平台改到低洼处，但实际出生在水池/绿洲水域里，车辆像泡在水里；用户要求出生在有仙人掌/荒漠植被、无水的沙漠洼地。
+- 根因：上一版出生点筛选只强调“低洼”和“平坦”，没有把水体区域作为硬排除，也没有把仙人掌/荒漠植被附近作为优先约束；因此低洼搜索可能选中水池洼地。
+- 修复：`VlnMesaTopgearVehicleCandidateBuilder.cs` 新增水体/水材质识别、可见水体距离扫描、仙人掌/荒漠植被识别和主出生点植被邻近要求；`VlnMesaTopgearVehicleSmokeTest.cs` 从异步 `ScreenCapture.CaptureScreenshot` 改为同步 `RenderTexture -> PNG` 保存，避免 batch 退出前截图只写日志不落盘。
+- 当前结果：`config/mesa_topgear_vehicle_candidate.json` 记录新出生点 `(-143.657,55.389,-729.390)`，`nearest_water_distance_m=9999.000`、`nearest_cactus_distance_m=22.121`、`nearby_cactus_count=48`、`valley_wall_relief_m=58.543`。
+- 验证：场景刷新日志 `mesa_topgear_build_refresh_20260822_074112.log` 显示 `water_bounds=2`、`cactus_positions=923`；落地 smoke `vln_mesa_topgear_vehicle_physics_20260822_074538` 通过，`terrain_contact_steps=2086`、`no_wheel_contact_steps=1`、`body_height_span_m=0.0135`；截图 `UnityProjects/VLN_Offroad_LargeAssetSandbox/Logs/vln_mesa_topgear_vehicle_candidate_screenshot.png` 显示车辆位于沙纹地面和荒漠植被旁边，没有水池。
+- 状态：已修复。后续继续 Mesa 第一世界物理/控制工作时，出生点不得回退到高台、水池、绿洲水域或明显浮空/穿地位置；仍未进入自动导航路线。
+
+## 2026-08-23：Meadow 场景出现规律移动的白色标志
+
+- 现象：用户打开 `meadow_forest` 后反馈静态场景正常，但有很多规律移动的白色标志；这些对象疑似动态人物/动物/昆虫/粒子未正确显示。此前 Meadow smoke 中存在 `missing_material_slots=210`，不能继续当作无影响警告。
+- 根因：Meadow 包本身不是缺文件；材质文件都在包内。真正问题是动态粒子/昆虫 prefab 的 `ParticleSystemRenderer` 有第二个空材质槽 `{fileID: 0}`，具体为 `prefab_Bees_Particle`、`prefab_Leafs`、`prefab_Meadow_Dust`、`prefab_Meadow_Dust 2`。这些粒子对象会移动，所以空槽更容易在 Scene/Play 里表现成白色移动标志。
+- 修复：`VlnImportedWorldSceneRegistry.cs` 新增 Meadow 动态材质审计/修复入口，并把 Meadow smoke 的通过条件改成 `missing_material_slots == 0`。4 个动态 prefab 的空槽分别绑定回包内正确材质：蜜蜂 `M_meadow_insects_01`，叶片 `M_leaf_particles`，尘土 `M_meadow_particle_01`，尘土 2 `M_meadow_particle_02`。
+- 验证：`UnityProjects/VLN_Offroad_LargeAssetSandbox/Logs/vln_meadow_missing_material_audit.txt` 显示 `prefabs_touched=4`、`material_slots_fixed=4`、`unresolved_renderers=0`、`scene_missing_slots_after_all=0`、`success=1`；重新运行 Meadow smoke `meadow_after_material_fix_v2_smoke_20260823_201956.log` 通过，结果文件 `missing_material_slots=0`、`internal_error_materials=0`、`success=1`，截图仍显示正常森林草甸场景。
+- 追加定位：用户随后截图中的白色四角星标和大白圆标不是材质白片，而是 Unity 编辑器 Scene/Game 视图的 Gizmos/Annotation 组件图标，常见来源为 `ParticleSystem`、`WindZone`、`ReflectionProbe`、`LightProbe`、`AudioSource`、`Light` 等。它们是编辑器覆盖层，不是场景 mesh，也不会作为相机渲染内容进入传感器数据。
+- 追加修复：`VlnImportedWorldSceneRegistry.cs` 已在 Meadow 打开入口中自动连续重试关闭 SceneView gizmos，并通过 `AnnotationUtility` classID 禁用上述环境组件图标；新增手工菜单 `VLN -> World Models -> Meadow Dynamic Nature -> Hide Scene View Editor Icons`。批处理报告 `vln_meadow_scene_view_icon_cleanup.txt` 显示已禁用 classID `82/108/123/182/198/215/220/259`，即音源、光源/镜头效果、风场、粒子系统、反射探针、光照探针等编辑器图标。
+- 状态：已修复两类问题。若用户当前 Unity 已打开且图标仍在，需要重新通过 `./scripts/open_high_precision_world_model.sh --scene meadow_forest` 打开，或在当前 Unity 菜单点击 `VLN -> World Models -> Meadow Dynamic Nature -> Hide Scene View Editor Icons`；不需要删除 Meadow 的动态粒子/环境对象。
+
+## 2026-08-24：中文控制面板手动速度持续按键周期性卡顿
+
+- 现象：用户在 `mesa_topgear` 荒漠地图中持续按前进或其他速度按钮时，小车只响应一小段时间，随后卡住数秒再恢复；用户判断不是地形卡住，而是后台或控制处理链路问题。
+- 初步根因：手动速度依赖浏览器持续向 `/api/velocity` 发送心跳；如果某次 HTTP 请求或状态轮询阻塞，后续 50ms 心跳会被前端 in-flight 保护挡住，后端超过较短 `manual_command_timeout` 后会自动停车，表现为“按着按钮但车停住”。
+- 修复：`scripts/vln_control_panel.py` 对速度请求增加短超时和自动续发，对状态轮询增加 400ms 超时、in-flight 限流并降到 500ms 一次；后端手动命令超时放宽到 `1.50s`，并记录 `manual.timeout_count`、`manual.publish_count`、`manual.last_publish_gap`；发布计时改为同一个 monotonic 时间点，减少诊断噪声。
+- 验收方式：先用 `python3 -m py_compile scripts/vln_control_panel.py` 检查语法；用户手工流程中打开控制面板，持续按住速度按钮时应不再出现 2 秒响应、3-4 秒停顿的周期性断续。如果仍复现，记录 `/api/status` 中 manual 诊断字段和 Unity 问题轨迹。
+- 状态：已修复待用户肉眼复测；本轮未改小车物理、Mesa 地形、传感器、自动路线或 ROS2 topic。
+
+## 2026-08-24：网页手动速度复测仍卡顿，问题轨迹确认 `/vln/cmd_vel` 断流
+
+- 现象：用户复测后仍反馈“发送命令非常卡”，并提供问题轨迹 `mesa_issue_20260824_003724`。
+- 根因：轨迹分析显示这不是坡面/轮胎/物理卡滞。32.5s 记录中只有 20/189 个样本处于 `command_active=1`，命令活跃率 `10.6%`；非零命令只形成 2 段短脉冲，最长连续有效段约 `1.07s`。地形最大坡度约 `6.05°`，滑移最大 `0.030`，轮胎持续接触 Terrain，没有碰撞体卡住。结论是网页/HTTP/前端按键心跳没有持续把速度送到 `/vln/cmd_vel`。
+- 修复：`scripts/analyze_mesa_issue_recording.py` 增加命令健康诊断；新增本地控制 `scripts/local_keyboard_cmd_vel_control.py` 与入口 `scripts/start_mesa_topgear_local_keyboard_control.sh`，使用 Tk 窗口捕获 KeyPress/KeyRelease，直接以默认 `100Hz` 发布 `/vln/cmd_vel`，绕过浏览器和 HTTP。
+- 使用：在 Unity 打开 `mesa_topgear`、endpoint 启动、Play 后运行 `./scripts/start_mesa_topgear_local_keyboard_control.sh`。按键：`↑/W` 前进、`↓/S` 后退、`←/A` 左转正 `angular.z`、`→/D` 右转负 `angular.z`、空格停车、`Q` 退出。
+- 验证：`tkinter_ok=1`；`python3 -m py_compile scripts/analyze_mesa_issue_recording.py scripts/local_keyboard_cmd_vel_control.py` 通过；`bash -n scripts/start_mesa_topgear_local_keyboard_control.sh` 通过；入口 `--help` 可正常打印。
+- 状态：网页速度控制不再作为 Mesa 手动驾驶的首选；后续手工开车优先用本地键盘控制。旧中文控制面板仍保留目标位置、相机、雷达和辅助入口。
+
+## 2026-08-24：本地键盘控制方向键误调速度控件
+
+- 现象：用户运行本地键盘控制窗口后，按方向键时焦点落在线速度/角速度控件上，结果是在调速度大小，而不是控制车辆。
+- 根因：Tk 的 `Scale/Spinbox` 控件默认先处理方向键，原始 `bind_all` 绑定优先级不够高。
+- 修复：给所有 Tk 控件插入最高优先级 `VlnKeyboardControlCapture` bindtag，先捕获 `↑/↓/←/→/W/A/S/D/Space/Q` 并返回 `break`，阻止速度控件继续消费这些键。调速度改用鼠标拖动滑条或数值框输入。
+- 状态：已修复并通过语法/入口检查，待用户手工复测。
+
+## 2026-08-24：Mesa Topgear 场景不允许保存世界模型
+
+- 现象：用户按正确流程运行 `./scripts/open_high_precision_world_model.sh --scene mesa_topgear` 打开 `Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity` 后，Unity 菜单 `VLN -> 更改世界模型 -> 保存本次世界` 报错“当前场景不是已注册世界”，提示只允许 `mesa_desert / oasis_desert / mesa_oasis / meadow_forest / forest_lake`。
+- 根因：统一打开脚本已经支持 `mesa_topgear`，但 `VlnWorldModelManualSaveWindow.cs` 的保存白名单、场景标签和保存记录中的 `next_open_command` 映射没有同步注册 Mesa Topgear 小车候选场景。
+- 修复：已把 `VlnMesaTopgearVehicleCandidateBuilder.CandidateScenePath` 加入内置注册，并进一步把保存机制扩展为自动扫描 `Assets/VLN/Scenes/` 下符合 `VLN*WorldCandidate.unity`、`VLN*RouteCandidate.unity`、`VLN*TopgearVehicleCandidate.unity` 或 `VLNHighPrecisionDesertSandbox.unity` 命名的新世界场景。
+- 状态：已修复。用户重新通过 `./scripts/open_high_precision_world_model.sh --scene mesa_topgear` 打开后，可在停止 Play 的 Edit 模式下点击 `VLN -> 更改世界模型 -> 保存本次世界` 保存当前世界；后续新导入世界只要按自动注册命名保存到 `Assets/VLN/Scenes/`，同一个保存按钮也会写入 marker + `config/world_model_current_save.json` 做磁盘校验。
+
+## 2026-08-24：RViz 肉眼显示低频，需要区分显示帧率和真实 LiDAR topic 频率
+
+- 现象：用户截图中 RViz Global Options 已是 `Frame Rate=60`，但肉眼/状态感知仍觉得点云只有约 `5fps`。
+- 初步判断：RViz 的 `Frame Rate=60` 只是显示刷新上限，不代表 `/vln/lidar/points` 的实际发布频率；如果用户当前 Unity 会话是在配置修改前打开的，或打开入口没有重新应用传感器配置，也可能继续使用旧 LiDAR 频率。
+- 修复：`VlnMesaTopgearVehicleCandidateBuilder.OpenCandidateForManualReview()` 已改为每次打开 `mesa_topgear` 都调用 `VlnTopgearFisheyeSensorConfig.ApplyCurrentSceneSensorConfig(saveScene: true)`，强制写回四路相机畸变/频率和 LiDAR `15Hz / 90m`。新增 `scripts/check_vln_lidar_runtime_rate.sh`，用于在用户手工 Play 时直接量 `/vln/lidar/points` 真实 ROS2 发布频率。
+- 验证：`./scripts/open_high_precision_world_model.sh --scene mesa_topgear -batchmode -quit ...` 通过，日志显示 `VLN_TOPGEAR_FISHEYE_SENSOR_CONFIG_OK ... LiDAR 已设为 15Hz、最大距离 90m`；结果文件显示 `lidar_target_frequency_hz=15.0`、`lidar_target_max_range_m=90.0`、`lidar_max_range_set_count=1`。
+- 后续排查：如果 `check_vln_lidar_runtime_rate.sh` 实测接近 `15Hz`，问题在 RViz显示/机器负载/视角残影；如果实测仍是 `5Hz`，优先检查用户是否打开了旧场景或未重启 Unity 当前会话。
+
+## 2026-08-24：RViz 只显示小扇区慢慢扫，Decay Time=0.4 是反效果
+
+- 现象：用户反馈改动后 RViz 实时画面比原来更慢，约一秒只能看到几十度点云，几秒才扫完一圈，无法一直看到整圈。
+- 根因：UnitySensors `RaycastLiDARSensor` 每次从 scan pattern 取连续 `pointsNumPerScan` 个方向；当 `pointsNumPerScan=7200` 而 VLP-16 pattern `size=57600` 时，一条 `PointCloud2` 只有 1/8 圈。之前把 RViz `Decay Time` 从 `2` 降到 `0.4`，等于只保留很短的扇区，视觉更差。
+- 修复：Mesa Topgear LiDAR 改为每帧 `57600` 点完整一圈，目标频率 `16Hz`，最大距离 `90m`；RViz `Decay Time` 改为 `1`，不再靠长残留拼圈，也避免 12 秒残留导致点云拖影/负载过高。
+- 验证：`vln_mesa_topgear_fisheye_sensor_rate_20260824_170436` 通过，LiDAR 实测 `16.080Hz`，结果文件确认 `lidar_applied_points_per_scan=57600`、`lidar_scan_pattern_size=57600`。
