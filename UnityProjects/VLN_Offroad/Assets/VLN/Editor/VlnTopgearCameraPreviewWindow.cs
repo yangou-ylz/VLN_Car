@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using UnitySensors.Sensor.Camera;
 
 namespace VLN.Editor
 {
@@ -151,16 +152,31 @@ namespace VLN.Editor
 
         void DrawCamera(Rect rect, string cameraName)
         {
-            Camera camera = FindCamera(cameraName);
+            GameObject cameraObject = GameObject.Find(cameraName);
+            if (cameraObject == null)
+            {
+                DrawStatus(rect, "未找到相机", Color.red);
+                return;
+            }
+
+            var fisheyeSensor = cameraObject.GetComponent<FisheyeCameraSensor>();
+            if (fisheyeSensor != null)
+            {
+                Texture fisheyeTexture = fisheyeSensor.texture0;
+                if (fisheyeTexture == null)
+                {
+                    DrawStatus(rect, "等待鱼眼图像", Color.white);
+                    return;
+                }
+
+                GUI.DrawTexture(rect, fisheyeTexture, ScaleMode.ScaleToFit, false);
+                return;
+            }
+
+            Camera camera = cameraObject.GetComponent<Camera>();
             if (camera == null)
             {
-                EditorGUI.DrawRect(rect, Color.black);
-                GUIStyle style = new GUIStyle(EditorStyles.centeredGreyMiniLabel)
-                {
-                    normal = { textColor = Color.red },
-                    fontSize = 12,
-                };
-                GUI.Label(rect, "未找到相机", style);
+                DrawStatus(rect, "未找到相机", Color.red);
                 return;
             }
 
@@ -184,6 +200,17 @@ namespace VLN.Editor
             GUI.DrawTexture(rect, texture, ScaleMode.ScaleToFit, false);
         }
 
+        static void DrawStatus(Rect rect, string text, Color textColor)
+        {
+            EditorGUI.DrawRect(rect, Color.black);
+            GUIStyle style = new GUIStyle(EditorStyles.centeredGreyMiniLabel)
+            {
+                normal = { textColor = textColor },
+                fontSize = 12,
+            };
+            GUI.Label(rect, text, style);
+        }
+
         RenderTexture GetRenderTexture(string key, int width, int height)
         {
             if (m_RenderTextures.TryGetValue(key, out var texture) && texture != null && texture.width == width && texture.height == height)
@@ -204,12 +231,6 @@ namespace VLN.Editor
             texture.Create();
             m_RenderTextures[key] = texture;
             return texture;
-        }
-
-        static Camera FindCamera(string cameraName)
-        {
-            GameObject cameraObject = GameObject.Find(cameraName);
-            return cameraObject != null ? cameraObject.GetComponent<Camera>() : null;
         }
 
         static string CameraNameForMode(PreviewMode mode)

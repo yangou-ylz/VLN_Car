@@ -74,15 +74,15 @@ fi
 
 ROS_ENV='source /home/ubuntu22/.bashrc >/dev/null 2>&1 || true; if declare -F ros2env >/dev/null 2>&1; then ros2env >/dev/null; else source /opt/ros/humble/setup.bash; fi; source /home/ubuntu22/VLN/unity_ros2_ws/install/setup.bash'
 
-timeout 105s bash -lc "$ROS_ENV; python3 /home/ubuntu22/VLN/scripts/ros2_wait_for_image_once.py --topic /vln/front/image_raw --width 640 --height 480 --encoding rgb8 --frame-id front_camera_optical_frame --timeout 100" >"$FRONT_IMAGE_LOG" 2>&1 &
+timeout 105s bash -lc "$ROS_ENV; python3 /home/ubuntu22/VLN/scripts/ros2_wait_for_image_once.py --topic /vln/front/image_raw --width 640 --height 640 --encoding rgb8 --frame-id front_camera_optical_frame --timeout 100" >"$FRONT_IMAGE_LOG" 2>&1 &
 front_image_pid=$!
-timeout 105s bash -lc "$ROS_ENV; python3 /home/ubuntu22/VLN/scripts/ros2_wait_for_image_once.py --topic /vln/rear/image_raw --width 640 --height 480 --encoding rgb8 --frame-id rear_camera_optical_frame --timeout 100" >"$REAR_IMAGE_LOG" 2>&1 &
+timeout 105s bash -lc "$ROS_ENV; python3 /home/ubuntu22/VLN/scripts/ros2_wait_for_image_once.py --topic /vln/rear/image_raw --width 640 --height 640 --encoding rgb8 --frame-id rear_camera_optical_frame --timeout 100" >"$REAR_IMAGE_LOG" 2>&1 &
 rear_image_pid=$!
-timeout 105s bash -lc "$ROS_ENV; python3 /home/ubuntu22/VLN/scripts/ros2_wait_for_image_once.py --topic /vln/left/image_raw --width 640 --height 480 --encoding rgb8 --frame-id left_camera_optical_frame --timeout 100" >"$LEFT_IMAGE_LOG" 2>&1 &
+timeout 105s bash -lc "$ROS_ENV; python3 /home/ubuntu22/VLN/scripts/ros2_wait_for_image_once.py --topic /vln/left/image_raw --width 640 --height 640 --encoding rgb8 --frame-id left_camera_optical_frame --timeout 100" >"$LEFT_IMAGE_LOG" 2>&1 &
 left_image_pid=$!
-timeout 105s bash -lc "$ROS_ENV; python3 /home/ubuntu22/VLN/scripts/ros2_wait_for_image_once.py --topic /vln/right/image_raw --width 640 --height 480 --encoding rgb8 --frame-id right_camera_optical_frame --timeout 100" >"$RIGHT_IMAGE_LOG" 2>&1 &
+timeout 105s bash -lc "$ROS_ENV; python3 /home/ubuntu22/VLN/scripts/ros2_wait_for_image_once.py --topic /vln/right/image_raw --width 640 --height 640 --encoding rgb8 --frame-id right_camera_optical_frame --timeout 100" >"$RIGHT_IMAGE_LOG" 2>&1 &
 right_image_pid=$!
-timeout 105s bash -lc "$ROS_ENV; python3 /home/ubuntu22/VLN/scripts/ros2_wait_for_pointcloud2_once.py --topic /vln/lidar/points --width 7200 --point-step 16 --frame-id lidar_link --timeout 100 --min-nonzero-points 80" >"$CLOUD_LOG" 2>&1 &
+timeout 105s bash -lc "$ROS_ENV; python3 /home/ubuntu22/VLN/scripts/ros2_wait_for_pointcloud2_once.py --topic /vln/lidar/points --width 57600 --point-step 16 --frame-id lidar_link --timeout 100 --min-nonzero-points 80" >"$CLOUD_LOG" 2>&1 &
 cloud_pid=$!
 timeout 105s bash -lc "$ROS_ENV; python3 /home/ubuntu22/VLN/scripts/ros2_wait_for_odom_once.py --topic /vln/odom --frame-id map --child-frame-id base_link --timeout 100" >"$ODOM_LOG" 2>&1 &
 odom_pid=$!

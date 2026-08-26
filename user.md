@@ -141,7 +141,7 @@ UnityProjects/VLN_Offroad_LargeAssetSandbox/Logs/mesa_issue_records/mesa_issue_*
 
 ## Mesa Topgear 鱼眼相机和传感器频率验收
 
-用于确认四路相机已经切到 120° 鱼眼/超广角视角，并且相机和 LiDAR 的 ROS2 发布频率达标。这个脚本会自动 batch 打开 Unity，不跑自动导航路线。
+用于确认四路相机已经切到 UnitySensors 官方 `FisheyeCameraSensor` 真实鱼眼视角，并且相机和 LiDAR 的 ROS2 发布频率达标。这个脚本会自动 batch 打开 Unity，不跑自动导航路线。
 
 ```bash
 ./scripts/run_mesa_topgear_fisheye_sensor_rate_smoke_test.sh
@@ -155,13 +155,13 @@ UnityProjects/VLN_Offroad_LargeAssetSandbox/Logs/mesa_issue_records/mesa_issue_*
 UnityProjects/VLN_Offroad_LargeAssetSandbox/Logs/topgear_fisheye_previews/
 ```
 
-当前目标参数是：四路相机 `FOV=120°`、`640x480`、`20Hz`；LiDAR `16Hz`、最大距离 `90m`、每帧 `57600` 点完整一圈。实际验收要求是相机至少 `15Hz`，LiDAR 至少 `15Hz`。
+当前目标参数是：四路相机 `Equidistant` 等距鱼眼、`190°` 视角、`640x640`、`20Hz`；CameraInfo 为 `distortion_model=equidistant`、`fx=fy≈192.996px`、`cx=cy=320px`；LiDAR `18Hz`、最大距离 `90m`、每帧 `57600` 点完整一圈。实际验收要求是相机至少 `15Hz`，LiDAR 至少 `15Hz`。
 
-现在四路相机还会额外挂 Unity Post Processing 的 `Lens Distortion`：`intensity=-55`、`scale=1.08`，用于产生更明显的桶形鱼眼畸变。脚本会同时检查 `post_process_layer_set_count=4` 和 `lens_distortion_volume_configured=1`。
+现在四路 ROS 图像由 UnitySensors 官方 `FisheyeCameraSensor.texture0` 经官方 `ImageMsgPublisher` 直接发布，不再使用 `FOV=120° + Lens Distortion` 近似方案，也不再使用自定义重渲染发布器。脚本会同时保存四路 raw 圆形鱼眼图和 `90°` 反校正图，用来检查鱼眼数据是否科学可反校正。
 
 RViz 点云显示配置已调成：`Frame Rate=60`、PointCloud2 `Depth=20`、`Decay Time=1`、点大小 `2px`。这只优化肉眼显示流畅度，真实数据频率仍以 `/vln/lidar/points` 的 ROS2 频率验收为准。
 
-最近一次通过记录：`vln_mesa_topgear_fisheye_sensor_rate_20260824_170436`。实测四路相机约 `20Hz`，LiDAR 约 `16.080Hz`，配置结果确认 LiDAR 最大距离是 `90m`，每帧点数是 `57600`，等于 VLP-16 scan pattern 完整一圈。
+最近一次通过记录：`vln_mesa_topgear_fisheye_sensor_rate_20260826_135154`。实测四路相机约 `19.665/19.831/20.857/19.801Hz`，LiDAR 约 `17.840Hz`；四路 raw 圆形鱼眼和反校正图均通过，结果目录为 `UnityProjects/_SmokeTestLogs/vln_mesa_topgear_fisheye_sensor_rate_20260826_135154/ros2_fisheye_capture/`。
 
 如果 RViz 里看起来还是只有 `5fps`，先不要只看 RViz 面板，直接量真实 topic：
 

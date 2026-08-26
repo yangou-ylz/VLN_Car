@@ -949,3 +949,17 @@
 - RViz：完整一圈点云不再需要长时间残留拼圈，`config/vln_vehicle_sensors.rviz` 和 `config/vln_lidar_pointcloud.rviz` 使用 `Frame Rate=60`、PointCloud2 `Depth=20`、`Decay Time=1`、点大小 `2px`。
 - 验证：`scripts/run_mesa_topgear_fisheye_sensor_rate_smoke_test.sh` 最新通过 run id `vln_mesa_topgear_fisheye_sensor_rate_20260824_170436`，结果文件显示 `lidar_target_frequency_hz=16.0`、`lidar_target_max_range_m=90.0`、`lidar_applied_points_per_scan=57600`、`lidar_scan_pattern_size=57600`，实测 `/vln/lidar/points` 为 `16.080Hz`。
 - 风险控制：只改 LiDAR 数据密度/频率和 RViz 显示，不改 Topgear 传感器位姿、官方外观模型、小车物理、碰撞、控制器或旧 13 点路线。
+
+## 2026-08-26：Mesa Topgear 四路相机改为 UnitySensors 官方真实鱼眼
+
+- 决策：停止使用旧 `FOV=120° + Unity Post Processing Lens Distortion` 近似鱼眼方案，改用 UnitySensors 包内已有 `FisheyeCameraSensor`。四路相机统一为 `Equidistant` 等距鱼眼模型，`view_angle=190°`、`640x640`、`20Hz`；ROS2 图像由 UnitySensors 官方 `ImageMsgPublisher` 直接发布 `FisheyeCameraSensor.texture0`，CameraInfo 发布 `distortion_model=equidistant` 和对应内参。
+- 理由：用户明确要求“UnitySensors 如果本来就有鱼眼摄像头就直接用，不要自己乱编”。`FisheyeCameraSensor` 已内置 UCM/EUCM/DS/KB4/OCAM/Equidistant 等成熟模型，比普通 FOV 或后处理畸变更适合给师兄解释和后续做反校正验证。
+- 实现：`VlnTopgearFisheyeSensorConfig.cs` 现在启用 `FisheyeCameraSensor`，移除旧 `RGBCameraSensor`，停用旧 Lens Distortion 后处理，停用旧 CameraInfo publisher，配置官方 `ImageMsgPublisher` 指向官方鱼眼 sensor，并用 `VlnFisheyeCameraInfoPublisher` 发布等距模型 CameraInfo。Unity AssetDatabase 不能直接把 `Samples~` 官方材质作为场景资产引用，因此工程内保留一份 UnitySensors 官方 `FisheyeCamera` shader 副本和四路独立材质实例；这些材质只服务官方 sensor，不是自写相机模型。
+- 验证：`scripts/run_mesa_topgear_fisheye_sensor_rate_smoke_test.sh` 最新通过 run id `vln_mesa_topgear_fisheye_sensor_rate_20260826_135154`。实测前/后/左/右图像频率约 `19.665/19.831/20.857/19.801Hz`，LiDAR 约 `17.840Hz`；`scripts/ros2_capture_fisheye_images.py` 保存四路 raw 圆形鱼眼和 `90°` 反校正图，报告 `VLN_FISHEYE_CAPTURE_AND_RECTIFY_OK`。
+- 风险控制：本轮只改 Mesa Topgear 当前传感器数据链路、CameraInfo 和验收脚本；不改 Topgear 传感器手动锁定位姿、不改官方 VLP-16/D405 外观模型、不改小车物理、WheelCollider、控制器、Mesa 地形或旧 13 点金标准路线。
+
+## 2026-08-26：Unity 内部相机预览必须直接显示官方鱼眼纹理
+
+- 决策：Unity 内部 `全部相机/前相机/后相机/左相机/右相机` 预览窗口不再用普通 `Camera.Render()` 作为 Mesa Topgear 的显示源，必须优先显示 `FisheyeCameraSensor.texture0`，保证它和 ROS2 `/vln/*/image_raw` 同源。
+- UI 约束：顶部菜单 `VLN -> 手工演示 -> 查看相机图像` 改为直接展开 `rqt / 全部相机 / 前相机 / 后相机 / 左相机 / 右相机`，禁止再为选择相机弹出额外面板或右侧选项栏。
+- 风险控制：本轮只改 Unity Editor 菜单和预览窗口；不改传感器位姿、相机/雷达官方外观模型、ROS2 topic、Mesa 场景、小车物理或自动路线。

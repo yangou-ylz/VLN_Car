@@ -842,3 +842,18 @@
 - 根因：UnitySensors `RaycastLiDARSensor` 每次从 scan pattern 取连续 `pointsNumPerScan` 个方向；当 `pointsNumPerScan=7200` 而 VLP-16 pattern `size=57600` 时，一条 `PointCloud2` 只有 1/8 圈。之前把 RViz `Decay Time` 从 `2` 降到 `0.4`，等于只保留很短的扇区，视觉更差。
 - 修复：Mesa Topgear LiDAR 改为每帧 `57600` 点完整一圈，目标频率 `16Hz`，最大距离 `90m`；RViz `Decay Time` 改为 `1`，不再靠长残留拼圈，也避免 12 秒残留导致点云拖影/负载过高。
 - 验证：`vln_mesa_topgear_fisheye_sensor_rate_20260824_170436` 通过，LiDAR 实测 `16.080Hz`，结果文件确认 `lidar_applied_points_per_scan=57600`、`lidar_scan_pattern_size=57600`。
+
+## 2026-08-26：UnitySensors 官方鱼眼接入后前/后相机出现初始化灰帧
+
+- 现象：从自定义鱼眼发布器切到 UnitySensors 官方 `FisheyeCameraSensor + ImageMsgPublisher` 后，四路相机发布频率达到约 `20Hz`，但 ROS2 采集脚本一开始抓到前/后相机为纯灰图，`corner_black_fraction=0`、`center_std=0`，不满足圆形鱼眼内容验证。
+- 根因：第一轮使用同一个鱼眼材质资产同时挂到四个 `FisheyeCameraSensor`。UnitySensors 的鱼眼 shader 每帧会写 `_WorldTransform`、`_Angle` 等材质参数；四路 sensor 共用材质时，运行时 GPU blit 状态会互相覆盖或读到初始化状态。另一个误判点是采集脚本收到每路 5 帧后立即退出，容易把启动初期灰帧当成最终数据。
+- 修复：为前/后/左/右四个鱼眼 sensor 创建独立材质实例 `Assets/VLN/Materials/TopgearFisheye/VLN_UnitySensors_FisheyeCamera_<view>.mat`，都使用 UnitySensors 官方 `FisheyeCamera` shader；`scripts/ros2_capture_fisheye_images.py` 改为等待每路最新帧都满足圆形鱼眼黑边和中心非均匀内容后才结束。
+- 验证：`scripts/run_mesa_topgear_fisheye_sensor_rate_smoke_test.sh` 最新通过 run id `vln_mesa_topgear_fisheye_sensor_rate_20260826_135154`。四路 raw 鱼眼均为圆形黑边、有真实场景内容；反校正图生成成功；图像频率前/后/左/右约 `19.665/19.831/20.857/19.801Hz`，LiDAR 约 `17.840Hz`。
+- 状态：已修复。后续禁止把四路官方鱼眼 sensor 重新绑定到同一个共享材质，也不要回退到旧 Lens Distortion 或自定义重渲染发布器。
+
+## 2026-08-26：Unity 相机查看菜单仍显示旧透视画面且入口冗余
+
+- 现象：用户从 Unity 顶部 `VLN -> 手工演示 -> 查看相机图像` 打开画面时，看到的仍像旧普通相机画面；同时入口先弹出 `VLN ROS2 演示` 面板，再在里面点相机选项，操作冗余。
+- 根因：`VlnTopgearCameraPreviewWindow` 仍通过普通 `Camera.targetTexture + Camera.Render()` 取预览，这条路径不会经过 UnitySensors 官方 `FisheyeCameraSensor` 的等距鱼眼 shader；`VlnManualDemoLauncherWindow.ViewImageMenu()` 仍把用户带到右侧选项面板。
+- 修复：预览窗口改为优先读取相机对象上的 `FisheyeCameraSensor.texture0`，只有没有鱼眼 sensor 的旧场景才保留普通 Camera fallback；顶部菜单改为 `VLN -> 手工演示 -> 查看相机图像 -> rqt/全部相机/前相机/后相机/左相机/右相机` 直接子菜单，不再打开额外选择面板。
+- 验证：当前打开的大资产工程自动重编译通过，`Editor.log` 显示 `Tundra build success`，并导入 `VlnTopgearCameraPreviewWindow.cs`、`VlnManualDemoLauncherWindow.cs`，未出现 `error CS` 或编译失败。
