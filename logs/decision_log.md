@@ -963,3 +963,23 @@
 - 决策：Unity 内部 `全部相机/前相机/后相机/左相机/右相机` 预览窗口不再用普通 `Camera.Render()` 作为 Mesa Topgear 的显示源，必须优先显示 `FisheyeCameraSensor.texture0`，保证它和 ROS2 `/vln/*/image_raw` 同源。
 - UI 约束：顶部菜单 `VLN -> 手工演示 -> 查看相机图像` 改为直接展开 `rqt / 全部相机 / 前相机 / 后相机 / 左相机 / 右相机`，禁止再为选择相机弹出额外面板或右侧选项栏。
 - 风险控制：本轮只改 Unity Editor 菜单和预览窗口；不改传感器位姿、相机/雷达官方外观模型、ROS2 topic、Mesa 场景、小车物理或自动路线。
+
+## 2026-08-26：Topgear 上装、LiDAR 和四路相机绑定为可手动保存整体
+
+- 决策：用户需要在 Unity Scene 视图中手动调整 Topgear 上装整体安装角度/前后位置，但不希望重新调整已经验收的 LiDAR 和四路相机局部位置。因此新增整体节点 `VLN_Topgear_UpperAssembly_UserAdjustableRoot`，把 `ScoutWheelGround_TopgearV2Visual` 和 `ScoutWheelGround_TopgearSensorSuite` 共同挂到该节点下。
+- 保存：Unity 菜单新增 `VLN -> Topgear 上装整体微调 -> 绑定上装和传感器为整体 / 选中上装整体 / 保存当前小车模型`。保存会写入 `config/topgear_upper_assembly_user_locked.json`，同时调用世界模型保存机制写入当前 Mesa Topgear 场景，并更新 `config/world_model_current_save.json` 做 marker + SHA 校验，避免“前端显示成功但下次打开仍是旧模型”。
+- 自动应用：`mesa_topgear` 打开入口现在会先应用当前鱼眼/雷达配置，再应用 `config/topgear_upper_assembly_user_locked.json` 中的上装整体保存基线；如果将来强制重建 Mesa Topgear 候选场景，也会在最终保存前尝试恢复该整体基线。
+- 风险控制：本轮只改变上装视觉和传感器 rig 的父子层级与可保存 transform；不改底盘、轮子、Rigidbody、WheelCollider、车辆动力学、Mesa 物理材质、旧 13 点路线，也不重新计算单个传感器位姿。
+
+## 2026-08-26：Topgear 白色信号器只做可行性审计，不删除
+
+- 结论：`topgear_v2.dae` 的上装主体导入为一个 `topgear_v2-mesh`，不是独立的多个 GameObject；但 mesh 内部按材质分为 `other/screen/cover/iron/gps/plugin` 六个材质 submesh。白色信号器的圆盘主体高度集中在 `gps-material`，包围盒约 `0.153 x 0.153 x 0.062`，立杆/连接白件主要落在 `iron-material`，因此可以通过材质/submesh 抽离、隐藏或重新导出 mesh 来处理。
+- 风险：`iron-material` 不一定只包含信号器立杆，直接整材质隐藏可能误伤其它白色支架；如果下一步真的去掉信号器，应先生成预览或复制 mesh 后按空间包围盒裁剪，不直接改原始 `topgear_v2.dae`。
+- 状态：本轮没有删除、隐藏或改动白色信号器，只完成可行性判断。
+
+## 2026-08-26：四路真实相机数据位姿与 D405 视觉模型解耦
+
+- 决策：Unity 的 `Camera/FisheyeCameraSensor/ImageMsgPublisher` 组件本身没有独立 Transform；如果组件和 D405 视觉 mesh 在同一相机 GameObject 层级下，拖动真实相机必然带着视觉模型一起走。因此新增直接菜单 `VLN -> Topgear 相机数据位姿微调`，把四个 D405 视觉模型移到独立根 `VLN_Topgear_CameraVisuals_UserLockedRoot`，真实数据相机仍保留 `Topgear_Front/Rear/Left/Right_RGBCamera_UnitySensorsROS` 原名和原 topic。
+- 保存：用户调整四路真实数据相机后，点击 `保存当前四路真实相机位姿` 会写入 `config/topgear_camera_data_pose_user_locked.json`，并调用世界模型保存机制真实保存 Mesa Topgear 场景；同时更新上装整体保存，避免旧上装层级恢复时覆盖解耦后的视觉树。
+- 自动应用：`mesa_topgear` 打开/强制重建时，会在应用上装整体基线之后应用四路真实相机数据位姿，保证下次加载的 ROS 图像采集点等于用户上次保存的位置。
+- 风险控制：本轮不改四路相机 topic、CameraInfo frame、UnitySensors 官方鱼眼模型、D405 官方视觉 mesh、LiDAR、车体物理、WheelCollider、Mesa 地形或旧 13 点路线。

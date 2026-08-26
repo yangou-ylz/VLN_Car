@@ -71,6 +71,88 @@ VLN -> 更改世界模型 -> 保存本次世界
 
 希望看到 `VLN_WORLD_MODEL_MANUAL_SAVE_CHECK_PASS`。如果没保存过，它会提示没有保存记录，这是正常的。
 
+## Topgear 上装整体微调
+
+用于只调整 Topgear 上装、16 线雷达和四路相机的整体安装位置/角度；不改变底盘、轮子、Rigidbody、WheelCollider 或动力学参数。
+
+先打开当前主线小车场景：
+
+```bash
+./scripts/open_high_precision_world_model.sh --scene mesa_topgear
+```
+
+在 Unity 里保持 Edit 模式，不要点击 Play。先点菜单把上装和传感器绑定成一个整体：
+
+```text
+VLN -> Topgear 上装整体微调 -> 绑定上装和传感器为整体
+```
+
+之后点下面这个菜单会选中整体节点，Scene 视图里直接拖动/旋转它即可：
+
+```text
+VLN -> Topgear 上装整体微调 -> 选中上装整体
+```
+
+需要拖动的对象名是：
+
+```text
+VLN_Topgear_UpperAssembly_UserAdjustableRoot
+```
+
+调整满意后点击保存：
+
+```text
+VLN -> Topgear 上装整体微调 -> 保存当前小车模型
+```
+
+保存会同时写入 `config/topgear_upper_assembly_user_locked.json` 和当前 Mesa Topgear 场景文件；以后再用 `./scripts/open_high_precision_world_model.sh --scene mesa_topgear` 打开，会自动应用这份上装整体保存基线。
+
+注意：不要单独拖四个相机或雷达，除非你明确要重新做传感器局部位置；正常只拖 `VLN_Topgear_UpperAssembly_UserAdjustableRoot`。
+
+## Topgear 真实相机数据位姿微调
+
+用于保持四个 RealSense D405 视觉模型不动，只单独移动真正采集 `/vln/front|rear|left|right/image_raw` 的四路鱼眼相机传感器。
+
+先打开当前主线小车场景，并保持 Edit 模式，不要点 Play：
+
+```bash
+./scripts/open_high_precision_world_model.sh --scene mesa_topgear
+```
+
+先执行一次解耦：
+
+```text
+VLN -> Topgear 相机数据位姿微调 -> 解耦视觉模型和真实相机
+```
+
+之后用下面菜单选中要调整的真实数据相机，然后在 Scene 视图里拖动/旋转：
+
+```text
+VLN -> Topgear 相机数据位姿微调 -> 选中前真实相机
+VLN -> Topgear 相机数据位姿微调 -> 选中后真实相机
+VLN -> Topgear 相机数据位姿微调 -> 选中左真实相机
+VLN -> Topgear 相机数据位姿微调 -> 选中右真实相机
+```
+
+这些对象仍然叫：
+
+```text
+Topgear_Front_RGBCamera_UnitySensorsROS
+Topgear_Rear_RGBCamera_UnitySensorsROS
+Topgear_Left_RGBCamera_UnitySensorsROS
+Topgear_Right_RGBCamera_UnitySensorsROS
+```
+
+调整满意后保存：
+
+```text
+VLN -> Topgear 相机数据位姿微调 -> 保存当前四路真实相机位姿
+```
+
+保存会写入 `config/topgear_camera_data_pose_user_locked.json`，并真实保存当前 Mesa Topgear 场景。以后再打开 `mesa_topgear`，会自动先恢复上装整体，再恢复这四路真实相机数据位姿。
+
+注意：这个功能只改变真实图像采集点；D405 可见模型会留在原来的安装位置。如果想重新改可见模型位置，用上面的“Topgear 上装整体微调”，不要用这个菜单。
+
 ## Mesa Topgear 问题坡录制
 
 用于记录“小车在某个坡、沟、岩壁或障碍处卡住/打滑/浮空/穿模”的连续动态过程。

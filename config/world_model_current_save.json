@@ -1,12 +1,12 @@
 ﻿{
   "schema": "vln_world_model_manual_save_v1",
   "status": "verified_saved_to_disk",
-  "saved_at_utc": "2026-08-26T06:47:06.2910140Z",
+  "saved_at_utc": "2026-08-26T08:52:52.4384310Z",
   "scene_path": "Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity",
   "absolute_scene_path": "/home/ubuntu22/VLN/UnityProjects/VLN_Offroad_LargeAssetSandbox/Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity",
-  "save_marker": "VLN_WorldManualSaveMarker_20260826_064706_291",
-  "scene_file_size_bytes": 25838719,
-  "scene_sha256": "c0bff19c8fbda5f881e6316d1fc1b93e07c5daf5fafaecb27772f02e5683b300",
+  "save_marker": "VLN_WorldManualSaveMarker_20260826_085252_438",
+  "scene_file_size_bytes": 25841184,
+  "scene_sha256": "4314a418a9e132a9f32c156076717408f0ed34f2e3fa87c8f820bbfb7f8008f6",
   "next_open_command": "cd /home/ubuntu22/VLN && ./scripts/open_high_precision_world_model.sh --scene mesa_topgear",
   "note": "This file is written only after the Unity scene file contains the matching save marker. Rebuild scripts must not overwrite this scene unless explicitly forced."
 }

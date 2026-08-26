@@ -1,0 +1,408 @@
+﻿{
+    "schema": "vln_topgear_upper_assembly_user_locked_v1",
+    "savedAtUtc": "2026-08-26T08:30:40.9940070Z",
+    "scenePath": "Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity",
+    "assemblyRootName": "VLN_Topgear_UpperAssembly_UserAdjustableRoot",
+    "note": "User-adjusted Topgear upper assembly. This stores only the visual upper module and sensor rig hierarchy; chassis, wheels, Rigidbody, WheelColliders and vehicle dynamics are not changed.",
+    "transforms": [
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot",
+            "name": "VLN_Topgear_UpperAssembly_UserAdjustableRoot",
+            "localPosition": {
+                "x": 0.006000000052154064,
+                "y": 0.11800134181976319,
+                "z": -0.10400000214576721
+            },
+            "localEulerAngles": {
+                "x": 270.0,
+                "y": 1.1776303052902222,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 0.9999997615814209,
+                "y": 0.9999998807907105,
+                "z": 0.9999998807907105
+            }
+        },
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot/ScoutWheelGround_TopgearV2Visual",
+            "name": "ScoutWheelGround_TopgearV2Visual",
+            "localPosition": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": -4.0711089555924007e-13
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot/ScoutWheelGround_TopgearSensorSuite",
+            "name": "ScoutWheelGround_TopgearSensorSuite",
+            "localPosition": {
+                "x": 0.00001694646016403567,
+                "y": -0.004241347778588533,
+                "z": -0.3702736496925354
+            },
+            "localEulerAngles": {
+                "x": 270.0,
+                "y": 180.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot/ScoutWheelGround_TopgearSensorSuite/Topgear_VLP16_RaycastLiDAR_UnitySensorsROS",
+            "name": "Topgear_VLP16_RaycastLiDAR_UnitySensorsROS",
+            "localPosition": {
+                "x": 0.002099999925121665,
+                "y": 0.841999888420105,
+                "z": 0.009700000286102295
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 266.9234313964844,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot/ScoutWheelGround_TopgearSensorSuite/Topgear_VLP16_RaycastLiDAR_UnitySensorsROS/Velodyne_VLP16_OfficialMesh",
+            "name": "Velodyne_VLP16_OfficialMesh",
+            "localPosition": {
+                "x": -0.005379624664783478,
+                "y": -0.03699982166290283,
+                "z": -3.725290298461914e-9
+            },
+            "localEulerAngles": {
+                "x": 270.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 0.8823860883712769,
+                "y": 0.9651579260826111,
+                "z": 1.059409737586975
+            }
+        },
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot/ScoutWheelGround_TopgearSensorSuite/Topgear_VLP16_RaycastLiDAR_UnitySensorsROS/Velodyne_VLP16_OfficialMesh/VLP16_base_1",
+            "name": "VLP16_base_1",
+            "localPosition": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot/ScoutWheelGround_TopgearSensorSuite/Topgear_VLP16_RaycastLiDAR_UnitySensorsROS/Velodyne_VLP16_OfficialMesh/VLP16_scan",
+            "name": "VLP16_scan",
+            "localPosition": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot/ScoutWheelGround_TopgearSensorSuite/Topgear_VLP16_RaycastLiDAR_UnitySensorsROS/Velodyne_VLP16_OfficialMesh/VLP16_base_2",
+            "name": "VLP16_base_2",
+            "localPosition": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot/ScoutWheelGround_TopgearSensorSuite/Topgear_Front_RGBCamera_UnitySensorsROS",
+            "name": "Topgear_Front_RGBCamera_UnitySensorsROS",
+            "localPosition": {
+                "x": -0.003485220717266202,
+                "y": 0.768902063369751,
+                "z": -0.05042374134063721
+            },
+            "localEulerAngles": {
+                "x": 6.441656112670898,
+                "y": 178.10716247558595,
+                "z": 359.59149169921877
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot/ScoutWheelGround_TopgearSensorSuite/Topgear_Rear_RGBCamera_UnitySensorsROS",
+            "name": "Topgear_Rear_RGBCamera_UnitySensorsROS",
+            "localPosition": {
+                "x": -0.000018036593246506527,
+                "y": 0.7430001497268677,
+                "z": 0.2920205593109131
+            },
+            "localEulerAngles": {
+                "x": 357.5224304199219,
+                "y": 2.100072145462036,
+                "z": 0.4868285059928894
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot/ScoutWheelGround_TopgearSensorSuite/Topgear_Left_RGBCamera_UnitySensorsROS",
+            "name": "Topgear_Left_RGBCamera_UnitySensorsROS",
+            "localPosition": {
+                "x": 0.10179340839385987,
+                "y": 0.7902986407279968,
+                "z": 0.010896801948547364
+            },
+            "localEulerAngles": {
+                "x": 0.0000060220381783437919,
+                "y": 84.0261001586914,
+                "z": -0.0000016761312053859
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot/ScoutWheelGround_TopgearSensorSuite/Topgear_Right_RGBCamera_UnitySensorsROS",
+            "name": "Topgear_Right_RGBCamera_UnitySensorsROS",
+            "localPosition": {
+                "x": -0.09299679845571518,
+                "y": 0.7820017337799072,
+                "z": 0.001998007297515869
+            },
+            "localEulerAngles": {
+                "x": -0.000006144551662146114,
+                "y": 271.2333984375,
+                "z": -0.000001269311496798764
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot/VLN_Topgear_CameraVisuals_UserLockedRoot",
+            "name": "VLN_Topgear_CameraVisuals_UserLockedRoot",
+            "localPosition": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot/VLN_Topgear_CameraVisuals_UserLockedRoot/Front_RealSense_D405_SquareStereoVisual",
+            "name": "Front_RealSense_D405_SquareStereoVisual",
+            "localPosition": {
+                "x": -0.0059733279049396519,
+                "y": 0.2917633652687073,
+                "z": 0.4706268608570099
+            },
+            "localEulerAngles": {
+                "x": 270.0,
+                "y": 180.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot/VLN_Topgear_CameraVisuals_UserLockedRoot/Front_RealSense_D405_SquareStereoVisual/RealSense_D405_OfficialStlBody",
+            "name": "RealSense_D405_OfficialStlBody",
+            "localPosition": {
+                "x": -0.006300000008195639,
+                "y": -0.05999999865889549,
+                "z": -0.22089999914169312
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot/VLN_Topgear_CameraVisuals_UserLockedRoot/Rear_RealSense_D405_SquareStereoVisual",
+            "name": "Rear_RealSense_D405_SquareStereoVisual",
+            "localPosition": {
+                "x": 0.000019775301552726887,
+                "y": -0.04523042216897011,
+                "z": 0.352726012468338
+            },
+            "localEulerAngles": {
+                "x": 90.0,
+                "y": 0.000008753779184189625,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot/VLN_Topgear_CameraVisuals_UserLockedRoot/Rear_RealSense_D405_SquareStereoVisual/RealSense_D405_OfficialStlBody",
+            "name": "RealSense_D405_OfficialStlBody",
+            "localPosition": {
+                "x": 0.00279999990016222,
+                "y": 0.05790000036358833,
+                "z": 0.025800000876188279
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot/VLN_Topgear_CameraVisuals_UserLockedRoot/Left_RealSense_D405_SquareStereoVisual",
+            "name": "Left_RealSense_D405_SquareStereoVisual",
+            "localPosition": {
+                "x": 0.05004033073782921,
+                "y": 0.07277155667543411,
+                "z": 0.352726012468338
+            },
+            "localEulerAngles": {
+                "x": -0.000010245284101983998,
+                "y": 90.0,
+                "z": 90.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot/VLN_Topgear_CameraVisuals_UserLockedRoot/Left_RealSense_D405_SquareStereoVisual/RealSense_D405_OfficialStlBody",
+            "name": "RealSense_D405_OfficialStlBody",
+            "localPosition": {
+                "x": -0.0723000019788742,
+                "y": 0.05739999935030937,
+                "z": 0.0210999995470047
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot/VLN_Topgear_CameraVisuals_UserLockedRoot/Right_RealSense_D405_SquareStereoVisual",
+            "name": "Right_RealSense_D405_SquareStereoVisual",
+            "localPosition": {
+                "x": -0.04999331012368202,
+                "y": 0.07274676114320755,
+                "z": 0.352726012468338
+            },
+            "localEulerAngles": {
+                "x": 0.000010245284101983998,
+                "y": 270.0,
+                "z": 270.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "path": "VLN_Topgear_UpperAssembly_UserAdjustableRoot/VLN_Topgear_CameraVisuals_UserLockedRoot/Right_RealSense_D405_SquareStereoVisual/RealSense_D405_OfficialStlBody",
+            "name": "RealSense_D405_OfficialStlBody",
+            "localPosition": {
+                "x": 0.07069999724626541,
+                "y": 0.057100001722574237,
+                "z": 0.02019999921321869
+            },
+            "localEulerAngles": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        }
+    ]
+}

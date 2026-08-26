@@ -1,0 +1,85 @@
+﻿{
+    "schema": "vln_topgear_camera_data_pose_user_locked_v1",
+    "savedAtUtc": "2026-08-26T08:30:40.9891870Z",
+    "scenePath": "Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity",
+    "sensorRootName": "ScoutWheelGround_TopgearSensorSuite",
+    "note": "User-adjusted capture/data poses for the four Topgear fisheye cameras. RealSense D405 visual meshes are decoupled and kept at their visual installation poses.",
+    "cameras": [
+        {
+            "role": "front",
+            "name": "Topgear_Front_RGBCamera_UnitySensorsROS",
+            "localPosition": {
+                "x": -0.003485220717266202,
+                "y": 0.768902063369751,
+                "z": -0.05042374134063721
+            },
+            "localEulerAngles": {
+                "x": 6.441656112670898,
+                "y": 178.10716247558595,
+                "z": 359.59149169921877
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "role": "rear",
+            "name": "Topgear_Rear_RGBCamera_UnitySensorsROS",
+            "localPosition": {
+                "x": -0.000018036593246506527,
+                "y": 0.7430001497268677,
+                "z": 0.2920205593109131
+            },
+            "localEulerAngles": {
+                "x": 357.5224304199219,
+                "y": 2.100072145462036,
+                "z": 0.4868285059928894
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "role": "left",
+            "name": "Topgear_Left_RGBCamera_UnitySensorsROS",
+            "localPosition": {
+                "x": 0.10179340839385987,
+                "y": 0.7902986407279968,
+                "z": 0.010896801948547364
+            },
+            "localEulerAngles": {
+                "x": 0.0000060220381783437919,
+                "y": 84.0261001586914,
+                "z": -0.0000016761312053859
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        },
+        {
+            "role": "right",
+            "name": "Topgear_Right_RGBCamera_UnitySensorsROS",
+            "localPosition": {
+                "x": -0.09299679845571518,
+                "y": 0.7820017337799072,
+                "z": 0.001998007297515869
+            },
+            "localEulerAngles": {
+                "x": -0.000006144551662146114,
+                "y": 271.2333984375,
+                "z": -0.000001269311496798764
+            },
+            "localScale": {
+                "x": 1.0,
+                "y": 1.0,
+                "z": 1.0
+            }
+        }
+    ]
+}
