@@ -1,7 +1,0 @@
-# 当前阶段不需要 Python 运行依赖。
-#
-# 重要约束：
-# - 禁止直接在全局 Python、Conda base 或 ROS2 原生环境中 pip install。
-# - 如果后续确实需要 Python 包，必须先获得用户确认。
-# - 优先创建独立虚拟环境，例如：python3 -m venv .venv_vln_tools。
-# - 新增依赖后必须同步更新 env.md，写清楚用途、版本、安装命令和验证命令。

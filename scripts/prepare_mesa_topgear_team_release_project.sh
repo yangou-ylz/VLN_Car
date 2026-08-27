@@ -115,6 +115,15 @@ rsync -a "$SOURCE_PROJECT/Assets/VLN" "$RELEASE_PROJECT/Assets/"
 if [[ -f "$SOURCE_PROJECT/Assets/VLN.meta" ]]; then
   rsync -a "$SOURCE_PROJECT/Assets/VLN.meta" "$RELEASE_PROJECT/Assets/"
 fi
+
+if [[ -d "$RELEASE_PROJECT/Assets/VLN/Scenes" ]]; then
+  find "$RELEASE_PROJECT/Assets/VLN/Scenes" -maxdepth 1 -type f \
+    \( -name '*.unity' -o -name '*.unity.meta' \) \
+    ! -name 'VLNMesaDesertTopgearVehicleCandidate.unity' \
+    ! -name 'VLNMesaDesertTopgearVehicleCandidate.unity.meta' \
+    -delete
+fi
+
 rsync -a "$SOURCE_PROJECT/Assets/Resources" "$RELEASE_PROJECT/Assets/"
 if [[ -f "$SOURCE_PROJECT/Assets/Resources.meta" ]]; then
   rsync -a "$SOURCE_PROJECT/Assets/Resources.meta" "$RELEASE_PROJECT/Assets/"
@@ -134,7 +143,7 @@ $TARGET_SCENE
 Open from repository root:
 
 \`\`\`bash
-./scripts/open_mesa_topgear_team_release_project.sh
+./scripts/open_high_precision_world_model.sh --scene mesa_topgear
 \`\`\`
 
 This folder is a local/team asset deliverable. Do not commit it to normal Git history.
@@ -172,7 +181,7 @@ manifest = {
         "Packages",
         "ProjectSettings"
     ],
-    "excluded_worlds": ["PureNature_Oasis", "Meadow Environment Dynamic Nature", "ForestLake"]
+    "team_open_command": "./scripts/open_high_precision_world_model.sh --scene mesa_topgear"
 }
 (root / "VLN_MESA_TOPGEAR_TEAM_RELEASE_MANIFEST.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 print("release_file_count=" + str(count))
@@ -184,4 +193,4 @@ echo "VLN_MESA_TOPGEAR_TEAM_RELEASE_READY"
 echo "release_project=$RELEASE_PROJECT"
 echo "target_scene=$TARGET_SCENE"
 echo "next_check=$VLN_ROOT/scripts/check_mesa_topgear_team_release_project.sh"
-echo "next_open=$VLN_ROOT/scripts/open_mesa_topgear_team_release_project.sh"
+echo "next_open=$VLN_ROOT/scripts/open_high_precision_world_model.sh --scene mesa_topgear"

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Read-only repository release checklist for the Mesa Topgear team handoff.
+# Read-only repository release checklist for the public Mesa Topgear handoff.
 
 set -euo pipefail
 
@@ -31,7 +31,7 @@ pass() { printf '[PASS] %s\n' "$1"; }
 warn() { printf '[WARN] %s\n' "$1"; warn_count=$((warn_count + 1)); }
 fail() { printf '[FAIL] %s\n' "$1"; fail_count=$((fail_count + 1)); }
 
-echo "== VLN Mesa Topgear 仓库发布检查 =="
+echo "== VLN Mesa Topgear 公开仓库检查 =="
 echo "repo=$VLN_ROOT"
 
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -58,7 +58,7 @@ max_bytes=$((50 * 1024 * 1024))
 
 while IFS= read -r -d '' path; do
   case "$path" in
-    VLN_ASSETS_CACHE/*|VLN_REFERENCE_LIBRARY/*|VLN_BAGS/*|VLN_RECORDINGS/*|.runtime/*|UnityEditors/*|unity_ros2_ws/*|UnityProjects/VLN_Offroad_LargeAssetSandbox/*|UnityProjects/*/Library/*|UnityProjects/*/Temp/*|UnityProjects/*/Logs/*|*.unitypackage|*.assetpackage|*.bag|*.db3|*.mcap|*.pcd|*.ply|*.las|*.laz|*.tar.xz|Unity-*.tar.xz|config/world_model_current_save.json)
+    AGENTS.md|CURRENT_STATE.md|PROJECT_MEMORY.md|env.md|workflow.md|user.md|study.md|logs/*|docs/asset_*|docs/*_workflow.md|docs/*_smoke_test.md|docs/workflow_research.md|docs/reference_sources.md|docs/hardware_assessment.md|docs/manual_visualization_guide.md|docs/technology_route.md|docs/vehicle_asset_candidates.md|scripts/run_*|scripts/check_high_precision_*|scripts/check_manual_*|scripts/check_standardized_*|scripts/check_unity_*|scripts/check_vln_*|scripts/check_world_model_*|scripts/analyze_*|scripts/inspect_*|scripts/rank_*|scripts/record_*|scripts/replay_*|scripts/report_*|scripts/scan_*|scripts/download_*|scripts/fetch_*|scripts/stage_*|scripts/rebuild_*|scripts/*smoke*|VLN_ASSETS_CACHE/*|VLN_REFERENCE_LIBRARY/*|VLN_BAGS/*|VLN_RECORDINGS/*|.runtime/*|UnityEditors/*|unity_ros2_ws/*|UnityProjects/VLN_Offroad/*|UnityProjects/VLN_Offroad_LargeAssetSandbox/*|UnityProjects/*/Library/*|UnityProjects/*/Temp/*|UnityProjects/*/Logs/*|*.unitypackage|*.assetpackage|*.bag|*.db3|*.mcap|*.pcd|*.ply|*.las|*.laz|*.tar.xz|Unity-*.tar.xz|config/world_model_current_save.json)
       blocked+=("$path")
       ;;
   esac
@@ -85,30 +85,37 @@ else
   printf '  %s\n' "${large[@]}" | sort -nr | sed 's/^/  /'
 fi
 
-if [[ -f UnityProjects/VLN_Offroad/ProjectSettings/ProjectVersion.txt ]] && grep -q '2022.3.62f1' UnityProjects/VLN_Offroad/ProjectSettings/ProjectVersion.txt; then
-  pass "主 Unity 工程版本锁定为 2022.3.62f1。"
+release_project="UnityProjects/VLN_MesaTopgear_TeamRelease"
+if [[ -f "$release_project/ProjectSettings/ProjectVersion.txt" ]] && grep -q '2022.3.62f1' "$release_project/ProjectSettings/ProjectVersion.txt"; then
+  pass "本机 Mesa Topgear 发布工程版本为 2022.3.62f1。"
+elif [[ -d "$release_project" ]]; then
+  fail "本机 Mesa Topgear 发布工程版本不是 2022.3.62f1。"
 else
-  fail "未确认主 Unity 工程版本为 2022.3.62f1。"
+  pass "Unity 发布工程由资产包分发，Git 仓库不直接追踪 Unity 工程。"
 fi
 
-manifest="UnityProjects/VLN_Offroad/Packages/manifest.json"
+manifest="$release_project/Packages/manifest.json"
 if [[ -f "$manifest" ]] \
   && grep -q 'com.unity.robotics.ros-tcp-connector' "$manifest" \
   && grep -q 'com.frj.unity-sensors' "$manifest" \
   && grep -q 'com.frj.unity-sensors-ros' "$manifest"; then
-  pass "Unity ROS/传感器 UPM 依赖在 manifest 中。"
+  pass "本机 Mesa Topgear 发布工程包含 Unity ROS/传感器 UPM 依赖。"
+elif [[ -d "$release_project" ]]; then
+  fail "本机 Mesa Topgear 发布工程 manifest 缺少 ROS-TCP-Connector 或 UnitySensors 依赖。"
 else
-  fail "Unity manifest 缺少 ROS-TCP-Connector 或 UnitySensors 依赖。"
+  pass "Unity manifest 位于发布资产包中，Git 仓库不直接追踪。"
 fi
 
 required_scripts=(
   scripts/setup_ros_tcp_endpoint_workspace.sh
   scripts/start_ros_tcp_endpoint.sh
-  scripts/open_mesa_topgear_team_release_project.sh
   scripts/prepare_mesa_topgear_team_release_project.sh
   scripts/check_mesa_topgear_team_release_project.sh
   scripts/package_mesa_topgear_team_release_project.sh
+  scripts/open_high_precision_world_model.sh
+  scripts/open_unity_large_asset_sandbox_project.sh
   scripts/start_mesa_topgear_local_keyboard_control.sh
+  scripts/local_keyboard_cmd_vel_control.py
   scripts/view_all_camera_images.sh
   scripts/view_vln_vehicle_rviz.sh
   scripts/check_repo_release_readiness.sh
@@ -132,6 +139,30 @@ if [[ -f docs/team_environment_setup.md ]] && grep -q 'mesa_topgear' docs/team_e
   pass "Mesa Topgear 团队部署文档存在。"
 else
   fail "缺少 Mesa Topgear 团队部署文档，或文档未指向当前主线交付工程。"
+fi
+
+required_configs=(
+  config/mesa_topgear_vehicle_candidate.json
+  config/topgear_camera_data_pose_user_locked.json
+  config/topgear_sensor_hierarchy_user_locked.json
+  config/topgear_sensor_pose_user_locked.json
+  config/topgear_upper_assembly_user_locked.json
+  config/vln_lidar_pointcloud.rviz
+  config/vln_vehicle_sensors.rviz
+)
+
+missing_configs=()
+for config_path in "${required_configs[@]}"; do
+  if [[ ! -f "$config_path" ]]; then
+    missing_configs+=("$config_path")
+  fi
+done
+
+if (( ${#missing_configs[@]} == 0 )); then
+  pass "Mesa Topgear 必要配置文件存在。"
+else
+  fail "缺少 Mesa Topgear 必要配置文件："
+  printf '  %s\n' "${missing_configs[@]}"
 fi
 
 echo "== tracked 文件体量 Top 10 =="

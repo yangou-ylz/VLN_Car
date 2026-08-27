@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
 
-# 阶段 21 高精世界模型统一打开入口。
-# 推荐用法：./scripts/open_high_precision_world_model.sh --scene mesa_desert [Unity 额外参数]
+# 高精世界模型统一打开入口。
+# 推荐用法：./scripts/open_high_precision_world_model.sh --scene mesa_topgear [Unity 额外参数]
 
 set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VLN_ROOT="${VLN_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
-PROJECT_DIR="${VLN_LARGE_ASSET_PROJECT:-$VLN_ROOT/UnityProjects/VLN_Offroad_LargeAssetSandbox}"
+DEFAULT_PROJECT_DIR="$VLN_ROOT/UnityProjects/VLN_Offroad_LargeAssetSandbox"
+TEAM_RELEASE_PROJECT_DIR="${VLN_MESA_TOPGEAR_RELEASE_PROJECT:-$VLN_ROOT/UnityProjects/VLN_MesaTopgear_TeamRelease}"
+PROJECT_DIR="${VLN_LARGE_ASSET_PROJECT:-$DEFAULT_PROJECT_DIR}"
+PROJECT_DIR_EXPLICIT=0
+if [ -n "${VLN_LARGE_ASSET_PROJECT:-}" ]; then
+  PROJECT_DIR_EXPLICIT=1
+fi
 
 is_auto_registered_scene_asset() {
   local asset_path="$1"
@@ -55,10 +61,10 @@ resolve_direct_scene_asset() {
 usage() {
   cat <<'EOF'
 用法：
+  ./scripts/open_high_precision_world_model.sh --scene mesa_topgear
   ./scripts/open_high_precision_world_model.sh --scene mesa_desert
   ./scripts/open_high_precision_world_model.sh --scene oasis_desert
   ./scripts/open_high_precision_world_model.sh --scene mesa_oasis
-  ./scripts/open_high_precision_world_model.sh --scene mesa_topgear
   ./scripts/open_high_precision_world_model.sh --scene mesa_topgear_vehicle_visual
   ./scripts/open_high_precision_world_model.sh --scene meadow_forest
   ./scripts/open_high_precision_world_model.sh --scene forest_lake
@@ -66,10 +72,10 @@ usage() {
   ./scripts/open_high_precision_world_model.sh --scene Assets/VLN/Scenes/VLNNewWorldCandidate.unity
 
 参数说明：
+  --scene mesa_topgear     打开 Mesa + Topgear 真实物理车场景。团队部署默认使用这一项。
   --scene mesa_desert      打开 Mesa Desert 独立场景
   --scene oasis_desert     打开 Oasis Desert 独立场景
   --scene mesa_oasis       打开 Mesa+Oasis 融合场景
-  --scene mesa_topgear     打开 Mesa + Topgear 真实物理车候选场景
   --scene mesa_topgear_vehicle_visual 打开 Mesa + Topgear 小车视觉增强候选场景，不改原 mesa_topgear
   --scene meadow_forest    打开 Meadow Dynamic Nature 湖泊树林/草甸场景
   --scene forest_lake      打开 ForestLake 湖边村庄/森林湖泊场景
@@ -121,13 +127,23 @@ case "$1" in
     ;;
 esac
 
+WORLD_KEY="$(printf '%s' "$WORLD_ARG" | tr '[:upper:]' '[:lower:]')"
+
+case "$WORLD_KEY" in
+  first-topgear|first_topgear|mesa-topgear|mesa_topgear|mesa-vehicle|mesa_vehicle|topgear-mesa|topgear_mesa|车载mesa|第一套小车)
+    if [ "$PROJECT_DIR_EXPLICIT" -eq 0 ] && [ ! -d "$PROJECT_DIR" ] && [ -d "$TEAM_RELEASE_PROJECT_DIR" ]; then
+      PROJECT_DIR="$TEAM_RELEASE_PROJECT_DIR"
+    fi
+    ;;
+esac
+
 if [ ! -d "$PROJECT_DIR" ]; then
-  echo "未找到大资产副本工程：$PROJECT_DIR"
-  echo "请先运行：$VLN_ROOT/scripts/prepare_high_precision_large_asset_sandbox_project.sh"
+  echo "未找到 Unity 工程：$PROJECT_DIR"
+  echo "团队部署请先解压 Mesa Topgear 发布包到：$TEAM_RELEASE_PROJECT_DIR"
+  echo "开发机如需打开大资产工程，请确认：$DEFAULT_PROJECT_DIR"
   exit 1
 fi
 
-WORLD_KEY="$(printf '%s' "$WORLD_ARG" | tr '[:upper:]' '[:lower:]')"
 DIRECT_SCENE_ASSET=""
 case "$WORLD_KEY" in
   first|1|mesa|mesa-desert|mesa_desert|pure-nature-mesa|pure_nature_mesa|第一套)
@@ -157,6 +173,12 @@ case "$WORLD_KEY" in
     REQUIRED_SCENE="$PROJECT_DIR/Assets/VLN/Scenes/VLNMesaDesertRouteCandidate.unity"
     TARGET_SCENE="$PROJECT_DIR/Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity"
     METHOD="VLN.Editor.VlnMesaTopgearVehicleCandidateBuilder.OpenCandidateForManualReview"
+    if [ "$PROJECT_DIR" = "$TEAM_RELEASE_PROJECT_DIR" ]; then
+      LABEL="Mesa Topgear 团队发布场景"
+      REQUIRED_SCENE="$TARGET_SCENE"
+      METHOD="VLN.Editor.VlnWorldModelManualSaveWindow.OpenRegisteredSceneFromCommandLine"
+      DIRECT_SCENE_ASSET="Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity"
+    fi
     ;;
   mesa-topgear-vehicle-visual|mesa_topgear_vehicle_visual|topgear-vehicle-visual|topgear_vehicle_visual|vehicle-visual|vehicle_visual|小车视觉增强)
     MODEL_ID="mesa_topgear_vehicle_visual"
@@ -216,6 +238,6 @@ if [ -n "$DIRECT_SCENE_ASSET" ]; then
   UNITY_ARGS+=(--vln-open-scene "$DIRECT_SCENE_ASSET")
 fi
 
-exec "$VLN_ROOT/scripts/open_unity_large_asset_sandbox_project.sh" \
+VLN_LARGE_ASSET_PROJECT="$PROJECT_DIR" exec "$VLN_ROOT/scripts/open_unity_large_asset_sandbox_project.sh" \
   "${UNITY_ARGS[@]}" \
   "$@"

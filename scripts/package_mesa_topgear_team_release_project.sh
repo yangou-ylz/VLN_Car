@@ -79,7 +79,7 @@ package=$archive
 sha256_file=$sha_file
 release_project=$RELEASE_PROJECT
 generated_at=$(date -Iseconds)
-open_command=./scripts/open_mesa_topgear_team_release_project.sh
+open_command=./scripts/open_high_precision_world_model.sh --scene mesa_topgear
 check_command=./scripts/check_mesa_topgear_team_release_project.sh
 EOF
 
