@@ -60,6 +60,23 @@ for path in "${excluded_paths[@]}"; do
   fi
 done
 
+if [[ -d "$RELEASE_PROJECT/Assets/VLN/Scenes" ]]; then
+  unexpected_scenes=()
+  while IFS= read -r scene_path; do
+    scene_name="$(basename "$scene_path")"
+    if [[ "$scene_name" != "VLNMesaDesertTopgearVehicleCandidate.unity" ]]; then
+      unexpected_scenes+=("$scene_name")
+    fi
+  done < <(find "$RELEASE_PROJECT/Assets/VLN/Scenes" -maxdepth 1 -type f -name '*.unity' | sort)
+
+  if (( ${#unexpected_scenes[@]} == 0 )); then
+    pass "发布工程只包含 Mesa Topgear 主场景。"
+  else
+    fail "发布工程包含额外场景文件："
+    printf '  %s\n' "${unexpected_scenes[@]}"
+  fi
+fi
+
 if [[ -f "$RELEASE_PROJECT/ProjectSettings/ProjectVersion.txt" ]] && grep -q '2022.3.62f1' "$RELEASE_PROJECT/ProjectSettings/ProjectVersion.txt"; then
   pass "Unity 版本为 2022.3.62f1。"
 else
