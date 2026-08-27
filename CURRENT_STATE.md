@@ -37,6 +37,8 @@
 
 当前发布策略为“GitHub 代码仓库 + Mesa Topgear Unity 发布工程资产包”：GitHub 仓库 `https://github.com/yangou-ylz/VLN_Car.git` 只提交脚本、配置、文档和小型源码；主线发布工程由 `scripts/prepare_mesa_topgear_team_release_project.sh --refresh` 从 `UnityProjects/VLN_Offroad_LargeAssetSandbox` 生成到 `UnityProjects/VLN_MesaTopgear_TeamRelease`，再由 `scripts/package_mesa_topgear_team_release_project.sh --split 1900M` 打包到 `VLN_ASSETS_CACHE/team_release_packages/`，适合通过网盘、内网文件服务、移动硬盘或 GitHub Release 附件分发。普通 Git 历史不直接提交数 GB Unity 发布工程。
 
+当前本地已能生成发布工程和发布包，但 GitHub push 尚未完成：HTTPS 交互 push 无法读取用户名，环境内 `GITHUB_PAT_TOKEN` push 返回 `403 Permission to yangou-ylz/VLN_Car.git denied to yangou-ylz`。下一步需要用户在本机配置对 `yangou-ylz/VLN_Car` 有写权限的 GitHub PAT/SSH key，或由有权限账号执行 push。
+
 团队部署主文档为 `docs/team_environment_setup.md`，必须保持正式操作手册风格，聚焦 Mesa Topgear：前置环境版本、仓库获取、发布资产包解压、ROS-TCP-Endpoint 构建、Unity 打开、Endpoint 启动、Play、键盘控制、四路鱼眼相机和 LiDAR 验收。发布前必须运行 `./scripts/check_repo_release_readiness.sh`；发布工程必须运行 `./scripts/check_mesa_topgear_team_release_project.sh`。`config/world_model_current_save.json` 仍是本机运行态世界保存 marker，不得提交进 Git。
 
 ## 当前主线
