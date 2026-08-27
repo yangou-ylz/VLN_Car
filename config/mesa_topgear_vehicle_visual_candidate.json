@@ -1,0 +1,10 @@
+﻿{
+  "stage": "mesa_topgear_vehicle_visual_candidate",
+  "scene_path": "Assets/VLN/Scenes/VLNMesaTopgearVehicleVisualCandidate.unity",
+  "base_scene_path": "Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity",
+  "notes": "Vehicle-only visual candidate. It keeps the original Mesa world, vehicle dynamics, sensors and ROS2 topics unchanged.",
+  "base_scene_unchanged": true,
+  "vehicle_material_variant_slots": 23,
+  "local_vehicle_lights": 3,
+  "surface_detail_quads": 8
+}

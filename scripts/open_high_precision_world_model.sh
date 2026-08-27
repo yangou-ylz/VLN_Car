@@ -5,8 +5,9 @@
 
 set -eo pipefail
 
-VLN_ROOT="/home/ubuntu22/VLN"
-PROJECT_DIR="$VLN_ROOT/UnityProjects/VLN_Offroad_LargeAssetSandbox"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VLN_ROOT="${VLN_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+PROJECT_DIR="${VLN_LARGE_ASSET_PROJECT:-$VLN_ROOT/UnityProjects/VLN_Offroad_LargeAssetSandbox}"
 
 is_auto_registered_scene_asset() {
   local asset_path="$1"
@@ -17,6 +18,7 @@ is_auto_registered_scene_asset() {
     Assets/VLN/Scenes/VLN*WorldCandidate.unity|\
     Assets/VLN/Scenes/VLN*RouteCandidate.unity|\
     Assets/VLN/Scenes/VLN*TopgearVehicleCandidate.unity|\
+    Assets/VLN/Scenes/VLN*VehicleVisualCandidate.unity|\
     Assets/VLN/Scenes/VLNHighPrecisionDesertSandbox.unity)
       case "$base_name" in
         VLN*.unity) return 0 ;;
@@ -57,6 +59,7 @@ usage() {
   ./scripts/open_high_precision_world_model.sh --scene oasis_desert
   ./scripts/open_high_precision_world_model.sh --scene mesa_oasis
   ./scripts/open_high_precision_world_model.sh --scene mesa_topgear
+  ./scripts/open_high_precision_world_model.sh --scene mesa_topgear_vehicle_visual
   ./scripts/open_high_precision_world_model.sh --scene meadow_forest
   ./scripts/open_high_precision_world_model.sh --scene forest_lake
   ./scripts/open_high_precision_world_model.sh --scene VLNNewWorldCandidate
@@ -67,6 +70,7 @@ usage() {
   --scene oasis_desert     打开 Oasis Desert 独立场景
   --scene mesa_oasis       打开 Mesa+Oasis 融合场景
   --scene mesa_topgear     打开 Mesa + Topgear 真实物理车候选场景
+  --scene mesa_topgear_vehicle_visual 打开 Mesa + Topgear 小车视觉增强候选场景，不改原 mesa_topgear
   --scene meadow_forest    打开 Meadow Dynamic Nature 湖泊树林/草甸场景
   --scene forest_lake      打开 ForestLake 湖边村庄/森林湖泊场景
   --scene VLN*.unity       直接打开 Assets/VLN/Scenes 下自动注册的 VLN 世界场景
@@ -75,6 +79,7 @@ usage() {
   Assets/VLN/Scenes/VLN*WorldCandidate.unity
   Assets/VLN/Scenes/VLN*RouteCandidate.unity
   Assets/VLN/Scenes/VLN*TopgearVehicleCandidate.unity
+  Assets/VLN/Scenes/VLN*VehicleVisualCandidate.unity
   Assets/VLN/Scenes/VLNHighPrecisionDesertSandbox.unity
 
 兼容旧写法：first、second、stitched、first-topgear 仍可用。
@@ -152,6 +157,13 @@ case "$WORLD_KEY" in
     REQUIRED_SCENE="$PROJECT_DIR/Assets/VLN/Scenes/VLNMesaDesertRouteCandidate.unity"
     TARGET_SCENE="$PROJECT_DIR/Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity"
     METHOD="VLN.Editor.VlnMesaTopgearVehicleCandidateBuilder.OpenCandidateForManualReview"
+    ;;
+  mesa-topgear-vehicle-visual|mesa_topgear_vehicle_visual|topgear-vehicle-visual|topgear_vehicle_visual|vehicle-visual|vehicle_visual|小车视觉增强)
+    MODEL_ID="mesa_topgear_vehicle_visual"
+    LABEL="Mesa Desert + Topgear 小车视觉增强候选场景"
+    REQUIRED_SCENE="$PROJECT_DIR/Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity"
+    TARGET_SCENE="$PROJECT_DIR/Assets/VLN/Scenes/VLNMesaTopgearVehicleVisualCandidate.unity"
+    METHOD="VLN.Editor.VlnMesaTopgearVehicleVisualEnhancer.OpenCandidateForManualReview"
     ;;
   meadow|meadow-forest|meadow_forest|meadow-dynamic-nature|meadow_dynamic_nature|dynamic-nature|dynamic_nature|lake-forest|lake_forest)
     MODEL_ID="meadow_forest"

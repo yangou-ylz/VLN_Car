@@ -5,9 +5,10 @@
 
 set -eo pipefail
 
-VLN_ROOT="/home/ubuntu22/VLN"
-UNITY_EDITOR="$VLN_ROOT/UnityEditors/2022.3.62f1/Editor/Unity"
-PROJECT_DIR="$VLN_ROOT/UnityProjects/VLN_Offroad"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VLN_ROOT="${VLN_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+UNITY_EDITOR="${UNITY_EDITOR:-$VLN_ROOT/UnityEditors/2022.3.62f1/Editor/Unity}"
+PROJECT_DIR="${VLN_UNITY_PROJECT:-$VLN_ROOT/UnityProjects/VLN_Offroad}"
 
 if [ ! -x "$UNITY_EDITOR" ]; then
   echo "未找到 Unity Editor：$UNITY_EDITOR"
@@ -39,8 +40,8 @@ export UPM_CACHE_PATH="$VLN_ROOT/.unity_user/cache/upm/db"
 export UPM_GIT_LFS_CACHE_PATH="$VLN_ROOT/.unity_user/cache/upm/git-lfs"
 export UPM_NPM_CACHE_PATH="$VLN_ROOT/.unity_user/cache/upm/npm"
 
-UNITY_PROXY="http://127.0.0.1:7897/"
-UNITY_NO_PROXY="localhost,127.0.0.1,::1"
+UNITY_PROXY="${UNITY_PROXY:-http://127.0.0.1:7897/}"
+UNITY_NO_PROXY="${UNITY_NO_PROXY:-localhost,127.0.0.1,::1}"
 
 export HTTP_PROXY="$UNITY_PROXY"
 export HTTPS_PROXY="$UNITY_PROXY"

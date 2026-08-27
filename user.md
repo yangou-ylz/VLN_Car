@@ -283,3 +283,27 @@ Unity 打开 `Assets/VLN/Scenes/VLNOffroadScoutWheelGroundCandidate.unity` 后�
 ```
 
 正常手工流程不需要每次运行它。
+
+## Mesa Topgear 小车视觉增强候选
+
+当前默认主线已经回到原始 Mesa Topgear 沙漠小车场景。打开原始场景仍然用：
+
+```bash
+./scripts/open_high_precision_world_model.sh --scene mesa_topgear
+```
+
+如果只想看“小车本体材质/轮胎/上装光影增强”的候选版，用这个入口：
+
+```bash
+./scripts/open_high_precision_world_model.sh --scene mesa_topgear_vehicle_visual
+```
+
+这个候选版只改小车视觉：车轮橡胶粗糙度、车身轻微沙尘、上装黑色箱体层次、局部车体补光；不改沙漠地形、不改物理、不改传感器位姿、不改鱼眼/LiDAR/ROS2 topic。
+
+只做小车视觉截图和审计的短验收：
+
+```bash
+./scripts/run_mesa_topgear_vehicle_visual_smoke_test.sh
+```
+
+希望看到：`VLN_MESA_TOPGEAR_VEHICLE_VISUAL_SMOKE_TEST_PASS`。当前通过记录：`vln_mesa_topgear_vehicle_visual_20260827_175503`，关键结果是 `base_scene_unchanged=1`、`surface_detail_collider_count=0`、`wheel_collider_count=4`、`fisheye_sensor_count=4`、`image_publisher_count=4`、`missing_material_slots=0`。

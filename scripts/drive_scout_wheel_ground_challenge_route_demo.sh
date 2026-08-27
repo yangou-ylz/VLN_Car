@@ -5,14 +5,15 @@
 
 set -eo pipefail
 
-VLN_ROOT="/home/ubuntu22/VLN"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VLN_ROOT="${VLN_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 WORKSPACE="$VLN_ROOT/unity_ros2_ws"
 CHALLENGE_ROUTE="4.0,0.0;8.0,0.0;12.0,0.0;15.0,0.0;18.0,0.0;22.0,0.0;26.0,0.0;28.0,0.0;30.0,0.0;34.0,0.0;42.0,0.0;50.0,0.0;54.0,0.0;60.0,0.0;66.0,0.0;72.0,0.0"
 
 mkdir -p "$VLN_ROOT/.ros/log"
 export ROS_LOG_DIR="${ROS_LOG_DIR:-$VLN_ROOT/.ros/log}"
 
-source /home/ubuntu22/.bashrc >/dev/null 2>&1 || true
+source "$HOME/.bashrc" >/dev/null 2>&1 || true
 
 if declare -F ros2env >/dev/null 2>&1; then
   ros2env

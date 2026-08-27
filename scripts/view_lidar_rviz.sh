@@ -5,11 +5,13 @@
 
 set -eo pipefail
 
-RVIZ_CONFIG="/home/ubuntu22/VLN/config/vln_lidar_pointcloud.rviz"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VLN_ROOT="${VLN_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+RVIZ_CONFIG="$VLN_ROOT/config/vln_lidar_pointcloud.rviz"
 tf_pid=""
 
-mkdir -p /home/ubuntu22/VLN/.ros/log
-export ROS_LOG_DIR="${ROS_LOG_DIR:-/home/ubuntu22/VLN/.ros/log}"
+mkdir -p "$VLN_ROOT/.ros/log"
+export ROS_LOG_DIR="${ROS_LOG_DIR:-$VLN_ROOT/.ros/log}"
 
 cleanup()
 {
@@ -21,7 +23,7 @@ cleanup()
 
 trap cleanup EXIT
 
-source /home/ubuntu22/.bashrc >/dev/null 2>&1 || true
+source "$HOME/.bashrc" >/dev/null 2>&1 || true
 
 if declare -F ros2env >/dev/null 2>&1; then
   ros2env >/dev/null
@@ -29,7 +31,7 @@ else
   source /opt/ros/humble/setup.bash
 fi
 
-source /home/ubuntu22/VLN/unity_ros2_ws/install/setup.bash
+source "$VLN_ROOT/unity_ros2_ws/install/setup.bash"
 
 ros2 run tf2_ros static_transform_publisher \
   --frame-id map \

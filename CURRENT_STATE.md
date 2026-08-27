@@ -2,7 +2,7 @@
 
 本文件是每次继续工作的第一层短上下文，用来替代过去每次全量阅读长日志的低效流程。它不取代 `AGENTS.md`、`PROJECT_MEMORY.md`、`workflow.md`、`env.md` 或 `logs/issue_log.md`；它只负责把当前阶段、不可破坏的基线和下一步读取策略压缩到一个短文件里。
 
-更新时间：2026-08-26
+更新时间：2026-08-27
 
 ## 启动读取策略
 
@@ -30,6 +30,12 @@
 - 所有项目相关目录必须在 `/home/ubuntu22/VLN` 下。
 - 新资料、资产、bag、Unity 缓存和大型生成文件默认不进 git。
 - 新增真实性硬约束：挑战区后续必须做“视觉-物理一致”的材质交互。草地、沙地、青石/石板路不能只是视觉贴图；主要接触形状必须有简化物理代理、材质摩擦/阻尼或接触逻辑，允许简化但不能脱离真实材质特性。
+
+## 团队部署与仓库发布状态
+
+2026-08-27 起新增团队部署交付入口：`README.md`、`docs/team_environment_setup.md`、`scripts/setup_ros_tcp_endpoint_workspace.sh`、`scripts/check_repo_release_readiness.sh`。当前结论是先整理仓库和可复现入口，再让团队成员 clone 后按文档配置 Unity 2022.3.62f1、ROS2 Humble 和项目内 ROS-TCP-Endpoint；不要把本机 50GB+ 工作目录、大型 Unity 资产包、Unity 缓存、rosbag、截图或运行态保存文件直接推 Git。
+
+发布前必须运行 `./scripts/check_repo_release_readiness.sh`；正式 push 前可运行 `./scripts/check_repo_release_readiness.sh --strict`。`config/world_model_current_save.json` 已定义为本机运行态世界保存 marker，含绝对路径、时间戳和场景 hash，不应由团队共享，后续不得再提交进 Git。当前仓库尚未配置 remote；需要用户提供 GitHub/GitLab 地址或手工添加 remote 后才能真正 push。
 
 ## 当前主线
 
@@ -60,7 +66,7 @@
 
 2026-08-23 新增两套完整世界：`Meadow Environment - Dynamic Nature 2022.unitypackage` 已硬链接暂存到 `VLN_ASSETS_CACHE/high_precision_desert/raw_downloads/large_scene_packages/`，只读扫描分数 `86`，包含 2 个 scene、219 个模型、345 张贴图、429 个 prefab、117 个 Terrain 相关资产；Unity 导入副本工程成功，派生场景 `VLNMeadowDynamicNatureWorldCandidate.unity`。Meadow 已修两类白色问题：第一类是动态粒子 prefab 的 `ParticleSystemRenderer` 空材质槽，涉及 `prefab_Bees_Particle`、`prefab_Leafs`、`prefab_Meadow_Dust`、`prefab_Meadow_Dust 2`，现已分别绑定回 Meadow 包内昆虫、叶片和尘土粒子材质，审计报告 `UnityProjects/VLN_Offroad_LargeAssetSandbox/Logs/vln_meadow_missing_material_audit.txt` 显示 `success=1`；第二类是用户截图中的白色四角标/大圆标，它们是 Unity Scene/Game 视图 Gizmos/Annotation 图标，不是运行时模型材质，`VlnImportedWorldSceneRegistry` 现在打开 Meadow 时会自动关闭 ParticleSystem、WindZone、ReflectionProbe、LightProbe、AudioSource、Light 等编辑器图标，手工菜单为 `VLN -> World Models -> Meadow Dynamic Nature -> Hide Scene View Editor Icons`。最新 Meadow smoke `meadow_after_gizmo_cleanup_v2_smoke` 通过，结果文件显示 `terrain_count=1`、`renderer_count=23002`、`collider_count=2970`、`missing_material_slots=0`、`internal_error_materials=0`、`success=1`。`ForestLake 1.5.unitypackage` 已硬链接暂存并导入副本工程，只读扫描分数 `78`，包含 1 个 scene、24 个模型、88 张贴图、29 个 prefab、5 个 Terrain 相关资产；派生场景 `VLNForestLakeWorldCandidate.unity` 截图 smoke `vln_forest_lake_world_20260823_190233` 通过，`terrain_count=1`、`renderer_count=2592`、`collider_count=562`、`missing_material_slots=0`、`internal_error_materials=0`，截图显示森林湖泊大场景。
 
-当前活动目标：统一世界打开入口已改为英文语义名：`./scripts/open_high_precision_world_model.sh --scene <scene_name>`。支持 `mesa_desert`、`oasis_desert`、`mesa_oasis`、`mesa_topgear`、`meadow_forest`、`forest_lake`；兼容用户可能输入的 `--sence` / `-sence` 拼写以及旧 `first/second/stitched/first-topgear` 参数。Unity 顶部菜单 `VLN -> 更改世界模型 -> 保存本次世界` 现在支持 Mesa、Oasis、融合版、Mesa Topgear、Meadow、ForestLake 六类内置世界，并自动注册 `Assets/VLN/Scenes/` 下符合 `VLN*WorldCandidate.unity`、`VLN*RouteCandidate.unity`、`VLN*TopgearVehicleCandidate.unity` 或 `VLNHighPrecisionDesertSandbox.unity` 命名的新世界；保存时会真实写入当前 `.unity` 场景并写入 `config/world_model_current_save.json` 做 marker + SHA256 校验；终端校验入口为 `scripts/check_world_model_manual_save_state.sh`。后续不同世界模型统一通过 `--scene` 传参扩展，不再把“first/second”作为推荐用法。
+当前活动目标：统一世界打开入口已改为英文语义名：`./scripts/open_high_precision_world_model.sh --scene <scene_name>`。支持 `mesa_desert`、`oasis_desert`、`mesa_oasis`、`mesa_topgear`、`mesa_topgear_vehicle_visual`、`meadow_forest`、`forest_lake`；兼容用户可能输入的 `--sence` / `-sence` 拼写以及旧 `first/second/stitched/first-topgear` 参数。Unity 顶部菜单 `VLN -> 更改世界模型 -> 保存本次世界` 现在支持 Mesa、Oasis、融合版、Mesa Topgear、Meadow、ForestLake 六类内置世界，并自动注册 `Assets/VLN/Scenes/` 下符合 `VLN*WorldCandidate.unity`、`VLN*RouteCandidate.unity`、`VLN*TopgearVehicleCandidate.unity`、`VLN*VehicleVisualCandidate.unity` 或 `VLNHighPrecisionDesertSandbox.unity` 命名的新世界/候选场景；保存时会真实写入当前 `.unity` 场景并写入 `config/world_model_current_save.json` 做 marker + SHA256 校验；终端校验入口为 `scripts/check_world_model_manual_save_state.sh`。后续不同世界模型统一通过 `--scene` 传参扩展，不再把“first/second”作为推荐用法。
 
 阶段 21 当前新增进展：第一套 Mesa 世界已接入阶段 20 冻结的 Topgear 真实物理小车，候选场景为大资产副本工程内 `Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity`。构建器 `VlnMesaTopgearVehicleCandidateBuilder.cs` 只从旧金标准场景复制整车根节点和传感器 rig，不重算 Topgear 传感器位姿，不调用会重建旧主场景的 `BuildScoutWheelGroundCandidateScene()`；出生点已从高处岩壁平台进一步修正为无水荒漠洼地，记录在 `config/mesa_topgear_vehicle_candidate.json`，位置约 `(-143.657, 55.389, -729.390)`，坡度 `1.989°`，附近障碍数 `0`，`valley_wall_relief_m=58.543`，最近仙人掌/荒漠植被约 `22.121m`，附近荒漠植被计数 `48`，最近可识别水体距离为 `9999m`。Mesa TerrainCollider 绑定专用沙地物理材质和控制器接触分类；仅在该 Mesa 候选车上启用 `treat_terrain_contact_as_sand=1`、轮胎视觉偏移 `0.0m`、陡坡/离地刹车放松、轮胎抓地/悬挂衰减和陡坡重力沿坡补偿，旧场景默认不受影响。
 
@@ -71,6 +77,8 @@ Mesa + Topgear 当前验收结果：无水荒漠洼地修复后，`scripts/run_m
 2026-08-26 已新增 Topgear 上装整体手动微调入口：Unity 菜单 `VLN -> Topgear 上装整体微调 -> 绑定上装和传感器为整体 / 选中上装整体 / 保存当前小车模型`。整体节点名为 `VLN_Topgear_UpperAssembly_UserAdjustableRoot`，其下绑定 `ScoutWheelGround_TopgearV2Visual` 和 `ScoutWheelGround_TopgearSensorSuite`，因此用户只需拖动/旋转一个整体即可同时移动上装、VLP-16 LiDAR 和四路 D405 相机。保存会写入 `config/topgear_upper_assembly_user_locked.json`，并通过世界模型保存机制真实保存 `Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity`；以后打开 `mesa_topgear` 会自动应用该整体基线。该功能只存上装视觉和传感器 rig 层级，不改底盘、轮子、Rigidbody、WheelCollider、小车动力学或单独传感器锁定位姿。
 
 2026-08-26 已新增 Topgear 四路真实相机数据位姿微调入口：Unity 菜单 `VLN -> Topgear 相机数据位姿微调 -> 解耦视觉模型和真实相机 / 选中前后左右真实相机 / 保存当前四路真实相机位姿 / 应用已保存四路真实相机位姿`。该工具会把四个 `RealSense_D405_SquareStereoVisual` 从真实相机数据 Transform 下移到 `VLN_Topgear_CameraVisuals_UserLockedRoot`，保持可见 D405 模型安装位置不动；真实采集对象仍保持 `Topgear_Front/Rear/Left/Right_RGBCamera_UnitySensorsROS` 原名和原 ROS topic，可单独拖动来改善鱼眼画面遮挡。保存文件为 `config/topgear_camera_data_pose_user_locked.json`；`mesa_topgear` 打开/重建时会在上装整体基线之后自动应用该数据相机位姿。该功能不改 D405 官方视觉 mesh、不改相机 topic、不改 LiDAR、不改车体物理。
+
+2026-08-27 用户否决上一版场景级 `mesa_topgear_realism` 写实增强后，已回退到原始 `mesa_topgear` 作为主线；被否决的场景级增强器、候选场景、材质和脚本已归档到 `.runtime/rejected_mesa_topgear_scene_realism_20260827/`，不要再作为默认入口恢复。当前只新增“小车本体视觉增强候选” `mesa_topgear_vehicle_visual`：场景为 `Assets/VLN/Scenes/VLNMesaTopgearVehicleVisualCandidate.unity`，从原始 `Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity` 复制生成，只调整小车车身/轮胎/上装材质、程序化轻微沙尘贴图和 3 个局部车体补光；不改沙漠地形、不改 Terrain/Collider/物理材质、不改 Rigidbody/WheelCollider/控制器、不改官方 VLP-16/D405 外观模型、不改传感器锁定 JSON、不改 ROS2 topic。手工打开入口为 `./scripts/open_high_precision_world_model.sh --scene mesa_topgear_vehicle_visual`；短验收入口为 `./scripts/run_mesa_topgear_vehicle_visual_smoke_test.sh`。最新 smoke `vln_mesa_topgear_vehicle_visual_20260827_175503` 通过：`base_scene_unchanged=1`、`vehicle_material_variant_slot_count=23`、`surface_detail_quad_count=8`、`surface_detail_collider_count=0`、`wheel_collider_count=4`、`fisheye_sensor_count=4`、`image_publisher_count=4`、`missing_material_slots=0`、`internal_error_materials=0`。
 
 Topgear 上装白色信号器可行性结论：`topgear_v2.dae` 只有一个 `topgear_v2-mesh` 节点，但按材质分了 submesh。白色信号器主要对应 `gps-material`（约 2660 triangles，包围盒约 `0.153 x 0.153 x 0.062`）和部分 `iron-material`（约 3068 triangles，包围盒覆盖立杆/连接白件），因此技术上可以通过材质/submesh 方式单独隐藏或导出处理；但当前尚未删除或隐藏，下一步如果要做，必须先做可视化确认以避免误伤其它白色支架。
 

@@ -5,5 +5,6 @@
 
 set -eo pipefail
 
-VLN_ROOT="/home/ubuntu22/VLN"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VLN_ROOT="${VLN_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 exec "$VLN_ROOT/scripts/open_high_precision_world_model.sh" first-topgear "$@"

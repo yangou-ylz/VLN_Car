@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="/home/ubuntu22/VLN"
-SOURCE_PROJECT="$ROOT/UnityProjects/VLN_Offroad"
-SANDBOX_PROJECT="$ROOT/UnityProjects/VLN_Offroad_LargeAssetSandbox"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="${VLN_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+SOURCE_PROJECT="${VLN_UNITY_PROJECT:-$ROOT/UnityProjects/VLN_Offroad}"
+SANDBOX_PROJECT="${VLN_LARGE_ASSET_PROJECT:-$ROOT/UnityProjects/VLN_Offroad_LargeAssetSandbox}"
 
 if ! command -v rsync >/dev/null 2>&1; then
   echo "缺少 rsync，不能安全创建 Unity 副本工程。"
@@ -46,8 +47,8 @@ VLN 高精荒漠大资产副本工程
 规则：
 1. 禁止在这里修改或覆盖主场景 Topgear 传感器锁定文件。
 2. 可以在这里测试 URP/HDRP、Package Settings、Quality/Graphics/Lighting。
-3. 大包先放到 /home/ubuntu22/VLN/VLN_ASSETS_CACHE/high_precision_desert/raw_downloads/large_scene_packages/。
-4. 导入前先运行 /home/ubuntu22/VLN/scripts/scan_high_precision_large_scene_packages.sh。
+3. 大包先放到项目内 VLN_ASSETS_CACHE/high_precision_desert/raw_downloads/large_scene_packages/。
+4. 导入前先运行项目内 scripts/scan_high_precision_large_scene_packages.sh。
 5. 验证目标是打开第三方 demo scene 截图、记录 FPS/材质缺失/LOD/Collider/ProjectSettings 影响。
 EOF
 

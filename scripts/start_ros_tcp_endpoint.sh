@@ -6,10 +6,11 @@
 
 set -eo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VLN_ROOT="${VLN_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 ROS_IP_VALUE="${ROS_IP:-127.0.0.1}"
 ROS_TCP_PORT_VALUE="${ROS_TCP_PORT:-10000}"
-WORKSPACE="${UNITY_ROS2_WS:-/home/ubuntu22/VLN/unity_ros2_ws}"
-VLN_ROOT="/home/ubuntu22/VLN"
+WORKSPACE="${UNITY_ROS2_WS:-$VLN_ROOT/unity_ros2_ws}"
 
 mkdir -p "$VLN_ROOT/.ros/log"
 export ROS_LOG_DIR="${ROS_LOG_DIR:-$VLN_ROOT/.ros/log}"
@@ -19,7 +20,7 @@ if [ ! -f "$WORKSPACE/install/setup.bash" ]; then
   exit 1
 fi
 
-source /home/ubuntu22/.bashrc >/dev/null 2>&1 || true
+source "$HOME/.bashrc" >/dev/null 2>&1 || true
 
 if declare -F ros2env >/dev/null 2>&1; then
   ros2env

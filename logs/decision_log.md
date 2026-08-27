@@ -983,3 +983,21 @@
 - 保存：用户调整四路真实数据相机后，点击 `保存当前四路真实相机位姿` 会写入 `config/topgear_camera_data_pose_user_locked.json`，并调用世界模型保存机制真实保存 Mesa Topgear 场景；同时更新上装整体保存，避免旧上装层级恢复时覆盖解耦后的视觉树。
 - 自动应用：`mesa_topgear` 打开/强制重建时，会在应用上装整体基线之后应用四路真实相机数据位姿，保证下次加载的 ROS 图像采集点等于用户上次保存的位置。
 - 风险控制：本轮不改四路相机 topic、CameraInfo frame、UnitySensors 官方鱼眼模型、D405 官方视觉 mesh、LiDAR、车体物理、WheelCollider、Mesa 地形或旧 13 点路线。
+
+## 2026-08-27：回退场景级写实增强，只保留小车视觉增强候选
+
+- 决策：用户不满意上一版 `mesa_topgear_realism` 场景级写实增强，因此当前主线回退到原始 `mesa_topgear`；不再默认恢复被否决的场景级光照、地表、植被或后处理改动。
+- 归档：上一版场景级增强器、候选场景、材质/地形资源、配置和 smoke 脚本已移到 `.runtime/rejected_mesa_topgear_scene_realism_20260827/`，避免 Unity 自动编译或打开入口继续引用。
+- 新候选：新增 `VlnMesaTopgearVehicleVisualEnhancer.cs`，生成 `Assets/VLN/Scenes/VLNMesaTopgearVehicleVisualCandidate.unity`。它从 `Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity` 复制，不覆盖原始 `mesa_topgear`，只给小车轮胎、车身和上装生成材质变体、程序化轻微沙尘/橡胶/粗糙表面贴图、8 个无碰撞沙尘细节面片和 3 个局部车体补光。
+- 入口：`./scripts/open_high_precision_world_model.sh --scene mesa_topgear_vehicle_visual` 打开小车视觉增强候选；`./scripts/run_mesa_topgear_vehicle_visual_smoke_test.sh` 只做候选构建、截图和审计，不跑 ROS2、不跑自动路线。
+- 验证：最新 `vln_mesa_topgear_vehicle_visual_20260827_175503` 通过，`base_scene_unchanged=1`、`vehicle_material_variant_slot_count=23`、`surface_detail_quad_count=8`、`surface_detail_collider_count=0`、`wheel_collider_count=4`、`fisheye_sensor_count=4`、`image_publisher_count=4`、`missing_material_slots=0`、`internal_error_materials=0`。
+- 风险控制：本轮不改沙漠地形、不改 Terrain/Collider/物理材质、不改 Rigidbody/WheelCollider/控制器、不改官方 VLP-16/D405 外观模型、不改传感器位姿锁定 JSON、不改 ROS2 topic、不改旧 13 点金标准路线。
+
+## 2026-08-27：团队部署文档与仓库发布策略
+
+- 决策：师兄要求周六前准备团队环境部署教程。当前不应把本机 50GB+ 工作目录整体上传，而应先整理 Git 仓库，只提交代码、配置、小型必要资产和文档；大型 Asset Store/Fab/Unity 场景包、Unity 缓存、rosbag、截图和运行态文件继续留在本地或由负责人单独分发。
+- 新增文档：`README.md` 作为仓库快速入口；`docs/team_environment_setup.md` 作为团队成员部署教程，覆盖 Unity 2022.3.62f1、ROS2 Humble、ROS-TCP-Endpoint workspace、标准手工演示流程、大资产副本工程和常见故障。
+- 新增脚本：`scripts/setup_ros_tcp_endpoint_workspace.sh` 用于团队成员在项目内 clone/build ROS-TCP-Endpoint，并应用已验证的 `rclpy.ok()` 退出补丁；该脚本不执行 apt/pip/conda/snap 安装。
+- 新增检查：`scripts/check_repo_release_readiness.sh` 作为提交/推送前只读检查，拦截误追踪大资产、Unity 缓存、`.runtime`、`unity_ros2_ws`、`.unitypackage`、rosbag 和 `config/world_model_current_save.json` 等本机状态。
+- 可迁移性：常用启动脚本已改为从脚本位置推导 `VLN_ROOT`，并支持 `UNITY_EDITOR`、`VLN_UNITY_PROJECT`、`VLN_LARGE_ASSET_PROJECT`、`UNITY_ROS2_WS` 环境变量覆盖，方便团队成员 clone 到不同用户名目录。
+- 上传状态：当前 `git remote -v` 无输出，尚不能直接 push；需要用户提供远程仓库地址或自行添加 remote 后再执行 `git push -u origin main`。
