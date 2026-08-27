@@ -1000,4 +1000,12 @@
 - 新增脚本：`scripts/setup_ros_tcp_endpoint_workspace.sh` 用于团队成员在项目内 clone/build ROS-TCP-Endpoint，并应用已验证的 `rclpy.ok()` 退出补丁；该脚本不执行 apt/pip/conda/snap 安装。
 - 新增检查：`scripts/check_repo_release_readiness.sh` 作为提交/推送前只读检查，拦截误追踪大资产、Unity 缓存、`.runtime`、`unity_ros2_ws`、`.unitypackage`、rosbag 和 `config/world_model_current_save.json` 等本机状态。
 - 可迁移性：常用启动脚本已改为从脚本位置推导 `VLN_ROOT`，并支持 `UNITY_EDITOR`、`VLN_UNITY_PROJECT`、`VLN_LARGE_ASSET_PROJECT`、`UNITY_ROS2_WS` 环境变量覆盖，方便团队成员 clone 到不同用户名目录。
-- 上传状态：当前 `git remote -v` 无输出，尚不能直接 push；需要用户提供远程仓库地址或自行添加 remote 后再执行 `git push -u origin main`。
+- 上传状态：当前 remote 已配置为 `https://github.com/yangou-ylz/VLN_Car.git`；真正 push 仍取决于本机是否有该仓库写权限的 GitHub 凭据或 SSH key。
+
+## 2026-08-27：团队交付范围收窄为 Mesa Topgear 主线
+
+- 决策：用户明确纠正团队交付范围。团队成员不需要早期低模测试环境、旧 13 点路线环境、Oasis/Meadow/ForestLake、Mesa+Oasis 融合版、长开发日志、调研缓存或中途实验资产；交付包只保留当前已验收的 `mesa_topgear` 主线：Pure Nature Mesa 沙漠环境 + Topgear 真实物理小车 + 四路鱼眼相机 + 16 线 LiDAR + ROS2 控制链路。
+- 发布策略：继续采用“GitHub 代码仓库 + Mesa Topgear Unity 发布工程资产包”。GitHub 仓库 `https://github.com/yangou-ylz/VLN_Car.git` 只承载脚本、配置、文档和小型源码；主线 Unity 发布工程由 `scripts/prepare_mesa_topgear_team_release_project.sh --refresh` 生成，再由 `scripts/package_mesa_topgear_team_release_project.sh --split 1900M` 打包后通过网盘、内网文件服务、移动硬盘或 GitHub Release 附件分发。
+- 文档重写：`docs/team_environment_setup.md` 已改为正式部署手册口径，聚焦交付范围、前置版本、仓库获取、Mesa Topgear 发布包解压、ROS-TCP-Endpoint 构建、Unity/Endpoint/Play/键盘控制顺序、四路鱼眼相机和 LiDAR 验收、常见问题。不再把其它大世界资产流程写成团队默认路径。
+- 检查更新：`README.md` 默认入口改为 Mesa Topgear 团队发布工程；`scripts/check_repo_release_readiness.sh` 检查项改为 Mesa Topgear 发布脚本和主线部署文档，避免发布检查继续默认旧主工程/旧路线演示脚本。
+- 风险控制：普通 Git 历史不提交数 GB Unity 发布工程、原始 `.unitypackage`、Unity 缓存、rosbag、截图或运行态 marker；`config/world_model_current_save.json` 仍保持本机状态文件，不进入团队共享版本。

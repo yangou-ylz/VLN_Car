@@ -33,9 +33,11 @@
 
 ## 团队部署与仓库发布状态
 
-2026-08-27 起新增团队部署交付入口：`README.md`、`docs/team_environment_setup.md`、`scripts/setup_ros_tcp_endpoint_workspace.sh`、`scripts/check_repo_release_readiness.sh`。当前结论是先整理仓库和可复现入口，再让团队成员 clone 后按文档配置 Unity 2022.3.62f1、ROS2 Humble 和项目内 ROS-TCP-Endpoint；不要把本机 50GB+ 工作目录、大型 Unity 资产包、Unity 缓存、rosbag、截图或运行态保存文件直接推 Git。
+2026-08-27 用户已明确纠正团队交付范围：团队成员只需要当前已验收的 `mesa_topgear` 主线，即 Pure Nature Mesa 沙漠环境 + Topgear 真实物理小车 + 四路鱼眼相机 + 16 线 LiDAR + ROS2 控制链路。早期低模测试场景、旧 13 点路线环境、Oasis/Meadow/ForestLake、Mesa+Oasis 融合版、长开发日志、原始大包、截图、rosbag 和运行态缓存都不进入团队交付包。
 
-发布前必须运行 `./scripts/check_repo_release_readiness.sh`；正式 push 前可运行 `./scripts/check_repo_release_readiness.sh --strict`。`config/world_model_current_save.json` 已定义为本机运行态世界保存 marker，含绝对路径、时间戳和场景 hash，不应由团队共享，后续不得再提交进 Git。当前仓库尚未配置 remote；需要用户提供 GitHub/GitLab 地址或手工添加 remote 后才能真正 push。
+当前发布策略为“GitHub 代码仓库 + Mesa Topgear Unity 发布工程资产包”：GitHub 仓库 `https://github.com/yangou-ylz/VLN_Car.git` 只提交脚本、配置、文档和小型源码；主线发布工程由 `scripts/prepare_mesa_topgear_team_release_project.sh --refresh` 从 `UnityProjects/VLN_Offroad_LargeAssetSandbox` 生成到 `UnityProjects/VLN_MesaTopgear_TeamRelease`，再由 `scripts/package_mesa_topgear_team_release_project.sh --split 1900M` 打包到 `VLN_ASSETS_CACHE/team_release_packages/`，适合通过网盘、内网文件服务、移动硬盘或 GitHub Release 附件分发。普通 Git 历史不直接提交数 GB Unity 发布工程。
+
+团队部署主文档为 `docs/team_environment_setup.md`，必须保持正式操作手册风格，聚焦 Mesa Topgear：前置环境版本、仓库获取、发布资产包解压、ROS-TCP-Endpoint 构建、Unity 打开、Endpoint 启动、Play、键盘控制、四路鱼眼相机和 LiDAR 验收。发布前必须运行 `./scripts/check_repo_release_readiness.sh`；发布工程必须运行 `./scripts/check_mesa_topgear_team_release_project.sh`。`config/world_model_current_save.json` 仍是本机运行态世界保存 marker，不得提交进 Git。
 
 ## 当前主线
 

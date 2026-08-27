@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Read-only repository release checklist for team handoff.
+# Read-only repository release checklist for the Mesa Topgear team handoff.
 
 set -euo pipefail
 
@@ -31,7 +31,7 @@ pass() { printf '[PASS] %s\n' "$1"; }
 warn() { printf '[WARN] %s\n' "$1"; warn_count=$((warn_count + 1)); }
 fail() { printf '[FAIL] %s\n' "$1"; fail_count=$((fail_count + 1)); }
 
-echo "== VLN 仓库发布检查 =="
+echo "== VLN Mesa Topgear 仓库发布检查 =="
 echo "repo=$VLN_ROOT"
 
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -102,10 +102,13 @@ else
 fi
 
 required_scripts=(
-  scripts/open_unity_vln_project.sh
   scripts/setup_ros_tcp_endpoint_workspace.sh
   scripts/start_ros_tcp_endpoint.sh
-  scripts/drive_scout_wheel_ground_route_demo.sh
+  scripts/open_mesa_topgear_team_release_project.sh
+  scripts/prepare_mesa_topgear_team_release_project.sh
+  scripts/check_mesa_topgear_team_release_project.sh
+  scripts/package_mesa_topgear_team_release_project.sh
+  scripts/start_mesa_topgear_local_keyboard_control.sh
   scripts/view_all_camera_images.sh
   scripts/view_vln_vehicle_rviz.sh
   scripts/check_repo_release_readiness.sh
@@ -125,10 +128,10 @@ else
   printf '  %s\n' "${missing_scripts[@]}"
 fi
 
-if [[ -f docs/team_environment_setup.md ]]; then
-  pass "团队环境部署文档存在。"
+if [[ -f docs/team_environment_setup.md ]] && grep -q 'mesa_topgear' docs/team_environment_setup.md && grep -q 'VLN_MesaTopgear_TeamRelease' docs/team_environment_setup.md; then
+  pass "Mesa Topgear 团队部署文档存在。"
 else
-  fail "缺少 docs/team_environment_setup.md。"
+  fail "缺少 Mesa Topgear 团队部署文档，或文档未指向当前主线交付工程。"
 fi
 
 echo "== tracked 文件体量 Top 10 =="
