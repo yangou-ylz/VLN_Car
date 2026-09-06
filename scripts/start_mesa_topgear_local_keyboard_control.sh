@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # 本地键盘速度控制入口：绕过浏览器控制面板，直接发布 /vln/cmd_vel。
-# 前提：ROS-TCP-Endpoint 已启动，Unity 已打开 mesa_topgear 场景并点击 Play。
+# 前提：ROS-TCP-Endpoint 已启动，Unity 已打开 mesa_topgear_mix 场景并点击 Play。
 
 set -eo pipefail
 
@@ -22,7 +22,18 @@ fi
 
 source "$WORKSPACE/install/setup.bash"
 
-echo "本地键盘速度控制：请确认 Unity 已打开 mesa_topgear、endpoint 已启动、Unity 已点击 Play。"
+echo "本地键盘速度控制：请确认 Unity 已打开 mesa_topgear_mix、endpoint 已启动、Unity 已点击 Play。"
 echo "按键：↑/W 前进，↓/S 后退，←/A 左转，→/D 右转；松开即停，空格停车，Q 退出。"
 
-exec python3 "$VLN_ROOT/scripts/local_keyboard_cmd_vel_control.py" "$@"
+LOG_ARGS=()
+case " $* " in
+  *" --log-file "*|*" --log-file="*|*" --no-log "*) ;;
+  *)
+    mkdir -p "$VLN_ROOT/.runtime/local_keyboard_cmd_vel"
+    LOG_FILE="$VLN_ROOT/.runtime/local_keyboard_cmd_vel/local_keyboard_cmd_vel_$(date +%Y%m%d_%H%M%S).csv"
+    LOG_ARGS=(--log-file "$LOG_FILE")
+    echo "发布间隔日志：$LOG_FILE"
+    ;;
+esac
+
+exec python3 "$VLN_ROOT/scripts/local_keyboard_cmd_vel_control.py" "${LOG_ARGS[@]}" "$@"

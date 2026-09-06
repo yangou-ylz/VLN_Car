@@ -1,17 +1,17 @@
 ﻿{
     "schema": "vln_topgear_camera_data_pose_user_locked_v1",
-    "savedAtUtc": "2026-08-26T08:30:40.9891870Z",
-    "scenePath": "Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity",
+    "savedAtUtc": "2026-08-29T17:06:26.5470370Z",
+    "scenePath": "Assets/VLN/Scenes/VLNMesaTopgearMixVehicleScale4p0WorldCandidate.unity",
     "sensorRootName": "ScoutWheelGround_TopgearSensorSuite",
-    "note": "User-adjusted capture/data poses for the four Topgear fisheye cameras. RealSense D405 visual meshes are decoupled and kept at their visual installation poses.",
+    "note": "User-adjusted capture/data poses for the four Topgear RGB/pinhole cameras. RealSense D405 visual meshes are decoupled and kept at their visual installation poses.",
     "cameras": [
         {
             "role": "front",
             "name": "Topgear_Front_RGBCamera_UnitySensorsROS",
             "localPosition": {
-                "x": -0.003485220717266202,
-                "y": 0.768902063369751,
-                "z": -0.05042374134063721
+                "x": -0.0020000000949949028,
+                "y": 0.7440000176429749,
+                "z": -0.07999999821186066
             },
             "localEulerAngles": {
                 "x": 6.441656112670898,
@@ -34,8 +34,8 @@
             },
             "localEulerAngles": {
                 "x": 357.5224304199219,
-                "y": 2.100072145462036,
-                "z": 0.4868285059928894
+                "y": 2.100071907043457,
+                "z": 0.486828476190567
             },
             "localScale": {
                 "x": 1.0,
@@ -54,7 +54,7 @@
             "localEulerAngles": {
                 "x": 0.0000060220381783437919,
                 "y": 84.0261001586914,
-                "z": -0.0000016761312053859
+                "z": -0.0000016761309780122247
             },
             "localScale": {
                 "x": 1.0,

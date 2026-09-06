@@ -1,115 +1,39 @@
 #!/usr/bin/env bash
 
-# 高精世界模型统一打开入口。
-# 推荐用法：./scripts/open_high_precision_world_model.sh --scene mesa_topgear [Unity 额外参数]
+# Team entrypoint for the accepted Mesa Topgear Mix Unity scene.
 
 set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VLN_ROOT="${VLN_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
-DEFAULT_PROJECT_DIR="$VLN_ROOT/UnityProjects/VLN_Offroad_LargeAssetSandbox"
-TEAM_RELEASE_PROJECT_DIR="${VLN_MESA_TOPGEAR_RELEASE_PROJECT:-$VLN_ROOT/UnityProjects/VLN_MesaTopgear_TeamRelease}"
-PROJECT_DIR="${VLN_LARGE_ASSET_PROJECT:-$DEFAULT_PROJECT_DIR}"
-PROJECT_DIR_EXPLICIT=0
-if [ -n "${VLN_LARGE_ASSET_PROJECT:-}" ]; then
-  PROJECT_DIR_EXPLICIT=1
-fi
-
-is_auto_registered_scene_asset() {
-  local asset_path="$1"
-  local base_name
-  base_name="$(basename "$asset_path")"
-
-  case "$asset_path" in
-    Assets/VLN/Scenes/VLN*WorldCandidate.unity|\
-    Assets/VLN/Scenes/VLN*RouteCandidate.unity|\
-    Assets/VLN/Scenes/VLN*TopgearVehicleCandidate.unity|\
-    Assets/VLN/Scenes/VLN*VehicleVisualCandidate.unity|\
-    Assets/VLN/Scenes/VLNHighPrecisionDesertSandbox.unity)
-      case "$base_name" in
-        VLN*.unity) return 0 ;;
-      esac
-      ;;
-  esac
-  return 1
-}
-
-resolve_direct_scene_asset() {
-  local raw="$1"
-  local asset_path=""
-
-  case "$raw" in
-    "$PROJECT_DIR"/Assets/*.unity)
-      asset_path="Assets/${raw#"$PROJECT_DIR"/Assets/}"
-      ;;
-    Assets/*.unity)
-      asset_path="$raw"
-      ;;
-    *.unity)
-      asset_path="Assets/VLN/Scenes/$(basename "$raw")"
-      ;;
-    VLN*)
-      asset_path="Assets/VLN/Scenes/${raw%.unity}.unity"
-      ;;
-  esac
-
-  if [ -n "$asset_path" ] && is_auto_registered_scene_asset "$asset_path" && [ -f "$PROJECT_DIR/$asset_path" ]; then
-    printf '%s\n' "$asset_path"
-  fi
-}
+UNITY_EDITOR="${UNITY_EDITOR:-$VLN_ROOT/UnityEditors/2022.3.62f1/Editor/Unity}"
+RELEASE_PROJECT_DIR="${VLN_MESA_TOPGEAR_RELEASE_PROJECT:-$VLN_ROOT/UnityProjects/VLN_MesaTopgear_TeamRelease}"
+DEV_PROJECT_DIR="$VLN_ROOT/UnityProjects/VLN_Offroad_LargeAssetSandbox"
+TARGET_SCENE_ASSET="Assets/VLN/Scenes/VLNMesaTopgearMixVehicleScale4p0WorldCandidate.unity"
 
 usage() {
   cat <<'EOF'
 用法：
-  ./scripts/open_high_precision_world_model.sh --scene mesa_topgear
-  ./scripts/open_high_precision_world_model.sh --scene mesa_desert
-  ./scripts/open_high_precision_world_model.sh --scene oasis_desert
-  ./scripts/open_high_precision_world_model.sh --scene mesa_oasis
-  ./scripts/open_high_precision_world_model.sh --scene mesa_topgear_vehicle_visual
-  ./scripts/open_high_precision_world_model.sh --scene meadow_forest
-  ./scripts/open_high_precision_world_model.sh --scene forest_lake
-  ./scripts/open_high_precision_world_model.sh --scene VLNNewWorldCandidate
-  ./scripts/open_high_precision_world_model.sh --scene Assets/VLN/Scenes/VLNNewWorldCandidate.unity
+  ./scripts/open_high_precision_world_model.sh --scene mesa_topgear_mix
+  ./scripts/open_high_precision_world_model.sh mesa_topgear_mix
+  ./scripts/open_high_precision_world_model.sh --scene mesa_topgear_mix -logFile /tmp/vln_unity.log
 
-参数说明：
-  --scene mesa_topgear     打开 Mesa + Topgear 真实物理车场景。团队部署默认使用这一项。
-  --scene mesa_desert      打开 Mesa Desert 独立场景
-  --scene oasis_desert     打开 Oasis Desert 独立场景
-  --scene mesa_oasis       打开 Mesa+Oasis 融合场景
-  --scene mesa_topgear_vehicle_visual 打开 Mesa + Topgear 小车视觉增强候选场景，不改原 mesa_topgear
-  --scene meadow_forest    打开 Meadow Dynamic Nature 湖泊树林/草甸场景
-  --scene forest_lake      打开 ForestLake 湖边村庄/森林湖泊场景
-  --scene VLN*.unity       直接打开 Assets/VLN/Scenes 下自动注册的 VLN 世界场景
-
-自动注册命名规则：
-  Assets/VLN/Scenes/VLN*WorldCandidate.unity
-  Assets/VLN/Scenes/VLN*RouteCandidate.unity
-  Assets/VLN/Scenes/VLN*TopgearVehicleCandidate.unity
-  Assets/VLN/Scenes/VLN*VehicleVisualCandidate.unity
-  Assets/VLN/Scenes/VLNHighPrecisionDesertSandbox.unity
-
-兼容旧写法：first、second、stitched、first-topgear 仍可用。
-兼容拼写：--sence / -sence 也会按 --scene 处理。
-
-后面的参数会原样传给 Unity，例如：
-  ./scripts/open_high_precision_world_model.sh --scene forest_lake -batchmode -quit -logFile /tmp/forest_lake.log
+说明：
+  mesa_topgear_mix 是当前团队主线场景。
+  默认优先打开 UnityProjects/VLN_MesaTopgear_TeamRelease。
+  如需指定其他 Unity 工程，可设置 VLN_LARGE_ASSET_PROJECT。
 EOF
 }
 
-if [ $# -lt 1 ]; then
+if [[ $# -lt 1 || "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   usage
-  exit 2
-fi
-
-if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
-  usage
-  exit 0
+  exit $([[ $# -lt 1 ]] && echo 2 || echo 0)
 fi
 
 WORLD_ARG=""
 case "$1" in
   --scene|-scene|-s|--sence|-sence)
-    if [ $# -lt 2 ]; then
+    if [[ $# -lt 2 ]]; then
       echo "缺少场景名：$1 <scene_name>"
       usage
       exit 2
@@ -127,117 +51,60 @@ case "$1" in
     ;;
 esac
 
-WORLD_KEY="$(printf '%s' "$WORLD_ARG" | tr '[:upper:]' '[:lower:]')"
-
-case "$WORLD_KEY" in
-  first-topgear|first_topgear|mesa-topgear|mesa_topgear|mesa-vehicle|mesa_vehicle|topgear-mesa|topgear_mesa|车载mesa|第一套小车)
-    if [ "$PROJECT_DIR_EXPLICIT" -eq 0 ] && [ ! -d "$PROJECT_DIR" ] && [ -d "$TEAM_RELEASE_PROJECT_DIR" ]; then
-      PROJECT_DIR="$TEAM_RELEASE_PROJECT_DIR"
-    fi
-    ;;
-esac
-
-if [ ! -d "$PROJECT_DIR" ]; then
-  echo "未找到 Unity 工程：$PROJECT_DIR"
-  echo "团队部署请先解压 Mesa Topgear 发布包到：$TEAM_RELEASE_PROJECT_DIR"
-  echo "开发机如需打开大资产工程，请确认：$DEFAULT_PROJECT_DIR"
-  exit 1
-fi
-
-DIRECT_SCENE_ASSET=""
-case "$WORLD_KEY" in
-  first|1|mesa|mesa-desert|mesa_desert|pure-nature-mesa|pure_nature_mesa|第一套)
-    MODEL_ID="mesa"
-    LABEL="第一套 Mesa Desert 独立场景"
-    REQUIRED_SCENE="$PROJECT_DIR/Assets/BK/PureNature_MesaDesert/Scenes/Mesa_Demo.unity"
-    TARGET_SCENE="$PROJECT_DIR/Assets/VLN/Scenes/VLNMesaDesertRouteCandidate.unity"
-    METHOD="VLN.Editor.VlnPureNatureMesaDesertRouteCandidateBuilder.OpenCandidateForManualReview"
-    ;;
-  second|2|oasis|oasis-desert|oasis_desert|pure-nature-oasis|pure_nature_oasis|第二套)
-    MODEL_ID="oasis"
-    LABEL="第二套 Oasis Desert 独立场景"
-    REQUIRED_SCENE="$PROJECT_DIR/Assets/BK/PureNature_Oasis/Scenes/Scene_Oasis_Day.unity"
-    TARGET_SCENE="$PROJECT_DIR/Assets/VLN/Scenes/VLNOasisDesertRouteCandidate.unity"
-    METHOD="VLN.Editor.VlnPureNatureOasisDesertRouteCandidateBuilder.OpenCandidateForManualReview"
-    ;;
-  stitched|3|fusion|merged|mesa-oasis|mesa_oasis|stitched-scene|stitched_scene|融合版)
-    MODEL_ID="stitched"
-    LABEL="Mesa+Oasis 融合场景"
-    REQUIRED_SCENE="$PROJECT_DIR/Assets/BK/PureNature_Oasis/Scenes/Scene_Oasis_Day.unity"
-    TARGET_SCENE="$PROJECT_DIR/Assets/VLN/Scenes/VLNMesaOasisStitchedRouteCandidate.unity"
-    METHOD="VLN.Editor.VlnPureNatureMesaOasisStitchBuilder.OpenStitchedForManualReview"
-    ;;
-  first-topgear|first_topgear|mesa-topgear|mesa_topgear|mesa-vehicle|mesa_vehicle|topgear-mesa|topgear_mesa|车载mesa|第一套小车)
-    MODEL_ID="mesa_topgear"
-    LABEL="第一套 Mesa Desert + Topgear 真实物理车候选场景"
-    REQUIRED_SCENE="$PROJECT_DIR/Assets/VLN/Scenes/VLNMesaDesertRouteCandidate.unity"
-    TARGET_SCENE="$PROJECT_DIR/Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity"
-    METHOD="VLN.Editor.VlnMesaTopgearVehicleCandidateBuilder.OpenCandidateForManualReview"
-    if [ "$PROJECT_DIR" = "$TEAM_RELEASE_PROJECT_DIR" ]; then
-      LABEL="Mesa Topgear 团队发布场景"
-      REQUIRED_SCENE="$TARGET_SCENE"
-      METHOD="VLN.Editor.VlnWorldModelManualSaveWindow.OpenRegisteredSceneFromCommandLine"
-      DIRECT_SCENE_ASSET="Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity"
-    fi
-    ;;
-  mesa-topgear-vehicle-visual|mesa_topgear_vehicle_visual|topgear-vehicle-visual|topgear_vehicle_visual|vehicle-visual|vehicle_visual|小车视觉增强)
-    MODEL_ID="mesa_topgear_vehicle_visual"
-    LABEL="Mesa Desert + Topgear 小车视觉增强候选场景"
-    REQUIRED_SCENE="$PROJECT_DIR/Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity"
-    TARGET_SCENE="$PROJECT_DIR/Assets/VLN/Scenes/VLNMesaTopgearVehicleVisualCandidate.unity"
-    METHOD="VLN.Editor.VlnMesaTopgearVehicleVisualEnhancer.OpenCandidateForManualReview"
-    ;;
-  meadow|meadow-forest|meadow_forest|meadow-dynamic-nature|meadow_dynamic_nature|dynamic-nature|dynamic_nature|lake-forest|lake_forest)
-    MODEL_ID="meadow_forest"
-    LABEL="Meadow Dynamic Nature 湖泊树林/草甸场景"
-    REQUIRED_SCENE="$PROJECT_DIR/Assets/NatureManufacture Assets/Meadow Environment Dynamic Nature/Demo Scenes/Unity Standard Demo Scene.unity"
-    TARGET_SCENE="$PROJECT_DIR/Assets/VLN/Scenes/VLNMeadowDynamicNatureWorldCandidate.unity"
-    METHOD="VLN.Editor.VlnImportedWorldSceneRegistry.OpenMeadowForManualReview"
-    ;;
-  forestlake|forest-lake|forest_lake|lake-village|lake_village|village-lake|village_lake)
-    MODEL_ID="forest_lake"
-    LABEL="ForestLake 湖边村庄/森林湖泊场景"
-    REQUIRED_SCENE="$PROJECT_DIR/Assets/ForestLake/Maps/Demo_01.unity"
-    TARGET_SCENE="$PROJECT_DIR/Assets/VLN/Scenes/VLNForestLakeWorldCandidate.unity"
-    METHOD="VLN.Editor.VlnImportedWorldSceneRegistry.OpenForestLakeForManualReview"
-    ;;
-  *)
-    DIRECT_SCENE_ASSET="$(resolve_direct_scene_asset "$WORLD_ARG")"
-    if [ -z "$DIRECT_SCENE_ASSET" ]; then
-      echo "未知世界模型参数：$WORLD_ARG"
-      echo "如果这是新导入世界，请先把派生场景保存为 Assets/VLN/Scenes/VLN*WorldCandidate.unity / VLN*RouteCandidate.unity / VLN*TopgearVehicleCandidate.unity。"
-      usage
-      exit 2
-    fi
-    MODEL_ID="direct_scene"
-    LABEL="自动注册 VLN 世界场景：$DIRECT_SCENE_ASSET"
-    REQUIRED_SCENE="$PROJECT_DIR/$DIRECT_SCENE_ASSET"
-    TARGET_SCENE="$PROJECT_DIR/$DIRECT_SCENE_ASSET"
-    METHOD="VLN.Editor.VlnWorldModelManualSaveWindow.OpenRegisteredSceneFromCommandLine"
-    ;;
-esac
-
-if [ ! -f "$REQUIRED_SCENE" ]; then
-  echo "缺少源场景：$REQUIRED_SCENE"
-  echo "请确认对应 Pure Nature 2 资产包已经导入大资产副本工程。"
-  exit 1
-fi
-
-echo "准备打开：$LABEL"
-echo "目标场景：$TARGET_SCENE"
-
-if [ "$MODEL_ID" = "stitched" ]; then
-  if [ -f "$VLN_ROOT/config/world_model_current_save.json" ]; then
-    echo "检测到手工保存世界记录：$VLN_ROOT/config/world_model_current_save.json"
-    echo "融合版会直接加载已保存场景，不自动重建覆盖。"
+PROJECT_DIR="${VLN_LARGE_ASSET_PROJECT:-}"
+if [[ -z "$PROJECT_DIR" ]]; then
+  if [[ -d "$RELEASE_PROJECT_DIR" ]]; then
+    PROJECT_DIR="$RELEASE_PROJECT_DIR"
+  elif [[ -d "$DEV_PROJECT_DIR" ]]; then
+    PROJECT_DIR="$DEV_PROJECT_DIR"
+  else
+    PROJECT_DIR="$RELEASE_PROJECT_DIR"
   fi
 fi
 
-UNITY_ARGS=(-executeMethod "$METHOD")
-if [ -n "$DIRECT_SCENE_ASSET" ]; then
-  UNITY_ARGS+=(--vln-open-scene "$DIRECT_SCENE_ASSET")
+if [[ ! -d "$PROJECT_DIR" ]]; then
+  echo "未找到 Unity 工程：$PROJECT_DIR"
+  echo "请先按 docs/team_environment_setup.md 解压 Mesa Topgear Mix 发布资产包。"
+  exit 1
 fi
 
+WORLD_KEY="$(printf '%s' "$WORLD_ARG" | tr '[:upper:]' '[:lower:]')"
+case "$WORLD_KEY" in
+  mesa_topgear_mix|mesa-topgear-mix|mesa_mix|mesa-mix|topgear_mix|topgear-mix|mix|团队混合版|混合荒漠)
+    DIRECT_SCENE_ASSET="$TARGET_SCENE_ASSET"
+    ;;
+  Assets/VLN/Scenes/VLN*.unity|assets/vln/scenes/vln*.unity)
+    DIRECT_SCENE_ASSET="$WORLD_ARG"
+    ;;
+  *)
+    echo "未知世界模型参数：$WORLD_ARG"
+    echo "当前团队交付入口为：--scene mesa_topgear_mix"
+    exit 2
+    ;;
+esac
+
+TARGET_SCENE="$PROJECT_DIR/$DIRECT_SCENE_ASSET"
+if [[ ! -f "$TARGET_SCENE" ]]; then
+  echo "缺少目标场景：$TARGET_SCENE"
+  echo "请确认发布资产包已经完整解压。"
+  exit 1
+fi
+
+same_project_pids="$(ps -eo pid=,args= | awk -v unity="$UNITY_EDITOR" -v project="-projectPath $PROJECT_DIR" -v self="$$" '
+  index($0, unity) && index($0, project) && $1 != self && $0 !~ /awk -v unity=/ { print $1 }
+' | tr '\n' ' ')"
+if [[ -n "$same_project_pids" ]]; then
+  echo "检测到同一 Unity 工程已有实例正在运行，已停止继续启动。"
+  echo "工程：$PROJECT_DIR"
+  echo "进程：$same_project_pids"
+  ps -fp $same_project_pids 2>/dev/null || true
+  exit 3
+fi
+
+echo "准备打开：Mesa Topgear Mix 主线场景"
+echo "目标场景：$TARGET_SCENE"
+
 VLN_LARGE_ASSET_PROJECT="$PROJECT_DIR" exec "$VLN_ROOT/scripts/open_unity_large_asset_sandbox_project.sh" \
-  "${UNITY_ARGS[@]}" \
+  -executeMethod VLN.Editor.VlnWorldModelManualSaveWindow.OpenRegisteredSceneFromCommandLine \
+  --vln-open-scene "$DIRECT_SCENE_ASSET" \
   "$@"

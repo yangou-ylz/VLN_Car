@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VLN_ROOT="${VLN_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 RELEASE_PROJECT="${VLN_MESA_TOPGEAR_RELEASE_PROJECT:-$VLN_ROOT/UnityProjects/VLN_MesaTopgear_TeamRelease}"
 OUTPUT_DIR="${VLN_TEAM_RELEASE_OUTPUT_DIR:-$VLN_ROOT/VLN_ASSETS_CACHE/team_release_packages}"
-PACKAGE_BASENAME="VLN_MesaTopgear_TeamRelease_$(date +%Y%m%d_%H%M%S)"
+PACKAGE_BASENAME="VLN_MesaTopgearMix_TeamRelease_$(date +%Y%m%d_%H%M%S)"
 SPLIT_SIZE=""
 
 usage() {
@@ -79,7 +79,7 @@ package=$archive
 sha256_file=$sha_file
 release_project=$RELEASE_PROJECT
 generated_at=$(date -Iseconds)
-open_command=./scripts/open_high_precision_world_model.sh --scene mesa_topgear
+open_command=./scripts/open_high_precision_world_model.sh --scene mesa_topgear_mix
 check_command=./scripts/check_mesa_topgear_team_release_project.sh
 EOF
 

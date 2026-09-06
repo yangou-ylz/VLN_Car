@@ -8,6 +8,8 @@ press/release events and publishes Twist directly through rclpy.
 from __future__ import annotations
 
 import argparse
+import csv
+import os
 import signal
 import sys
 import time
@@ -21,12 +23,14 @@ from geometry_msgs.msg import Twist
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Local keyboard /vln/cmd_vel controller')
     parser.add_argument('--cmd-topic', default='/vln/cmd_vel')
-    parser.add_argument('--publish-rate', type=float, default=100.0)
+    parser.add_argument('--publish-rate', type=float, default=50.0)
     parser.add_argument('--linear-speed', type=float, default=1.20)
     parser.add_argument('--angular-speed', type=float, default=0.55)
     parser.add_argument('--max-linear-speed', type=float, default=5.00)
     parser.add_argument('--max-angular-speed', type=float, default=1.20)
     parser.add_argument('--release-delay-ms', type=int, default=90, help='Delay used to filter X11 key autorepeat release events')
+    parser.add_argument('--log-file', default='', help='CSV path for publish timing diagnostics')
+    parser.add_argument('--no-log', action='store_true', help='Disable publish timing diagnostics')
     return parser.parse_args()
 
 
@@ -43,6 +47,10 @@ class LocalKeyboardCmdVelApp:
         self.publish_count = 0
         self.last_publish_monotonic: float | None = None
         self.closed = False
+        self.log_fp = None
+        self.log_writer: csv.writer | None = None
+        self.gaps_ms: list[float] = []
+        self.start_monotonic = time.monotonic()
 
         self.linear_var = tk.DoubleVar(value=float(args.linear_speed))
         self.angular_var = tk.DoubleVar(value=float(args.angular_speed))
@@ -53,6 +61,24 @@ class LocalKeyboardCmdVelApp:
 
         self.build_ui()
         self.bind_keys()
+        self.open_log_file()
+
+    def open_log_file(self) -> None:
+        if self.args.no_log or not self.args.log_file:
+            return
+        os.makedirs(os.path.dirname(os.path.abspath(self.args.log_file)), exist_ok=True)
+        self.log_fp = open(self.args.log_file, 'w', newline='', encoding='utf-8')
+        self.log_writer = csv.writer(self.log_fp)
+        self.log_writer.writerow([
+            'elapsed_s',
+            'publish_count',
+            'gap_ms',
+            'linear_x',
+            'angular_z',
+            'active_keys',
+            'topic',
+        ])
+        self.log_fp.flush()
 
     def build_ui(self) -> None:
         self.root.title('VLN 本地键盘速度控制')
@@ -172,7 +198,26 @@ class LocalKeyboardCmdVelApp:
         now = time.monotonic()
         gap = 0.0 if self.last_publish_monotonic is None else now - self.last_publish_monotonic
         self.last_publish_monotonic = now
+        if self.publish_count > 1:
+            self.gaps_ms.append(gap * 1000.0)
+        self.write_publish_log(now, gap * 1000.0, linear, angular)
         self.publish_var.set(f'publish: {self.publish_count}，last_gap={gap * 1000.0:.1f} ms，topic={self.args.cmd_topic}')
+
+    def write_publish_log(self, now: float, gap_ms: float, linear: float, angular: float) -> None:
+        if self.log_writer is None:
+            return
+        active_keys = '+'.join(sorted(self.pressed)) if self.pressed else ''
+        self.log_writer.writerow([
+            f'{now - self.start_monotonic:.6f}',
+            self.publish_count,
+            f'{gap_ms:.3f}',
+            f'{linear:.6f}',
+            f'{angular:.6f}',
+            active_keys,
+            self.args.cmd_topic,
+        ])
+        if self.publish_count % 20 == 0 and self.log_fp is not None:
+            self.log_fp.flush()
 
     def clear_keys_and_stop(self) -> None:
         self.pressed.clear()
@@ -206,7 +251,35 @@ class LocalKeyboardCmdVelApp:
         for _ in range(20):
             self.publish(0.0, 0.0)
             time.sleep(0.005)
+        self.write_summary()
         self.root.destroy()
+
+    def write_summary(self) -> None:
+        if self.log_fp is None:
+            return
+        gaps = sorted(self.gaps_ms)
+        elapsed = max(1e-6, time.monotonic() - self.start_monotonic)
+
+        def percentile(p: float) -> float:
+            if not gaps:
+                return 0.0
+            index = min(len(gaps) - 1, max(0, int(round((len(gaps) - 1) * p))))
+            return gaps[index]
+
+        summary_path = self.args.log_file + '.summary.txt'
+        with open(summary_path, 'w', encoding='utf-8') as fp:
+            fp.write(f'publish_count={self.publish_count}\n')
+            fp.write(f'elapsed_s={elapsed:.3f}\n')
+            fp.write(f'average_publish_hz={self.publish_count / elapsed:.3f}\n')
+            fp.write(f'gap_avg_ms={(sum(gaps) / len(gaps) if gaps else 0.0):.3f}\n')
+            fp.write(f'gap_p95_ms={percentile(0.95):.3f}\n')
+            fp.write(f'gap_p99_ms={percentile(0.99):.3f}\n')
+            fp.write(f'gap_max_ms={(max(gaps) if gaps else 0.0):.3f}\n')
+            fp.write(f'cmd_topic={self.args.cmd_topic}\n')
+        self.log_fp.flush()
+        self.log_fp.close()
+        self.log_fp = None
+        self.log_writer = None
 
 
 def main() -> int:
@@ -226,6 +299,7 @@ def main() -> int:
     try:
         root.mainloop()
     finally:
+        app.write_summary()
         try:
             node.destroy_node()
         finally:

@@ -58,7 +58,9 @@ max_bytes=$((50 * 1024 * 1024))
 
 while IFS= read -r -d '' path; do
   case "$path" in
-    AGENTS.md|CURRENT_STATE.md|PROJECT_MEMORY.md|env.md|workflow.md|user.md|study.md|logs/*|docs/asset_*|docs/*_workflow.md|docs/*_smoke_test.md|docs/workflow_research.md|docs/reference_sources.md|docs/hardware_assessment.md|docs/manual_visualization_guide.md|docs/technology_route.md|docs/vehicle_asset_candidates.md|scripts/run_*|scripts/check_high_precision_*|scripts/check_manual_*|scripts/check_standardized_*|scripts/check_unity_*|scripts/check_vln_*|scripts/check_world_model_*|scripts/analyze_*|scripts/inspect_*|scripts/rank_*|scripts/record_*|scripts/replay_*|scripts/report_*|scripts/scan_*|scripts/download_*|scripts/fetch_*|scripts/stage_*|scripts/rebuild_*|scripts/*smoke*|VLN_ASSETS_CACHE/*|VLN_REFERENCE_LIBRARY/*|VLN_BAGS/*|VLN_RECORDINGS/*|.runtime/*|UnityEditors/*|unity_ros2_ws/*|UnityProjects/VLN_Offroad/*|UnityProjects/VLN_Offroad_LargeAssetSandbox/*|UnityProjects/*/Library/*|UnityProjects/*/Temp/*|UnityProjects/*/Logs/*|*.unitypackage|*.assetpackage|*.bag|*.db3|*.mcap|*.pcd|*.ply|*.las|*.laz|*.tar.xz|Unity-*.tar.xz|config/world_model_current_save.json)
+    scripts/run_mesa_topgear_pinhole_rgb_sensor_rate_smoke_test.sh|scripts/check_vln_lidar_ground_returns.sh)
+      ;;
+    AGENTS.md|CURRENT_STATE.md|PROJECT_MEMORY.md|env.md|workflow.md|user.md|study.md|logs/*|docs/asset_*|docs/*_workflow.md|docs/*_smoke_test.md|docs/workflow_research.md|docs/reference_sources.md|docs/hardware_assessment.md|docs/manual_visualization_guide.md|docs/technology_route.md|docs/vehicle_asset_candidates.md|lightnav-0/*|ROS2|ROS2/*|技术框架*|scripts/run_*|scripts/check_high_precision_*|scripts/check_manual_*|scripts/check_standardized_*|scripts/check_unity_*|scripts/check_vln_*|scripts/check_world_model_*|scripts/analyze_*|scripts/inspect_*|scripts/rank_*|scripts/record_*|scripts/replay_*|scripts/report_*|scripts/scan_*|scripts/download_*|scripts/fetch_*|scripts/stage_*|scripts/rebuild_*|scripts/*smoke*|VLN_ASSETS_CACHE/*|VLN_REFERENCE_LIBRARY/*|VLN_BAGS/*|VLN_RECORDINGS/*|.runtime/*|UnityEditors/*|unity_ros2_ws/*|UnityProjects/VLN_Offroad/*|UnityProjects/VLN_Offroad_LargeAssetSandbox/*|UnityProjects/*/Library/*|UnityProjects/*/Temp/*|UnityProjects/*/Logs/*|*.unitypackage|*.assetpackage|*.bag|*.db3|*.mcap|*.pcd|*.ply|*.las|*.laz|*.tar.xz|Unity-*.tar.xz|config/world_model_current_save.json)
       blocked+=("$path")
       ;;
   esac
@@ -116,9 +118,15 @@ required_scripts=(
   scripts/open_unity_large_asset_sandbox_project.sh
   scripts/start_mesa_topgear_local_keyboard_control.sh
   scripts/local_keyboard_cmd_vel_control.py
+  scripts/run_mesa_topgear_pinhole_rgb_sensor_rate_smoke_test.sh
+  scripts/ros2_capture_pinhole_rgb_images.py
+  scripts/ros2_capture_lidar_ground_returns.py
+  scripts/ros2_measure_topic_frequency.py
   scripts/view_all_camera_images.sh
   scripts/view_vln_vehicle_rviz.sh
+  scripts/check_vln_lidar_ground_returns.sh
   scripts/check_repo_release_readiness.sh
+  scripts/audit_mesa_topgear_team_release_assets.py
 )
 
 missing_scripts=()
@@ -135,10 +143,10 @@ else
   printf '  %s\n' "${missing_scripts[@]}"
 fi
 
-if [[ -f docs/team_environment_setup.md ]] && grep -q 'mesa_topgear' docs/team_environment_setup.md && grep -q 'VLN_MesaTopgear_TeamRelease' docs/team_environment_setup.md; then
-  pass "Mesa Topgear 团队部署文档存在。"
+if [[ -f docs/team_environment_setup.md ]] && grep -q 'mesa_topgear_mix' docs/team_environment_setup.md && grep -q 'VLN_MesaTopgear_TeamRelease' docs/team_environment_setup.md; then
+  pass "Mesa Topgear Mix 团队部署文档存在。"
 else
-  fail "缺少 Mesa Topgear 团队部署文档，或文档未指向当前主线交付工程。"
+  fail "缺少 Mesa Topgear Mix 团队部署文档，或文档未指向当前主线交付工程。"
 fi
 
 required_configs=(

@@ -119,6 +119,7 @@ UnityProjects/VLN_Offroad/_ManualRecoveryLogs/
 config/topgear_sensor_scene_locked/
 config/pose_backups/
 config/world_model_current_save.json
+config/castle_valley_current_scene_group_user_locked.json
 config/mesa_desert_route_candidate.json
 config/mesa_oasis_stitched_route_candidate.json
 config/mesa_topgear_vehicle_visual_candidate.json
@@ -235,7 +236,13 @@ scripts/*
 !scripts/open_unity_large_asset_sandbox_project.sh
 !scripts/package_mesa_topgear_team_release_project.sh
 !scripts/prepare_mesa_topgear_team_release_project.sh
+!scripts/audit_mesa_topgear_team_release_assets.py
+!scripts/run_mesa_topgear_pinhole_rgb_sensor_rate_smoke_test.sh
+!scripts/ros2_capture_lidar_ground_returns.py
+!scripts/ros2_capture_pinhole_rgb_images.py
+!scripts/ros2_measure_topic_frequency.py
 !scripts/setup_ros_tcp_endpoint_workspace.sh
+!scripts/check_vln_lidar_ground_returns.sh
 !scripts/start_mesa_topgear_local_keyboard_control.sh
 !scripts/start_ros_tcp_endpoint.sh
 !scripts/view_all_camera_images.sh

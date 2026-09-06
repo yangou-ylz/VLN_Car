@@ -1,6 +1,6 @@
-# VLN 仿真环境部署与运行手册
+# VLN Mesa Topgear Mix 仿真环境部署与运行手册
 
-版本日期：2026-08-27
+版本日期：2026-09-06
 
 ## 1. 环境要求
 
@@ -44,18 +44,18 @@ cd VLN
 
 ### 2.2 解压仿真资产包
 
-将 `VLN_MesaTopgear_TeamRelease_*.tar.zst` 放到项目根目录，然后执行：
+将 `VLN_MesaTopgearMix_TeamRelease_*.tar.zst` 放到项目根目录，然后执行：
 
 ```bash
 mkdir -p UnityProjects
-tar --zstd -xf VLN_MesaTopgear_TeamRelease_*.tar.zst -C UnityProjects
+tar --zstd -xf VLN_MesaTopgearMix_TeamRelease_*.tar.zst -C UnityProjects
 ```
 
 如果资产包以分卷形式提供，先合并再解压：
 
 ```bash
-cat VLN_MesaTopgear_TeamRelease_*.tar.zst.part.* > VLN_MesaTopgear_TeamRelease.tar.zst
-tar --zstd -xf VLN_MesaTopgear_TeamRelease.tar.zst -C UnityProjects
+cat VLN_MesaTopgearMix_TeamRelease_*.tar.zst.part.* > VLN_MesaTopgearMix_TeamRelease.tar.zst
+tar --zstd -xf VLN_MesaTopgearMix_TeamRelease.tar.zst -C UnityProjects
 ```
 
 解压完成后，目录应为：
@@ -100,13 +100,13 @@ VLN_ROS_TCP_ENDPOINT_WORKSPACE_READY
 
 ```bash
 cd /path/to/VLN
-./scripts/open_high_precision_world_model.sh --scene mesa_topgear
+./scripts/open_high_precision_world_model.sh --scene mesa_topgear_mix
 ```
 
 Unity 打开后，确认当前场景为：
 
 ```text
-Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity
+Assets/VLN/Scenes/VLNMesaTopgearMixVehicleScale4p0WorldCandidate.unity
 ```
 
 ### 4.2 终端 B：启动 ROS-TCP-Endpoint
@@ -125,6 +125,8 @@ cd /path/to/VLN
 ./scripts/start_mesa_topgear_local_keyboard_control.sh
 ```
 
+也可以在 Unity 顶部菜单执行 `VLN -> 手工演示 -> 启动本地键盘速度控制`。
+
 键盘控制：
 
 | 按键 | 功能 |
@@ -140,7 +142,7 @@ cd /path/to/VLN
 
 Unity 已点击 Play 且 ROS-TCP-Endpoint 正在运行后，再打开传感器显示工具。
 
-### 5.1 四路鱼眼相机
+### 5.1 四路宽屏普通 RGB 相机
 
 ```bash
 cd /path/to/VLN
@@ -156,6 +158,8 @@ cd /path/to/VLN
 /vln/right/image_raw
 ```
 
+相机配置：普通 pinhole RGB，120° FOV，960x540，目标发布频率 17Hz。
+
 ### 5.2 LiDAR 点云
 
 ```bash
@@ -168,6 +172,8 @@ LiDAR topic：
 ```text
 /vln/lidar/points
 ```
+
+默认 RViz 配置使用 `map` 作为 Fixed Frame、`/tf` 作为车体坐标来源，点云颜色为亮黄，点大小为 2px，Decay Time 为 0.35 秒。LiDAR 配置为 16 线、18Hz、90m 最大距离、0.15m 近距；数据根保持水平 360°，使用 `VLN_VLP16_GroundBiased_Neg45_Pos5_360` 下扫增强线束，不采用整机下俯安装。车辆自身碰撞体位于 `VLN_LiDARIgnoreSelf` 层，LiDAR 只扫描 `Default(0)+Terrain(7)`，因此能减少近车地面盲区，同时不把车体自身扫进点云。
 
 ## 6. 运行检查
 
@@ -185,10 +191,28 @@ ros2 topic list -t | grep /vln
 ros2 topic hz /vln/front/image_raw
 ```
 
+标准验收脚本：
+
+```bash
+./scripts/run_mesa_topgear_pinhole_rgb_sensor_rate_smoke_test.sh
+```
+
+看到以下输出表示四路宽屏普通 RGB 相机、CameraInfo 和 LiDAR 发布链路通过：
+
+```text
+VLN_MESA_TOPGEAR_PINHOLE_RGB_SENSOR_RATE_SMOKE_TEST_PASS
+```
+
 ### 6.3 检查点云频率
 
 ```bash
 ros2 topic hz /vln/lidar/points
+```
+
+如需确认点云中是否包含近地回波和近车距离环带：
+
+```bash
+./scripts/check_vln_lidar_ground_returns.sh
 ```
 
 ### 6.4 检查控制指令

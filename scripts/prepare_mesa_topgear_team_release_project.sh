@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 
-# Build a clean team handoff Unity project for the accepted Mesa Topgear path.
-# It copies only the Mesa desert world, VLN vehicle/sensor assets, Packages,
-# ProjectSettings, and Resources. Other imported worlds remain excluded.
+# Build a clean team handoff Unity project for the accepted Mesa Topgear Mix path.
+# It copies the approved scene dependency graph plus the small VLN runtime/editor tooling.
 
 set -euo pipefail
 
@@ -11,7 +10,8 @@ VLN_ROOT="${VLN_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 SOURCE_PROJECT="${VLN_LARGE_ASSET_PROJECT:-$VLN_ROOT/UnityProjects/VLN_Offroad_LargeAssetSandbox}"
 RELEASE_PROJECT="${VLN_MESA_TOPGEAR_RELEASE_PROJECT:-$VLN_ROOT/UnityProjects/VLN_MesaTopgear_TeamRelease}"
 BACKUP_ROOT="$VLN_ROOT/UnityProjects/_TeamReleaseBackups"
-TARGET_SCENE="Assets/VLN/Scenes/VLNMesaDesertTopgearVehicleCandidate.unity"
+TARGET_SCENE="Assets/VLN/Scenes/VLNMesaTopgearMixVehicleScale4p0WorldCandidate.unity"
+TEAM_SCENE_KEY="mesa_topgear_mix"
 
 usage() {
   cat <<'EOF'
@@ -23,16 +23,8 @@ usage() {
   从已验证的大资产副本工程中生成干净团队发布版 Unity 工程：
   UnityProjects/VLN_MesaTopgear_TeamRelease
 
-发布版只包含：
-  - Pure Nature Mesa Desert 资产
-  - Pure_Common 共享 shader/script
-  - VLN 小车、传感器、控制、配置脚本与场景
-  - Unity Packages、ProjectSettings、Resources
-
-发布版不包含：
-  - Oasis / Meadow / ForestLake
-  - Unity Library / Temp / Logs / UserSettings
-  - 原始 .unitypackage、rosbag、截图缓存
+发布版用于打开：
+  ./scripts/open_high_precision_world_model.sh --scene mesa_topgear_mix
 EOF
 }
 
@@ -47,25 +39,19 @@ if [[ "${1:-}" != "" && "${1:-}" != "--refresh" ]]; then
   exit 2
 fi
 
-if ! command -v rsync >/dev/null 2>&1; then
-  echo "缺少 rsync，不能安全生成团队发布工程。"
-  exit 1
-fi
-
 required_paths=(
-  "$SOURCE_PROJECT/Assets/BK/PureNature_MesaDesert"
-  "$SOURCE_PROJECT/Assets/BK/Pure_Common"
-  "$SOURCE_PROJECT/Assets/VLN"
-  "$SOURCE_PROJECT/Assets/Resources"
   "$SOURCE_PROJECT/Packages"
   "$SOURCE_PROJECT/ProjectSettings"
   "$SOURCE_PROJECT/$TARGET_SCENE"
+  "$SOURCE_PROJECT/Assets/VLN/Editor"
+  "$SOURCE_PROJECT/Assets/VLN/Scripts"
+  "$VLN_ROOT/scripts/audit_mesa_topgear_team_release_assets.py"
 )
 
 for path in "${required_paths[@]}"; do
   if [[ ! -e "$path" ]]; then
     echo "缺少主线发布所需路径：$path"
-    echo "请先确认 mesa_topgear 已在大资产副本工程中验收通过。"
+    echo "请先确认 mesa_topgear_mix 已在大资产副本工程中验收通过。"
     exit 1
   fi
 done
@@ -84,53 +70,26 @@ if [[ -e "$RELEASE_PROJECT" ]]; then
 fi
 
 mkdir -p "$RELEASE_PROJECT/Assets/BK"
+cp -a "$SOURCE_PROJECT/Packages" "$SOURCE_PROJECT/ProjectSettings" "$RELEASE_PROJECT/"
 
-rsync -a \
-  --exclude='Library/' \
-  --exclude='Temp/' \
-  --exclude='Obj/' \
-  --exclude='Logs/' \
-  --exclude='Build/' \
-  --exclude='Builds/' \
-  --exclude='UserSettings/' \
-  --exclude='Recordings/' \
-  "$SOURCE_PROJECT/Packages" \
-  "$SOURCE_PROJECT/ProjectSettings" \
-  "$RELEASE_PROJECT/"
-
-if [[ -f "$SOURCE_PROJECT/Assets/BK.meta" ]]; then
-  rsync -a "$SOURCE_PROJECT/Assets/BK.meta" "$RELEASE_PROJECT/Assets/"
-fi
-
-rsync -a "$SOURCE_PROJECT/Assets/BK/PureNature_MesaDesert" "$RELEASE_PROJECT/Assets/BK/"
-if [[ -f "$SOURCE_PROJECT/Assets/BK/PureNature_MesaDesert.meta" ]]; then
-  rsync -a "$SOURCE_PROJECT/Assets/BK/PureNature_MesaDesert.meta" "$RELEASE_PROJECT/Assets/BK/"
-fi
-rsync -a "$SOURCE_PROJECT/Assets/BK/Pure_Common" "$RELEASE_PROJECT/Assets/BK/"
-if [[ -f "$SOURCE_PROJECT/Assets/BK/Pure_Common.meta" ]]; then
-  rsync -a "$SOURCE_PROJECT/Assets/BK/Pure_Common.meta" "$RELEASE_PROJECT/Assets/BK/"
-fi
-
-rsync -a "$SOURCE_PROJECT/Assets/VLN" "$RELEASE_PROJECT/Assets/"
-if [[ -f "$SOURCE_PROJECT/Assets/VLN.meta" ]]; then
-  rsync -a "$SOURCE_PROJECT/Assets/VLN.meta" "$RELEASE_PROJECT/Assets/"
-fi
+ASSET_AUDIT_REPORT="$VLN_ROOT/.runtime/release_asset_audit/mesa_topgear_mix_prepare_$(date +%Y%m%d_%H%M%S).json"
+python3 "$VLN_ROOT/scripts/audit_mesa_topgear_team_release_assets.py" \
+  --source-project "$SOURCE_PROJECT" \
+  --scene "$TARGET_SCENE" \
+  --report "$ASSET_AUDIT_REPORT" \
+  --copy-to "$RELEASE_PROJECT"
 
 if [[ -d "$RELEASE_PROJECT/Assets/VLN/Scenes" ]]; then
-  find "$RELEASE_PROJECT/Assets/VLN/Scenes" -maxdepth 1 -type f \
-    \( -name '*.unity' -o -name '*.unity.meta' \) \
-    ! -name 'VLNMesaDesertTopgearVehicleCandidate.unity' \
-    ! -name 'VLNMesaDesertTopgearVehicleCandidate.unity.meta' \
-    -delete
-fi
-
-rsync -a "$SOURCE_PROJECT/Assets/Resources" "$RELEASE_PROJECT/Assets/"
-if [[ -f "$SOURCE_PROJECT/Assets/Resources.meta" ]]; then
-  rsync -a "$SOURCE_PROJECT/Assets/Resources.meta" "$RELEASE_PROJECT/Assets/"
+  unexpected_scene_count=$(find "$RELEASE_PROJECT/Assets/VLN/Scenes" -maxdepth 1 -type f -name '*.unity' ! -name 'VLNMesaTopgearMixVehicleScale4p0WorldCandidate.unity' | wc -l)
+  if [[ "$unexpected_scene_count" != "0" ]]; then
+    echo "依赖复制后发现额外场景文件，拒绝继续："
+    find "$RELEASE_PROJECT/Assets/VLN/Scenes" -maxdepth 1 -type f -name '*.unity' ! -name 'VLNMesaTopgearMixVehicleScale4p0WorldCandidate.unity' | sort
+    exit 1
+  fi
 fi
 
 cat > "$RELEASE_PROJECT/VLN_MESA_TOPGEAR_TEAM_RELEASE.md" <<EOF
-# VLN Mesa Topgear Team Release
+# VLN Mesa Topgear Mix Team Release
 
 Generated at: $(date -Iseconds)
 
@@ -143,7 +102,7 @@ $TARGET_SCENE
 Open from repository root:
 
 \`\`\`bash
-./scripts/open_high_precision_world_model.sh --scene mesa_topgear
+./scripts/open_high_precision_world_model.sh --scene mesa_topgear_mix
 \`\`\`
 
 This folder is a local/team asset deliverable. Do not commit it to normal Git history.
@@ -154,6 +113,7 @@ from pathlib import Path
 import hashlib, json, os, time
 root = Path(r"$RELEASE_PROJECT")
 target_scene = root / r"$TARGET_SCENE"
+manifest_path = root / "VLN_MESA_TOPGEAR_TEAM_RELEASE_MANIFEST.json"
 def file_count_size(path: Path):
     count = 0
     size = 0
@@ -163,27 +123,24 @@ def file_count_size(path: Path):
             size += file.stat().st_size
     return count, size
 count, size = file_count_size(root)
-manifest = {
-    "schema": "vln_mesa_topgear_team_release_v1",
+if manifest_path.exists():
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+else:
+    manifest = {"schema": "vln_mesa_topgear_mix_team_release_manifest_v2"}
+manifest.update({
     "generated_at_unix": int(time.time()),
     "source_project": r"$SOURCE_PROJECT",
     "release_project": r"$RELEASE_PROJECT",
     "target_scene": r"$TARGET_SCENE",
-    "file_count": count,
-    "size_bytes": size,
+    "release_file_count": count,
+    "release_size_bytes": size,
     "target_scene_size_bytes": target_scene.stat().st_size,
     "target_scene_sha256": hashlib.sha256(target_scene.read_bytes()).hexdigest(),
-    "included_asset_roots": [
-        "Assets/BK/PureNature_MesaDesert",
-        "Assets/BK/Pure_Common",
-        "Assets/VLN",
-        "Assets/Resources",
-        "Packages",
-        "ProjectSettings"
-    ],
-    "team_open_command": "./scripts/open_high_precision_world_model.sh --scene mesa_topgear"
-}
-(root / "VLN_MESA_TOPGEAR_TEAM_RELEASE_MANIFEST.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    "asset_audit_report": r"$ASSET_AUDIT_REPORT",
+    "copy_mode": "scene_guid_dependencies_plus_vln_runtime_tooling",
+    "team_open_command": "./scripts/open_high_precision_world_model.sh --scene $TEAM_SCENE_KEY"
+})
+manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 print("release_file_count=" + str(count))
 print("release_size_bytes=" + str(size))
 print("target_scene_sha256=" + manifest["target_scene_sha256"])
@@ -193,4 +150,4 @@ echo "VLN_MESA_TOPGEAR_TEAM_RELEASE_READY"
 echo "release_project=$RELEASE_PROJECT"
 echo "target_scene=$TARGET_SCENE"
 echo "next_check=$VLN_ROOT/scripts/check_mesa_topgear_team_release_project.sh"
-echo "next_open=$VLN_ROOT/scripts/open_high_precision_world_model.sh --scene mesa_topgear"
+echo "next_open=$VLN_ROOT/scripts/open_high_precision_world_model.sh --scene $TEAM_SCENE_KEY"
