@@ -1,6 +1,6 @@
 # VLN Mesa Topgear Mix 仿真环境部署与运行手册
 
-版本日期：2026-09-06
+版本日期：2026-09-07
 
 ## 1. 环境要求
 
@@ -31,6 +31,8 @@ Unity Editor 如果不在默认路径，请在终端中设置：
 export UNITY_EDITOR=/path/to/Unity/Editor/Unity
 ```
 
+Unity 工程版本固定为 `2022.3.62f1 LTS`。不要把资产目录导入到空 Unity 工程，也不要用其它 Unity 大版本重新升级工程；请按本文档解压完整发布工程后打开。
+
 ## 2. 获取项目文件
 
 项目由两部分组成：代码仓库和仿真资产包。
@@ -44,18 +46,18 @@ cd VLN
 
 ### 2.2 解压仿真资产包
 
-将 `VLN_MesaTopgearMix_TeamRelease_*.tar.zst` 放到项目根目录，然后执行：
+将 `VLN_MesaTopgearMix_TeamReleaseFullFidelity_*.tar.zst` 放到项目根目录，然后执行：
 
 ```bash
 mkdir -p UnityProjects
-tar --zstd -xf VLN_MesaTopgearMix_TeamRelease_*.tar.zst -C UnityProjects
+tar --zstd -xf VLN_MesaTopgearMix_TeamReleaseFullFidelity_*.tar.zst -C UnityProjects
 ```
 
 如果资产包以分卷形式提供，先合并再解压：
 
 ```bash
-cat VLN_MesaTopgearMix_TeamRelease_*.tar.zst.part.* > VLN_MesaTopgearMix_TeamRelease.tar.zst
-tar --zstd -xf VLN_MesaTopgearMix_TeamRelease.tar.zst -C UnityProjects
+cat VLN_MesaTopgearMix_TeamReleaseFullFidelity_*.tar.zst.part.* > VLN_MesaTopgearMix_TeamReleaseFullFidelity.tar.zst
+tar --zstd -xf VLN_MesaTopgearMix_TeamReleaseFullFidelity.tar.zst -C UnityProjects
 ```
 
 解压完成后，目录应为：
@@ -69,6 +71,7 @@ VLN/
 检查资产包：
 
 ```bash
+git pull
 ./scripts/check_mesa_topgear_team_release_project.sh
 ```
 
@@ -77,6 +80,8 @@ VLN/
 ```text
 VLN_MESA_TOPGEAR_TEAM_RELEASE_CHECK_OK
 ```
+
+如果 Unity 已经打开过工程，重新更换资产包时，关闭 Unity 后删除旧的 `UnityProjects/VLN_MesaTopgear_TeamRelease`，再解压新包。
 
 ## 3. 初始化 ROS-TCP-Endpoint
 
@@ -238,6 +243,14 @@ ls -l "$UNITY_EDITOR"
 export UNITY_EDITOR=/path/to/Unity/Editor/Unity
 ```
 
+如果检查脚本提示 Unity 版本不一致，确认工程版本文件：
+
+```bash
+cat UnityProjects/VLN_MesaTopgear_TeamRelease/ProjectSettings/ProjectVersion.txt
+```
+
+如果这里不是 `2022.3.62f1`，说明工程曾被其它 Unity 大版本打开或升级。关闭 Unity，重新使用 `2022.3.62f1 LTS` 打开发布工程。
+
 ### 7.2 找不到 Unity 工程
 
 确认资产包已经解压：
@@ -251,6 +264,7 @@ ls UnityProjects/VLN_MesaTopgear_TeamRelease
 ```bash
 ./scripts/check_mesa_topgear_team_release_project.sh
 ```
+
 
 ### 7.3 Endpoint 启动失败
 

@@ -2,6 +2,7 @@
 
 本项目提供 Unity-ROS2 仿真环境，用于运行 Mesa Topgear Mix 沙漠场景中的 Topgear 小车，并输出四路宽屏普通 RGB 120° FOV 相机、16 线 LiDAR、odom、TF 和 `/vln/cmd_vel` 控制接口。当前相机为 `960x540 @ 17Hz`，LiDAR 为 `18Hz / 90m / 57600` 点每帧，近距 `0.15m`；LiDAR 数据根保持水平 360°，通过下扫增强线束覆盖近车地面。
 
+
 ## 快速开始
 
 部署步骤见：[docs/team_environment_setup.md](docs/team_environment_setup.md)。
